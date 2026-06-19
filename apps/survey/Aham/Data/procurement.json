@@ -1,0 +1,1024 @@
+{
+  "department": "procurement",
+  "departmentName": "采购部",
+  "version": "1.0.0",
+  "lastUpdated": "2026-04-06",
+  "totalQuestions": 34,
+  "sections": {
+    "opening": "开场（部门概况+工作量画像）",
+    "process": "业务流程（按流程环节细分）",
+    "painpoint": "痛点与困难",
+    "expectation": "期望与想法",
+    "compliance": "体系与标准"
+  },
+  "questions": [
+    {
+      "id": "PUR_001",
+      "section": "opening",
+      "topic": "部门概况",
+      "question": "目前采购部有多少人？岗位是如何分工的？",
+      "type": "text",
+      "options": null,
+      "required": true,
+      "hints": [
+        "了解人员配比：采购员、跟单员、SQE等",
+        "关注人均管理供应商数量是否合理"
+      ],
+      "triggers": [
+        {
+          "condition": "采购人数 < 3",
+          "type": "warning",
+          "content": "采购团队规模较小，可能存在职责重叠、一人多岗的情况，需关注关键人离职风险和审批合规性",
+          "model": "岗位风险"
+        }
+      ],
+      "meceGroup": "组织概况",
+      "knowledgeRef": null,
+      "industrySpecific": false,
+      "order": 1
+    },
+    {
+      "id": "PUR_002",
+      "section": "opening",
+      "topic": "部门概况",
+      "question": "采购物料大致分为哪几类？各类占采购金额的比例如何？",
+      "type": "multi_choice",
+      "options": [
+        "原材料（钢材/铝材/塑料粒子等）",
+        "标准件/紧固件",
+        "定制件/外协件",
+        "辅料/包装材料",
+        "设备/模具/工装",
+        "MRO（维修备件/办公用品）"
+      ],
+      "required": true,
+      "hints": [
+        "物料分类决定采购策略差异",
+        "关注A类物料（占金额80%）的管理深度"
+      ],
+      "triggers": [],
+      "meceGroup": "组织概况",
+      "knowledgeRef": null,
+      "industrySpecific": true,
+      "order": 2
+    },
+    {
+      "id": "PUR_003",
+      "section": "opening",
+      "topic": "部门概况",
+      "question": "目前在管的合格供应商有多少家？活跃供应商（近半年有交易）占比大约多少？",
+      "type": "single_choice",
+      "options": [
+        "50家以下，活跃率>80%",
+        "50-200家，活跃率60%-80%",
+        "200-500家，活跃率40%-60%",
+        "500家以上，活跃率不清楚"
+      ],
+      "required": true,
+      "hints": [
+        "供应商数量影响管理复杂度",
+        "活跃率低说明供应商清单需要清理"
+      ],
+      "triggers": [
+        {
+          "condition": "answer == '500家以上，活跃率不清楚'",
+          "type": "followup",
+          "content": "供应商数量多且活跃率不清楚，建议追问：是否有定期的供应商绩效回顾？有没有淘汰机制？供应商信息维护在哪个系统？",
+          "model": "供应商分级管理"
+        }
+      ],
+      "meceGroup": "组织概况",
+      "knowledgeRef": null,
+      "industrySpecific": false,
+      "order": 3
+    },
+    {
+      "id": "PUR_004",
+      "section": "opening",
+      "topic": "工作量画像",
+      "question": "目前采购业务主要使用哪些工具和系统？",
+      "type": "multi_choice",
+      "options": [
+        "ERP系统（SAP/用友/金蝶等）",
+        "SRM供应商管理平台",
+        "Excel/WPS表格",
+        "纸质单据+手工台账",
+        "微信/钉钉群与供应商沟通",
+        "邮件往来为主",
+        "暂无信息化手段"
+      ],
+      "required": true,
+      "hints": [
+        "判断采购信息化基础",
+        "Excel管理是效率瓶颈的常见信号"
+      ],
+      "triggers": [
+        {
+          "condition": "answer.includes('Excel/WPS表格') && !answer.includes('ERP系统（SAP/用友/金蝶等）')",
+          "type": "warning",
+          "content": "无ERP支撑的采购管理，数据孤岛严重：订单、到货、库存、应付账款难以联动，建议评估数据治理优先级",
+          "model": "数字化成熟度"
+        }
+      ],
+      "meceGroup": "组织概况",
+      "knowledgeRef": null,
+      "industrySpecific": false,
+      "order": 4
+    },
+    {
+      "id": "PUR_005",
+      "section": "opening",
+      "topic": "工作量画像",
+      "question": "平均每月处理多少张采购订单？紧急采购占比大约多少？",
+      "type": "single_choice",
+      "options": [
+        "月均<100张，紧急采购<10%",
+        "月均100-500张，紧急采购10%-20%",
+        "月均500-2000张，紧急采购20%-30%",
+        "月均>2000张，紧急采购>30%"
+      ],
+      "required": true,
+      "hints": [
+        "紧急采购比例高暗示计划体系或安全库存存在问题",
+        "订单量大但人手少则需关注自动化需求"
+      ],
+      "triggers": [
+        {
+          "condition": "紧急采购>30%",
+          "type": "followup",
+          "content": "紧急采购比例过高，建议追问：紧急采购的主要原因是什么？（计划不准、客户插单、物料短缺、供应商延迟？）有无紧急采购的审批和追溯机制？",
+          "model": "安全库存"
+        }
+      ],
+      "meceGroup": "组织概况",
+      "knowledgeRef": null,
+      "industrySpecific": false,
+      "order": 5
+    },
+    {
+      "id": "PUR_006",
+      "section": "process",
+      "topic": "供应商管理",
+      "question": "新供应商准入有标准的流程吗？通常需要哪些环节？",
+      "type": "single_choice",
+      "options": [
+        "有完整流程（资质审查→样品试制→小批验证→评审会→合格录入）",
+        "有基本流程但执行不严格（主要看价格和关系）",
+        "没有固定流程，需要时临时找供应商",
+        "由老板/技术直接指定供应商"
+      ],
+      "required": true,
+      "hints": [
+        "供应商准入是IATF 16949的基本要求",
+        "无标准流程是供应链风险的重大隐患"
+      ],
+      "triggers": [
+        {
+          "condition": "answer == '没有固定流程，需要时临时找供应商' || answer == '由老板/技术直接指定供应商'",
+          "type": "warning",
+          "content": "供应商准入流程缺失，存在质量风险和体系审核不通过的风险。建议追问：有没有遇到过因供应商问题导致的质量事故或交付延误？",
+          "model": "供应商准入"
+        }
+      ],
+      "meceGroup": "供应商管理",
+      "knowledgeRef": "PM-L3-001",
+      "industrySpecific": false,
+      "order": 6
+    },
+    {
+      "id": "PUR_007",
+      "section": "process",
+      "topic": "供应商管理",
+      "question": "供应商绩效评估多久做一次？评估维度有哪些？",
+      "type": "single_choice",
+      "options": [
+        "每月评估（QCD：质量/成本/交付+服务）",
+        "每季度评估（主要看交付和质量）",
+        "每年评估一次（走形式为主）",
+        "没有定期评估机制"
+      ],
+      "required": true,
+      "hints": [
+        "评估频率反映供应商管理的精细度",
+        "无评估意味着供应商淘汰缺乏数据依据"
+      ],
+      "triggers": [
+        {
+          "condition": "answer == '没有定期评估机制'",
+          "type": "followup",
+          "content": "无供应商评估机制，建议追问：供应商出了问题怎么处理？有没有供应商降级或淘汰的案例？供应商质量数据（来料合格率、准时交付率）有人统计吗？",
+          "model": "供应商记分卡"
+        }
+      ],
+      "meceGroup": "供应商管理",
+      "knowledgeRef": "PM-L3-001",
+      "industrySpecific": false,
+      "order": 7
+    },
+    {
+      "id": "PUR_008",
+      "section": "process",
+      "topic": "供应商管理",
+      "question": "供应商是否有分级管理？不同级别的管理策略有什么区别？",
+      "type": "single_choice",
+      "options": [
+        "有ABC分级，不同级别有差异化管理策略（审核频次、付款条件等）",
+        "有分级但主要是形式上的，实际管理无差异",
+        "按物料类别分类，但不是按供应商能力分级",
+        "没有分级，所有供应商一视同仁"
+      ],
+      "required": true,
+      "hints": [
+        "分级管理是资源聚焦的基础",
+        "战略供应商和一般供应商的管理投入应有明显差异"
+      ],
+      "triggers": [
+        {
+          "condition": "answer == '没有分级，所有供应商一视同仁'",
+          "type": "tip",
+          "content": "未分级管理会导致资源平均分配，建议引入二八法则：20%的关键供应商贡献80%的采购额，应作为战略供应商重点管理",
+          "model": "Kraljic矩阵"
+        }
+      ],
+      "meceGroup": "供应商管理",
+      "knowledgeRef": "PM-L3-001",
+      "industrySpecific": false,
+      "order": 8
+    },
+    {
+      "id": "PUR_009",
+      "section": "process",
+      "topic": "采购计划与需求",
+      "question": "采购需求是如何产生的？MRP运算的使用情况如何？",
+      "type": "single_choice",
+      "options": [
+        "完全基于MRP运算自动生成采购申请",
+        "MRP运算+人工调整（安全库存、MOQ等）",
+        "主要靠人工根据库存和订单手工计算",
+        "凭经验采购，看着差不多就买"
+      ],
+      "required": true,
+      "hints": [
+        "MRP运算的准确性依赖BOM准确率和库存数据准确率",
+        "手工计算是效率低、容错差的信号"
+      ],
+      "triggers": [
+        {
+          "condition": "answer == '凭经验采购，看着差不多就买'",
+          "type": "warning",
+          "content": "经验采购模式风险极高：库存积压与缺料并存是典型表现。建议追问：有没有出现过停线等料的情况？呆滞库存金额大概多少？",
+          "model": "MRP"
+        },
+        {
+          "condition": "answer == '完全基于MRP运算自动生成采购申请'",
+          "type": "followup",
+          "content": "追问：BOM准确率如何？库存数据准确率如何？MRP运算频率是多久一次？对长周期物料有前置性计划吗？",
+          "model": "MRP准确性"
+        }
+      ],
+      "meceGroup": "需求计划",
+      "knowledgeRef": "PM-L3-002",
+      "industrySpecific": false,
+      "order": 9
+    },
+    {
+      "id": "PUR_010",
+      "section": "process",
+      "topic": "采购计划与需求",
+      "question": "物料的采购提前期管理情况如何？长周期物料有提前规划吗？",
+      "type": "single_choice",
+      "options": [
+        "所有物料有标准采购提前期，系统自动计算",
+        "关键物料有提前期管理，普通物料按经验",
+        "没有维护采购提前期，靠采购员记忆",
+        "不清楚什么是采购提前期"
+      ],
+      "required": true,
+      "hints": [
+        "采购提前期是MRP运算的关键参数",
+        "长周期物料（模具钢、进口件等）需要特别关注"
+      ],
+      "triggers": [
+        {
+          "condition": "answer == '没有维护采购提前期，靠采购员记忆'",
+          "type": "followup",
+          "content": "采购提前期未标准化，建议追问：是否经常出现急单但供应商交不了的情况？采购员离职后新人怎么接手？",
+          "model": "采购参数管理"
+        }
+      ],
+      "meceGroup": "需求计划",
+      "knowledgeRef": "PM-L3-002",
+      "industrySpecific": false,
+      "order": 10
+    },
+    {
+      "id": "PUR_011",
+      "section": "process",
+      "topic": "询比价与定价",
+      "question": "采购定价的主要方式是什么？是否有系统化的比价机制？",
+      "type": "single_choice",
+      "options": [
+        "系统化招投标/比价平台，至少三家报价",
+        "邮件/电话询价，手工比价表",
+        "协议价/年度价格，定期谈判调整",
+        "供应商报什么价就什么价，议价能力弱"
+      ],
+      "required": true,
+      "hints": [
+        "比价透明度是采购合规的核心",
+        "无比价记录是审计风险点"
+      ],
+      "triggers": [
+        {
+          "condition": "answer == '供应商报什么价就什么价，议价能力弱'",
+          "type": "warning",
+          "content": "采购议价能力弱，可能原因：单一供应商依赖、信息不对称、采购量小。建议追问：有多少物料是独家供应？有没有做过价格对标？",
+          "model": "TCO分析"
+        }
+      ],
+      "meceGroup": "询价定价",
+      "knowledgeRef": "PM-L3-003",
+      "industrySpecific": false,
+      "order": 11
+    },
+    {
+      "id": "PUR_012",
+      "section": "process",
+      "topic": "询比价与定价",
+      "question": "价格变动如何管理？是否有价格审批和历史记录追溯？",
+      "type": "single_choice",
+      "options": [
+        "系统管理，价格变动有审批流和历史记录",
+        "Excel维护价格表，变动时手工更新",
+        "口头协商，事后补手续",
+        "没有统一的价格管理机制"
+      ],
+      "required": true,
+      "hints": [
+        "价格管理混乱是采购腐败的温床",
+        "历史价格数据是成本分析的基础"
+      ],
+      "triggers": [
+        {
+          "condition": "answer == '口头协商，事后补手续' || answer == '没有统一的价格管理机制'",
+          "type": "warning",
+          "content": "价格管理缺乏透明度，建议了解：是否出现过同一物料不同采购员价格不一致的情况？公司对采购廉洁性有什么管控措施？",
+          "model": "采购合规"
+        }
+      ],
+      "meceGroup": "询价定价",
+      "knowledgeRef": "PM-L3-003",
+      "industrySpecific": false,
+      "order": 12
+    },
+    {
+      "id": "PUR_013",
+      "section": "process",
+      "topic": "采购订单执行",
+      "question": "采购订单下发后，如何跟踪供应商的交付进度？",
+      "type": "single_choice",
+      "options": [
+        "SRM平台在线跟踪，供应商实时更新进度",
+        "ERP中跟踪，定期和供应商确认",
+        "采购员电话/微信逐一跟催",
+        "不主动跟踪，等供应商送货"
+      ],
+      "required": true,
+      "hints": [
+        "跟踪方式影响交付异常的发现时效",
+        "人工逐一跟催效率极低"
+      ],
+      "triggers": [
+        {
+          "condition": "answer == '采购员电话/微信逐一跟催'",
+          "type": "tip",
+          "content": "人工跟催模式下，采购员大量时间花在事务性工作上。建议量化：采购员一天有多少时间在催货？管理多少张在途订单？",
+          "model": "采购效率"
+        }
+      ],
+      "meceGroup": "订单执行",
+      "knowledgeRef": "PM-L3-004",
+      "industrySpecific": false,
+      "order": 13
+    },
+    {
+      "id": "PUR_014",
+      "section": "process",
+      "topic": "采购订单执行",
+      "question": "供应商的准时交付率大概在什么水平？延迟交付的主要原因是什么？",
+      "type": "single_choice",
+      "options": [
+        "准时交付率>95%，偶有延迟",
+        "准时交付率80%-95%，部分供应商有问题",
+        "准时交付率60%-80%，延迟是常态",
+        "准时交付率<60%，经常缺料停线",
+        "没有统计过"
+      ],
+      "required": true,
+      "hints": [
+        "汽车行业OTD要求通常>95%",
+        "交付率低直接影响生产计划达成率"
+      ],
+      "triggers": [
+        {
+          "condition": "answer == '准时交付率<60%，经常缺料停线' || answer == '准时交付率60%-80%，延迟是常态'",
+          "type": "followup",
+          "content": "交付率偏低，建议深挖原因：是供应商产能不足？原材料紧张？还是采购订单下达太晚？有没有对延迟交付的供应商做过考核扣分？",
+          "model": "交付改善"
+        }
+      ],
+      "meceGroup": "订单执行",
+      "knowledgeRef": "PM-L3-004",
+      "industrySpecific": true,
+      "order": 14
+    },
+    {
+      "id": "PUR_015",
+      "section": "process",
+      "topic": "采购订单执行",
+      "question": "采购订单变更（数量调整、交期变更、取消）频繁吗？变更如何通知供应商？",
+      "type": "single_choice",
+      "options": [
+        "很少变更，变更通过系统自动通知",
+        "偶有变更，邮件或电话通知",
+        "经常变更（每周多次），沟通成本高",
+        "变更频繁且混乱，供应商经常弄错"
+      ],
+      "required": true,
+      "hints": [
+        "频繁变更是计划体系不成熟的表现",
+        "变更管理混乱容易引发供应商纠纷"
+      ],
+      "triggers": [
+        {
+          "condition": "answer == '变更频繁且混乱，供应商经常弄错'",
+          "type": "warning",
+          "content": "订单变更管理混乱，需评估根因：是销售预测不准？还是内部计划调整频繁？变更没有版本管理会导致供应商执行错误版本",
+          "model": "变更管理"
+        }
+      ],
+      "meceGroup": "订单执行",
+      "knowledgeRef": "PM-L3-004",
+      "industrySpecific": false,
+      "order": 15
+    },
+    {
+      "id": "PUR_016",
+      "section": "process",
+      "topic": "到货与检验",
+      "question": "供应商送货时，收货流程是怎样的？",
+      "type": "single_choice",
+      "options": [
+        "系统预到货通知→仓库扫码收货→自动触发IQC检验",
+        "仓库根据送货单收货→手工通知检验→检验合格入库",
+        "送货到车间直接使用，事后补手续",
+        "没有标准流程，各供应商情况不同"
+      ],
+      "required": true,
+      "hints": [
+        "收货流程标准化程度反映仓储管理水平",
+        "直接上线使用绕过检验是严重质量风险"
+      ],
+      "triggers": [
+        {
+          "condition": "answer == '送货到车间直接使用，事后补手续'",
+          "type": "warning",
+          "content": "物料未经检验直接使用是严重的质量和追溯风险，IATF审核中属于重大不符合项。建议追问：有没有因为来料问题导致的批量质量事故？",
+          "model": "收货合规"
+        }
+      ],
+      "meceGroup": "到货验收",
+      "knowledgeRef": "PM-L3-005",
+      "industrySpecific": true,
+      "order": 16
+    },
+    {
+      "id": "PUR_017",
+      "section": "process",
+      "topic": "到货与检验",
+      "question": "来料检验（IQC）不合格时，如何处理？退货流程顺畅吗？",
+      "type": "single_choice",
+      "options": [
+        "有标准的不合格品处理流程（退货/让步接收/换货），系统记录",
+        "有流程但执行不到位，经常特采",
+        "口头通知供应商，退货流程不清晰",
+        "不合格也先用着，事后再说"
+      ],
+      "required": true,
+      "hints": [
+        "特采频率高说明供应商质量能力不足或检验标准与供应商未对齐",
+        "不合格品管理是IATF关注重点"
+      ],
+      "triggers": [
+        {
+          "condition": "answer == '不合格也先用着，事后再说'",
+          "type": "warning",
+          "content": "不合格物料直接使用是重大质量风险和体系不符合项。建议追问：不合格品的让步接收由谁审批？有没有追溯记录？",
+          "model": "不合格品控制"
+        },
+        {
+          "condition": "answer == '有流程但执行不到位，经常特采'",
+          "type": "followup",
+          "content": "特采频繁，需了解：特采比例大约多少？主要是哪些供应商/物料？特采后续有没有要求供应商做纠正措施？",
+          "model": "CAPA"
+        }
+      ],
+      "meceGroup": "到货验收",
+      "knowledgeRef": "PM-L3-005",
+      "industrySpecific": true,
+      "order": 17
+    },
+    {
+      "id": "PUR_018",
+      "section": "process",
+      "topic": "对账与结算",
+      "question": "和供应商的对账方式是怎样的？对账周期多长？",
+      "type": "single_choice",
+      "options": [
+        "系统自动生成对账单，供应商在线确认",
+        "月底导出数据手工核对，双方签字确认",
+        "供应商提交对账单，我方逐一核对",
+        "对账不及时，经常出现差异扯皮"
+      ],
+      "required": true,
+      "hints": [
+        "对账效率影响供应商关系和财务关账",
+        "手工对账是典型的效率痛点"
+      ],
+      "triggers": [
+        {
+          "condition": "answer == '对账不及时，经常出现差异扯皮'",
+          "type": "followup",
+          "content": "对账差异常见原因：收货数量不一致、退货未及时冲账、价格版本不同。建议追问：差异金额一般多大？解决一次差异通常需要多久？",
+          "model": "三单匹配"
+        }
+      ],
+      "meceGroup": "对账结算",
+      "knowledgeRef": "PM-L3-006",
+      "industrySpecific": false,
+      "order": 18
+    },
+    {
+      "id": "PUR_019",
+      "section": "process",
+      "topic": "对账与结算",
+      "question": "发票管理和付款审批流程是怎样的？",
+      "type": "single_choice",
+      "options": [
+        "系统匹配（订单-收货-发票三单匹配），自动发起付款申请",
+        "手工匹配发票和收货记录，走OA审批付款",
+        "财务根据发票直接付款，采购部不参与",
+        "流程不固定，付款主要看资金情况和老板审批"
+      ],
+      "required": true,
+      "hints": [
+        "三单匹配是采购合规的基石",
+        "财务直接付款绕过采购校验是风控漏洞"
+      ],
+      "triggers": [
+        {
+          "condition": "answer == '流程不固定，付款主要看资金情况和老板审批'",
+          "type": "tip",
+          "content": "付款流程不规范容易导致：供应商关系紧张、重复付款风险、现金流管理失控。系统上线后应建立标准的付款审批流",
+          "model": "AP管理"
+        }
+      ],
+      "meceGroup": "对账结算",
+      "knowledgeRef": "PM-L3-006",
+      "industrySpecific": false,
+      "order": 19
+    },
+    {
+      "id": "PUR_020",
+      "section": "process",
+      "topic": "委外管理",
+      "question": "公司有委外加工业务吗？委外管理的主要痛点在哪里？",
+      "type": "single_choice",
+      "options": [
+        "有大量委外，系统管理较规范（发出-加工-回收-对账全流程）",
+        "有委外业务，但管理粗放（发出和回收数量经常对不上）",
+        "少量委外，简单管理即可",
+        "没有委外加工业务"
+      ],
+      "required": true,
+      "hints": [
+        "委外管理的核心痛点是物料发出和回收的数量管控",
+        "委外加工费的结算也是常见难点"
+      ],
+      "triggers": [
+        {
+          "condition": "answer == '有委外业务，但管理粗放（发出和回收数量经常对不上）'",
+          "type": "followup",
+          "content": "委外管理粗放，建议追问：委外发出的物料如何记账？料损率如何管控？委外商的在制品库存掌握吗？对账时物料差异如何处理？",
+          "model": "委外管理"
+        }
+      ],
+      "meceGroup": "委外管理",
+      "knowledgeRef": "PM-L3-007",
+      "industrySpecific": false,
+      "order": 20
+    },
+    {
+      "id": "PUR_021",
+      "section": "process",
+      "topic": "供应商协同",
+      "question": "目前和供应商的信息交互方式是怎样的？有无电子化协同？",
+      "type": "single_choice",
+      "options": [
+        "SRM平台/EDI对接，订单、交付、质量信息实时共享",
+        "邮件发送订单，电话确认交期",
+        "微信/钉钉群沟通，截图传递信息",
+        "传真/纸质订单，供应商上门对单"
+      ],
+      "required": true,
+      "hints": [
+        "供应商协同水平影响供应链响应速度",
+        "汽车行业头部主机厂已要求供应商EDI对接"
+      ],
+      "triggers": [
+        {
+          "condition": "answer == '传真/纸质订单，供应商上门对单'",
+          "type": "tip",
+          "content": "信息交互方式落后，不仅效率低下，也无法支撑客户对供应链可视化的要求。建议评估SRM上线优先级",
+          "model": "供应商协同"
+        }
+      ],
+      "meceGroup": "供应商协同",
+      "knowledgeRef": "PM-L3-008",
+      "industrySpecific": false,
+      "order": 21
+    },
+    {
+      "id": "PUR_022",
+      "section": "process",
+      "topic": "供应商协同",
+      "question": "供应商是否有送货预报机制？VMI（供应商管理库存）有没有实践？",
+      "type": "single_choice",
+      "options": [
+        "有送货预报+VMI，供应商根据我方库存自动补货",
+        "有送货预报，到货前提前通知",
+        "没有预报，供应商直接送货",
+        "不了解VMI模式"
+      ],
+      "required": true,
+      "hints": [
+        "VMI适用于消耗稳定的通用物料",
+        "送货预报可优化仓库收货排程"
+      ],
+      "triggers": [],
+      "meceGroup": "供应商协同",
+      "knowledgeRef": "PM-L3-008",
+      "industrySpecific": false,
+      "order": 22
+    },
+    {
+      "id": "PUR_023",
+      "section": "painpoint",
+      "topic": "采购效率痛点",
+      "question": "目前采购工作中，最占时间、最低效的环节是什么？（最多选3项）",
+      "type": "multi_choice",
+      "options": [
+        "催货跟单（电话/微信逐一催）",
+        "询比价过程（多家报价整理对比）",
+        "对账结算（手工核对金额差异）",
+        "供应商资料管理（资质证照到期提醒）",
+        "采购审批流程（多级审批等待时间长）",
+        "数据统计报表（手工从多个表格汇总）",
+        "跨部门协调（和仓库/质量/生产对接）"
+      ],
+      "required": true,
+      "hints": [
+        "帮助识别系统上线后最快见效的场景",
+        "选择越多说明整体效率越低"
+      ],
+      "triggers": [
+        {
+          "condition": "answer.includes('催货跟单（电话/微信逐一催）') && answer.includes('对账结算（手工核对金额差异）')",
+          "type": "tip",
+          "content": "催货和对账是采购员最常见的效率黑洞。SRM+ERP方案可将这两个环节效率提升60%以上，应作为项目核心价值点",
+          "model": "ROI分析"
+        }
+      ],
+      "meceGroup": "痛点-效率",
+      "knowledgeRef": null,
+      "industrySpecific": false,
+      "order": 23
+    },
+    {
+      "id": "PUR_024",
+      "section": "painpoint",
+      "topic": "信息孤岛痛点",
+      "question": "采购部和其他部门之间的信息互通情况如何？哪些信息断点最严重？",
+      "type": "multi_choice",
+      "options": [
+        "和生产计划部：需求变更信息不同步",
+        "和仓库：库存数据不准确导致重复采购或缺料",
+        "和质量部：来料检验结果反馈不及时",
+        "和财务部：采购成本数据和财务口径不一致",
+        "和技术部：图纸/BOM变更未及时通知采购",
+        "信息互通基本顺畅，没有明显断点"
+      ],
+      "required": true,
+      "hints": [
+        "信息孤岛是数字化转型最核心的痛点之一",
+        "跨部门信息断点通常是系统集成的重点"
+      ],
+      "triggers": [
+        {
+          "condition": "answer.includes('和技术部：图纸/BOM变更未及时通知采购')",
+          "type": "followup",
+          "content": "BOM变更未同步采购是高危问题：可能导致采购错误版本的物料。建议追问：有没有因为图纸/BOM变更导致采购物料报废的案例？ECN变更流程中采购是否参与会签？",
+          "model": "ECN管理"
+        }
+      ],
+      "meceGroup": "痛点-信息",
+      "knowledgeRef": null,
+      "industrySpecific": false,
+      "order": 24
+    },
+    {
+      "id": "PUR_025",
+      "section": "painpoint",
+      "topic": "供应商管理痛点",
+      "question": "在供应商管理方面，最大的困扰是什么？",
+      "type": "multi_choice",
+      "options": [
+        "合格供应商数量不足，关键物料供应商单一",
+        "供应商交付不稳定，经常延迟",
+        "供应商质量不稳定，来料合格率低",
+        "供应商涨价频繁，成本控制困难",
+        "供应商配合度差，催货沟通成本高",
+        "供应商资料（资质/合同/价格）管理混乱"
+      ],
+      "required": true,
+      "hints": [
+        "排序靠前的痛点应作为项目方案的重点",
+        "多选暗示供应链整体管理待提升"
+      ],
+      "triggers": [
+        {
+          "condition": "answer.includes('合格供应商数量不足，关键物料供应商单一')",
+          "type": "warning",
+          "content": "单一供应商依赖是重大供应链风险，特别是汽车行业IATF要求关键物料需有备选方案。建议追问：有几种物料是独家供应？有没有供应商开发计划？",
+          "model": "供应链风险"
+        }
+      ],
+      "meceGroup": "痛点-供应商",
+      "knowledgeRef": null,
+      "industrySpecific": true,
+      "order": 25
+    },
+    {
+      "id": "PUR_026",
+      "section": "painpoint",
+      "topic": "合规与风控痛点",
+      "question": "采购合规方面有没有遇到过问题或担忧？",
+      "type": "multi_choice",
+      "options": [
+        "采购审批权限不清晰，越权审批时有发生",
+        "比价过程不透明，难以排除人情采购",
+        "合同管理不规范，条款缺失或过期未续签",
+        "没有完整的采购台账，审计时补资料",
+        "供应商选择过程缺乏文档记录",
+        "暂无明显合规问题"
+      ],
+      "required": false,
+      "hints": [
+        "合规问题可能比较敏感，注意沟通方式",
+        "有审计需求的企业对这个问题特别关注"
+      ],
+      "triggers": [
+        {
+          "condition": "answer.includes('比价过程不透明，难以排除人情采购')",
+          "type": "tip",
+          "content": "采购合规是管理层通常非常关心的话题，系统化的比价流程和审批留痕是解决方案的核心卖点之一",
+          "model": "阳光采购"
+        }
+      ],
+      "meceGroup": "痛点-合规",
+      "knowledgeRef": null,
+      "industrySpecific": false,
+      "order": 26
+    },
+    {
+      "id": "PUR_027",
+      "section": "expectation",
+      "topic": "系统期望",
+      "question": "如果上线采购管理系统，您最希望解决的前3个问题是什么？",
+      "type": "multi_choice",
+      "options": [
+        "自动化采购需求和订单生成",
+        "供应商全生命周期管理（准入-评估-淘汰）",
+        "在线询比价和价格管理",
+        "采购到货跟踪和异常预警",
+        "对账和付款自动化",
+        "采购数据分析和成本控制报表",
+        "供应商协同平台（在线下单/送货预报/对账）",
+        "委外加工全流程管理"
+      ],
+      "required": true,
+      "hints": [
+        "客户期望排序指导方案优先级",
+        "对比痛点回答，验证一致性"
+      ],
+      "triggers": [],
+      "meceGroup": "期望-系统",
+      "knowledgeRef": null,
+      "industrySpecific": false,
+      "order": 27
+    },
+    {
+      "id": "PUR_028",
+      "section": "expectation",
+      "topic": "效率期望",
+      "question": "您希望系统上线后，采购团队的效率提升体现在哪些方面？",
+      "type": "multi_choice",
+      "options": [
+        "减少手工录入和重复劳动",
+        "缩短采购周期（从需求到到货）",
+        "减少缺料和紧急采购",
+        "降低采购成本（更好的比价和谈判）",
+        "提升供应商交付准时率",
+        "减少对账差异和纠纷",
+        "解放人力做更有价值的工作（如供应商开发）"
+      ],
+      "required": true,
+      "hints": [
+        "效率提升期望是项目ROI论证的素材",
+        "最后一个选项反映管理升级的意识"
+      ],
+      "triggers": [],
+      "meceGroup": "期望-效率",
+      "knowledgeRef": null,
+      "industrySpecific": false,
+      "order": 28
+    },
+    {
+      "id": "PUR_029",
+      "section": "expectation",
+      "topic": "管理可视化",
+      "question": "您最想看到的采购管理报表/看板有哪些？",
+      "type": "multi_choice",
+      "options": [
+        "采购订单执行状态看板",
+        "供应商绩效排名（质量/交付/成本）",
+        "采购成本趋势分析",
+        "物料价格对比分析",
+        "库存与采购联动分析",
+        "供应商集中度分析",
+        "采购合规执行率统计"
+      ],
+      "required": false,
+      "hints": [
+        "报表需求反映管理关注点",
+        "帮助设计BI看板的优先级"
+      ],
+      "triggers": [],
+      "meceGroup": "期望-可视化",
+      "knowledgeRef": null,
+      "industrySpecific": false,
+      "order": 29
+    },
+    {
+      "id": "PUR_030",
+      "section": "expectation",
+      "topic": "顾虑与担忧",
+      "question": "对于采购管理系统上线，您有什么顾虑或担忧？",
+      "type": "multi_choice",
+      "options": [
+        "供应商配合度不够，不愿意用系统",
+        "采购员习惯改变困难，推行阻力大",
+        "系统流程太死板，不灵活",
+        "数据迁移和历史数据处理困难",
+        "和现有ERP/财务系统对接复杂",
+        "项目实施周期长，短期见不到效果",
+        "没有特别担忧"
+      ],
+      "required": false,
+      "hints": [
+        "识别项目风险和变革管理重点",
+        "供应商配合度是SRM项目的最大风险之一"
+      ],
+      "triggers": [
+        {
+          "condition": "answer.includes('供应商配合度不够，不愿意用系统')",
+          "type": "tip",
+          "content": "供应商上平台的推广策略至关重要：分批推广、从大供应商开始、提供操作培训、适当给予激励（如优先付款）。建议规划专门的供应商推广方案",
+          "model": "变革管理"
+        }
+      ],
+      "meceGroup": "期望-顾虑",
+      "knowledgeRef": null,
+      "industrySpecific": false,
+      "order": 30
+    },
+    {
+      "id": "PUR_035",
+      "section": "compliance",
+      "topic": "供应商质量管理",
+      "question": "对供应商的质量管理要求是如何传递的？",
+      "type": "single_choice",
+      "options": [
+        "有完整的供应商质量手册/SQA协议，定期更新",
+        "在合同中约定质量条款",
+        "口头要求为主，书面约定较少",
+        "没有明确的质量要求传递机制"
+      ],
+      "required": true,
+      "hints": [
+        "质量要求传递是源头管控的基础",
+        "IATF要求对供应商的质量要求需文件化"
+      ],
+      "triggers": [
+        {
+          "condition": "answer == '口头要求为主，书面约定较少' || answer == '没有明确的质量要求传递机制'",
+          "type": "warning",
+          "content": "质量要求未文件化传递，出了质量问题难以追责。建议追问：供应商是否清楚我方的特殊特性要求？有没有因为理解不一致导致的质量问题？",
+          "model": "SQA"
+        }
+      ],
+      "meceGroup": "体系-供应商质量",
+      "knowledgeRef": "PM-L3-010",
+      "industrySpecific": true,
+      "order": 35
+    },
+    {
+      "id": "PUR_036",
+      "section": "compliance",
+      "topic": "供应商质量管理",
+      "question": "供应商发生质量问题后，8D纠正措施的执行情况如何？",
+      "type": "single_choice",
+      "options": [
+        "严格要求8D报告，跟踪到永久措施验证有效",
+        "要求8D但深度不够，通常到原因分析就结束",
+        "只要求供应商口头说明原因和改善措施",
+        "没有要求供应商做纠正措施"
+      ],
+      "required": true,
+      "hints": [
+        "8D报告的深度反映供应商问题解决能力",
+        "仅到D3（临时措施）不到D5（根因分析）是常见不足"
+      ],
+      "triggers": [
+        {
+          "condition": "answer == '没有要求供应商做纠正措施'",
+          "type": "followup",
+          "content": "供应商不做纠正措施，同类问题必然重复发生。建议追问：同一供应商的同类质量问题是否反复出现？有没有统计过质量问题的重复率？",
+          "model": "8D"
+        }
+      ],
+      "meceGroup": "体系-供应商质量",
+      "knowledgeRef": "PM-L3-010",
+      "industrySpecific": true,
+      "order": 36
+    },
+    {
+      "id": "PUR_037",
+      "section": "expectation",
+      "topic": "降本目标",
+      "question": "公司对采购降本有什么具体的目标或要求？",
+      "type": "single_choice",
+      "options": [
+        "有明确的年度降本指标（如每年降3%-5%）",
+        "有降本意识但无具体指标",
+        "目前以保供为主，降本不是优先事项",
+        "材料价格上涨，降本很困难"
+      ],
+      "required": false,
+      "hints": [
+        "降本目标是采购管理的核心KPI之一",
+        "系统化的TCO分析可支撑更科学的降本策略"
+      ],
+      "triggers": [
+        {
+          "condition": "answer == '有明确的年度降本指标（如每年降3%-5%）'",
+          "type": "followup",
+          "content": "有降本指标，建议追问：降本措施主要有哪些？（国产替代、集中采购、VA/VE、供应商年度降价等）降本目标的达成情况如何？",
+          "model": "TCO"
+        }
+      ],
+      "meceGroup": "期望-成本",
+      "knowledgeRef": null,
+      "industrySpecific": true,
+      "order": 37
+    },
+    {
+      "id": "PUR_038",
+      "section": "expectation",
+      "topic": "数字化愿景",
+      "question": "您理想中的采购数字化管理应该是什么样子的？",
+      "type": "text",
+      "options": null,
+      "required": false,
+      "hints": [
+        "开放性问题，了解客户的认知水平和期望高度",
+        "有助于判断方案的定位：务实落地 vs 全面提升"
+      ],
+      "triggers": [],
+      "meceGroup": "期望-愿景",
+      "knowledgeRef": null,
+      "industrySpecific": false,
+      "order": 38
+    }
+  ]
+}
