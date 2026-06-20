@@ -120,6 +120,10 @@ final class SpeechRecognitionService {
         }
 
         guard let recognizer else { return }
+        // 强制本地识别，禁止音频外发到 Apple 服务器（兑现「本地优先」承诺）
+        if recognizer.supportsOnDeviceRecognition {
+            request.requiresOnDeviceRecognition = true
+        }
         let task = recognizer.recognitionTask(with: request) { [weak self] result, error in
             guard let self else { return }
             Task { @MainActor [weak self] in
