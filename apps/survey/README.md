@@ -29,7 +29,18 @@ Aham 来自 *aha moment*。每个工具只把一件事做利落。
 - **AI 增强（自带 Key）**：记录润色、AI 追问建议、客户文档分析、产品 / 工艺 AI 搜索、项目级 AI 增强。
 - **导出**：Markdown 报告、单部门导出、Obsidian URI。
 
-## 运行
+## 下载
+
+[**↓ 下载 Aham Survey v1.0.0（.dmg）**](https://github.com/li599198347-svg/aham-survey/releases/latest)
+
+仅 Apple Silicon（M 系列）。打开 DMG 后把 `Aham Survey` 拖入「应用程序」。
+
+应用为 ad-hoc 签名，首次打开会被 Gatekeeper 拦截，二选一解除：
+
+- 右键点击 App → **打开** → 再点一次「打开」；或
+- 终端执行：`xattr -dr com.apple.quarantine "/Applications/Aham Survey.app"`
+
+## 从源码运行
 
 需 macOS + Xcode 打开 `Aham.xcodeproj` 构建。AI 能力在「设置」里填 LLM API Key（仅存本机）。
 
