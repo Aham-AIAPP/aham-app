@@ -1,12 +1,12 @@
-<svg width="1280" height="1280" viewBox="0 0 1280 1280" fill="none" xmlns="http://www.w3.org/2000/svg">
+<svg width="1280" height="640" viewBox="0 0 1280 640" fill="none" xmlns="http://www.w3.org/2000/svg">
   <defs>
     <linearGradient id="survey-bg" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0" stop-color="#5366C9"/>
       <stop offset="1" stop-color="#3D4FA6"/>
     </linearGradient>
   </defs>
-  <rect width="1280" height="1280" fill="#FFFFFF"/>
-  <g transform="translate(0,320)">
+  <rect width="1280" height="640" fill="#FFFFFF"/>
+  <g>
     <rect x="1" y="1" width="1278" height="638" fill="#FFFFFF" stroke="#E7E7E7" stroke-width="2"/>
     <rect x="0" y="0" width="1280" height="6" fill="#4F61C4"/>
 
