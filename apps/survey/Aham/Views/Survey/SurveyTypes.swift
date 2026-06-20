@@ -32,14 +32,8 @@ enum MemoCategory: String, CaseIterable, Identifiable {
         }
     }
 
-    var color: Color {
-        switch self {
-        case .forms: .blue
-        case .metrics: .orange
-        case .approvals: .green
-        case .needs: .purple
-        }
-    }
+    /// 分类色统一中性 —— 靠图标 + 文字区分（铁规：不靠颜色单独传达）。
+    var color: Color { .ahInk60 }
 
     /// 准入提示（输入框 placeholder）
     var placeholder: String {

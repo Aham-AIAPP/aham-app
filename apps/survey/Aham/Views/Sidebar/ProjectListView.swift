@@ -15,12 +15,19 @@ struct ProjectListView: View {
         @Bindable var store = appStore
 
         VStack(spacing: 0) {
-            // 搜索 + 新建（与会议列表完全一致）
+            // 搜索 + 设置 + 新建
             HStack(spacing: AHSpacing.s) {
                 Image(systemName: "magnifyingglass").foregroundStyle(.tertiary)
                 TextField("搜索项目", text: $searchText)
                     .textFieldStyle(.plain)
                 Spacer()
+                SettingsLink {
+                    Image(systemName: "gearshape")
+                        .ahCallout()
+                        .foregroundStyle(Color.ahInk60)
+                }
+                .buttonStyle(.plain)
+                .help("设置 (⌘,)")
                 Button {
                     appStore.showNewProject = true
                 } label: {
@@ -195,6 +202,7 @@ struct ProjectListView: View {
     private func deleteProject(_ project: Project) {
         if appStore.selectedProjectId == project.id {
             appStore.selectedProjectId = nil
+            appStore.isSurveying = false
         }
         // Delete associated answers first
         let projectId = project.id

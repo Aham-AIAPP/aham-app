@@ -47,7 +47,7 @@ struct ExportPanelView: View {
             HStack {
                 Image(systemName: "square.and.arrow.up")
                     .ahTitle2()
-                    .foregroundStyle(Color.ahAccent)
+                    .foregroundStyle(Color.ahInk60)
                 VStack(alignment: .leading, spacing: 2) {
                     Text("导出调研报告")
                         .ahTitle3()
@@ -69,54 +69,58 @@ struct ExportPanelView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: AHSpacing.xl) {
                     // 导出格式
-                    GroupBox("导出格式") {
-                        Picker("格式", selection: $format) {
-                            ForEach(ExportFormat.allCases, id: \.self) { Text($0.rawValue).tag($0) }
+                    AHCard {
+                        AHSection("导出格式") {
+                            Picker("格式", selection: $format) {
+                                ForEach(ExportFormat.allCases, id: \.self) { Text($0.rawValue).tag($0) }
+                            }
+                            .pickerStyle(.radioGroup)
+                            .labelsHidden()
                         }
-                        .pickerStyle(.radioGroup)
-                        .labelsHidden()
                     }
 
                     // 导出内容
-                    GroupBox("导出内容") {
-                        VStack(alignment: .leading, spacing: AHSpacing.s) {
-                            Toggle("顾问笔记",    isOn: $includeNotes)
-                            Toggle("AI 润色结果", isOn: $includeAIPolish)
-                            Toggle("语音转写记录", isOn: $includeVoice)
-                            if panelData.hasAIEnhancement {
-                                Toggle("AI 项目分析", isOn: $includeAIEnhancement)
+                    AHCard {
+                        AHSection("导出内容") {
+                            VStack(alignment: .leading, spacing: AHSpacing.s) {
+                                Toggle("顾问笔记",    isOn: $includeNotes)
+                                Toggle("AI 润色结果", isOn: $includeAIPolish)
+                                Toggle("语音转写记录", isOn: $includeVoice)
+                                if panelData.hasAIEnhancement {
+                                    Toggle("AI 项目分析", isOn: $includeAIEnhancement)
+                                }
+                                AHDivider()
+                                Toggle("包含 YAML 文件头（Obsidian 兼容）", isOn: $addFrontmatter)
+                                    .foregroundStyle(.secondary)
                             }
-                            Divider()
-                            Toggle("包含 YAML 文件头（Obsidian 兼容）", isOn: $addFrontmatter)
-                                .foregroundStyle(.secondary)
                         }
                     }
 
                     // 导出部门
-                    GroupBox {
-                        VStack(alignment: .leading, spacing: AHSpacing.s) {
-                            HStack {
-                                Text("导出部门").ahCallout().fontWeight(.medium)
-                                Spacer()
-                                Button("全选") { selectedDepts = Set(panelData.selectedDeptIds) }
-                                    .buttonStyle(.ahGhost)
-                                Text("/").ahCaption().foregroundStyle(.tertiary)
-                                Button("清空") { selectedDepts.removeAll() }
-                                    .buttonStyle(.ahGhost)
-                            }
-                            ForEach(panelData.selectedDeptIds, id: \.self) { deptId in
-                                let name = panelData.deptNames[deptId] ?? deptId
-                                let count = panelData.deptAnsweredCounts[deptId] ?? 0
-                                Toggle(isOn: Binding(
-                                    get: { selectedDepts.contains(deptId) },
-                                    set: { if $0 { selectedDepts.insert(deptId) } else { selectedDepts.remove(deptId) } }
-                                )) {
-                                    HStack {
-                                        Text(name)
-                                        Spacer()
-                                        Text("\(count) 条回答").ahCaption().foregroundStyle(.tertiary)
+                    AHCard {
+                        AHSection("导出部门") {
+                            VStack(alignment: .leading, spacing: AHSpacing.s) {
+                                ForEach(panelData.selectedDeptIds, id: \.self) { deptId in
+                                    let name = panelData.deptNames[deptId] ?? deptId
+                                    let count = panelData.deptAnsweredCounts[deptId] ?? 0
+                                    Toggle(isOn: Binding(
+                                        get: { selectedDepts.contains(deptId) },
+                                        set: { if $0 { selectedDepts.insert(deptId) } else { selectedDepts.remove(deptId) } }
+                                    )) {
+                                        HStack {
+                                            Text(name)
+                                            Spacer()
+                                            Text("\(count) 条回答").ahCaption().foregroundStyle(.tertiary)
+                                        }
                                     }
                                 }
+                            }
+                        } trailing: {
+                            HStack(spacing: AHSpacing.xs) {
+                                Button("全选") { selectedDepts = Set(panelData.selectedDeptIds) }
+                                    .buttonStyle(.ahGhost)
+                                Button("清空") { selectedDepts.removeAll() }
+                                    .buttonStyle(.ahGhost)
                             }
                         }
                     }
@@ -124,7 +128,7 @@ struct ExportPanelView: View {
                     if let err = generateError {
                         Label(err, systemImage: "exclamationmark.triangle")
                             .ahCaption()
-                            .foregroundStyle(.red)
+                            .foregroundStyle(Color.ahDanger)
                     }
                 }
                 .padding(AHSpacing.xl)

@@ -47,7 +47,7 @@ extension SurveyView {
                     Text("\(pct)%")
                         .ahCallout()
                         .fontWeight(.bold)
-                        .foregroundStyle(pct >= 100 ? .green : Color.ahAccent)
+                        .foregroundStyle(pct >= 100 ? Color.ahSuccess : Color.ahAccent)
                         .monospacedDigit()
                         .padding(.trailing, AHSpacing.xxs)
 

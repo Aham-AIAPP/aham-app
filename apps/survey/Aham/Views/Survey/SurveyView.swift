@@ -178,17 +178,12 @@ struct SurveyView: View {
                     .frame(width: 1, height: 16)
                     .padding(.trailing, AHSpacing.xxs)
 
-                AHPill(
-                    text: "AI",
-                    icon: isAIAvailable ? "checkmark.circle.fill" : "xmark.circle",
-                    style: isAIAvailable ? .success : .neutral
-                )
-                .help(isAIAvailable ? "AI 已连接" : "请在设置中配置 API Key")
+                AHStatus(text: "AI", color: isAIAvailable ? .ahSuccess : .ahInk40)
+                    .help(isAIAvailable ? "AI 已连接" : "请在设置中配置 API Key")
 
-                AHPill(
+                AHStatus(
                     text: speechService.isRecording ? "录音中" : "麦克风",
-                    icon: speechService.isRecording ? "mic.fill" : "mic",
-                    style: speechService.isRecording ? .danger : (isRecordingAvailable ? .success : .neutral)
+                    color: speechService.isRecording ? .ahDanger : (isRecordingAvailable ? .ahSuccess : .ahInk40)
                 )
                 .help(speechService.isRecording ? "正在录音"
                       : isRecordingAvailable ? "可用"
@@ -218,16 +213,15 @@ struct SurveyView: View {
                 Image(systemName: dept.sfSymbol)
                     .ahCaption()
                     .fontWeight(.semibold)
-                    .foregroundStyle(isSelected ? Color.ahAccent : Color.ahInk60)
+                    .foregroundStyle(isSelected ? Color.ahInk : Color.ahInk60)
                 Text(dept.name)
                     .ahCallout()
                     .fontWeight(isSelected ? .semibold : .regular)
                 Text("\(deptDone)/\(deptTotal)")
-                    .ahCaption()
-                    .monospacedDigit()
-                    .foregroundStyle(completed ? Color.ahSuccess : .secondary)
+                    .ahMono(11)
+                    .foregroundStyle(completed ? Color.ahSuccess : Color.ahInk40)
             }
-            .foregroundStyle(isSelected ? Color.ahAccent : Color.ahInk60)
+            .foregroundStyle(isSelected ? Color.ahInk : Color.ahInk60)
             .padding(.horizontal, AHSpacing.m)
             .padding(.vertical, AHSpacing.xs)
             .ahGlassCapsule(isEnabled: isSelected, prominent: isSelected)
@@ -280,7 +274,7 @@ struct SurveyView: View {
                 HStack(spacing: AHSpacing.s) {
                     Image(systemName: dept.sfSymbol)
                         .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(Color.ahAccent)
+                        .foregroundStyle(Color.ahInk60)
                         .frame(width: AHIconBox.xs, height: AHIconBox.xs)
                     Text(dept.name).ahCallout().fontWeight(.semibold)
                     Spacer()
@@ -332,13 +326,13 @@ struct SurveyView: View {
             Image(systemName: section.icon)
                 .ahCaption()
                 .fontWeight(.semibold)
-                .foregroundStyle(section == .painpoint ? Color.ahDanger : Color.ahAccent)
+                .foregroundStyle(Color.ahInk40)
             Text(section.label).ahSectionLabel()
             Spacer()
             if sectionDone > 0 {
                 Text("\(sectionDone)/\(questions.count)")
                     .ahMono(10)
-                    .foregroundStyle(.tertiary)
+                    .foregroundStyle(Color.ahInk40)
             }
         }
         .padding(.horizontal, AHSpacing.xs)
@@ -376,9 +370,7 @@ struct SurveyView: View {
             .padding(.leading, isFollowup ? AHSpacing.m : 0)
             .background(
                 RoundedRectangle(cornerRadius: AHRadius.sm)
-                    .fill(isFocused
-                          ? (isFollowup ? Color.ahWarning.opacity(0.12) : Color.ahAccentBG)
-                          : Color.clear)
+                    .fill(isFocused ? Color.ahSelected : Color.clear)
             )
             .contentShape(Rectangle())
         }
@@ -484,29 +476,16 @@ struct SurveyView: View {
                 parentQuestionText: parentQuestionText(for: question.id),
                 isFollowupQuestion: cachedFollowupIds.contains(question.id)
             )
-            .padding(AHSpacing.s)
+            .padding(AHSpacing.l)
             .background(
-                RoundedRectangle(cornerRadius: AHRadius.xl, style: .continuous)
-                    .fill(Color.ahPaperAlt)
+                RoundedRectangle(cornerRadius: AHRadius.lg, style: .continuous)
+                    .fill(Color.ahPaper)
             )
             .overlay(
-                // A: 顶部极淡 accent 渐变，视线向上引导
-                RoundedRectangle(cornerRadius: AHRadius.xl, style: .continuous)
-                    .fill(
-                        LinearGradient(
-                            colors: [Color.ahAccent.opacity(0.06), .clear],
-                            startPoint: .top,
-                            endPoint: .bottom
-                        )
-                    )
-                    .allowsHitTesting(false)
+                // 焦点指示：细 accent 边（focus ring 语义，铁规允许 accent 作选中指示）
+                RoundedRectangle(cornerRadius: AHRadius.lg, style: .continuous)
+                    .strokeBorder(Color.ahAccent.opacity(0.5), lineWidth: 1.5)
             )
-            .overlay(
-                RoundedRectangle(cornerRadius: AHRadius.xl, style: .continuous)
-                    .strokeBorder(Color.ahAccentBorder, lineWidth: 2)
-            )
-            .shadow(color: .black.opacity(0.08), radius: 12, x: 0, y: 6)
-            .shadow(color: .black.opacity(0.04), radius: 3, x: 0, y: 1)
         }
     }
 
@@ -534,7 +513,7 @@ struct SurveyView: View {
                     )
                 AHStatusDot(color: statusColor(for: answer))
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(question.topic).ahCaption().foregroundStyle(Color.ahAccent.opacity(0.7))
+                    Text(question.topic).ahCaption().foregroundStyle(Color.ahInk40)
                     Text(question.question).ahCallout().lineLimit(2).foregroundStyle(.secondary)
                 }
                 Spacer()
@@ -788,13 +767,13 @@ struct SurveyView: View {
     }
 
     func statusColor(for answer: Answer?) -> Color {
-        guard let answer else { return Color.gray.opacity(0.3) }
+        guard let answer else { return Color.ahInk20 }
         switch answer.status {
         case .answered: return Color.ahSuccess
-        case .ignored: return .gray
+        case .ignored: return Color.ahInk40
         case .transferred: return Color.ahWarning
         case .unanswered:
-            return answer.hasContent ? Color.ahSuccess : Color.gray.opacity(0.3)
+            return answer.hasContent ? Color.ahSuccess : Color.ahInk20
         }
     }
 

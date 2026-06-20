@@ -288,7 +288,7 @@
 				ENABLE_USER_SELECTED_FILES = readwrite;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Aham/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "Aham 智研";
+				INFOPLIST_KEY_CFBundleDisplayName = "Aham Survey";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.business";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "© 2025 lichengbao";
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -342,7 +342,7 @@
 				ENABLE_USER_SELECTED_FILES = readwrite;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Aham/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "Aham 智研";
+				INFOPLIST_KEY_CFBundleDisplayName = "Aham Survey";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.business";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "© 2025 lichengbao";
 				LD_RUNPATH_SEARCH_PATHS = (

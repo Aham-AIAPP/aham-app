@@ -58,7 +58,7 @@ struct QuestionManagerView: View {
                 let count = excludedIds.count
                 if count > 0 {
                     Label("已排除 \(count) 条问题", systemImage: "minus.circle")
-                        .ahCaption().foregroundStyle(.orange)
+                        .ahCaption().foregroundStyle(Color.ahWarning)
                 } else {
                     Text("所有问题均已启用").ahCaption().foregroundStyle(.secondary)
                 }
@@ -99,14 +99,14 @@ struct QuestionManagerView: View {
 
                         if excludedInDept > 0 {
                             Text("已排除 \(excludedInDept)/\(questions.count)")
-                                .ahCaption().foregroundStyle(.orange)
+                                .ahCaption().foregroundStyle(Color.ahWarning)
                                 .padding(.horizontal, AHSpacing.xs).padding(.vertical, AHSpacing.xxs)
-                                .background(.orange.opacity(0.1), in: .capsule)
+                                .background(Color.ahPaperAlt, in: .capsule)
                         } else {
                             Text("\(questions.count) 条")
-                                .ahCaption().foregroundStyle(.secondary)
+                                .ahCaption().foregroundStyle(Color.ahInk60)
                                 .padding(.horizontal, AHSpacing.xs).padding(.vertical, AHSpacing.xxs)
-                                .background(.secondary.opacity(0.1), in: .capsule)
+                                .background(Color.ahPaperAlt, in: .capsule)
                         }
                         Spacer()
 

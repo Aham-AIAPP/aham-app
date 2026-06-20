@@ -12,50 +12,41 @@ struct ContentView: View {
         @Bindable var store = appStore
 
         NavigationSplitView(columnVisibility: $columnVisibility) {
-            // Column 1: Module switcher
-            ModuleSidebarView()
-                .navigationSplitViewColumnWidth(min: 76, ideal: 76, max: 76)
+            // Sidebar: 项目列表（宽度对齐 aham-ui sidebar-width 264）
+            ProjectListView()
+                .navigationSplitViewColumnWidth(min: 230, ideal: 264, max: 320)
         } detail: {
-            // Column 2+: Module content
-            switch appStore.activeModule {
-
-            case .home:
-                HomeView()
-
-            case .survey:
-                if appStore.isSurveying, let project = currentProject {
-                    SurveyView(project: project)
-                        .toolbar {
-                            ToolbarItem(placement: .navigation) {
-                                Button {
-                                    appStore.isSurveying = false
-                                } label: {
-                                    Label("返回项目", systemImage: "chevron.left")
-                                }
-                                .help("返回项目详情 (⌘⎋)")
+            // Detail: 调研中 → SurveyView；否则项目详情 / 欢迎页
+            if appStore.isSurveying, let project = currentProject {
+                SurveyView(project: project)
+                    .toolbar {
+                        ToolbarItem(placement: .navigation) {
+                            Button {
+                                appStore.isSurveying = false
+                            } label: {
+                                Label("返回项目", systemImage: "chevron.left")
                             }
+                            .help("返回项目详情 (⌘⎋)")
                         }
-                } else {
-                    HSplitView {
-                        ProjectListView()
-                            .frame(minWidth: 220, idealWidth: 260, maxWidth: 320)
-                        surveyDetail
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        ToolbarItem(placement: .primaryAction) {
+                            SettingsLink {
+                                Label("设置", systemImage: "gearshape")
+                            }
+                            .help("设置 (⌘,)")
+                        }
                     }
-                }
-
-            case .sales:
-                SalesDashboardView()
+            } else {
+                surveyDetail
             }
         }
         .navigationSplitViewStyle(.balanced)
+        .frame(minWidth: 900, minHeight: 620)
         .onChange(of: appStore.isSurveying) { _, surveying in
             columnVisibility = surveying ? .detailOnly : .all
         }
         .onChange(of: appStore.selectedProjectId) { oldValue, newValue in
             if oldValue != newValue {
                 appStore.isSurveying = false
-                if newValue != nil { appStore.activeModule = .survey }
             }
         }
         .sheet(isPresented: $store.showNewProject) {
@@ -91,13 +82,13 @@ struct WelcomeView: View {
         VStack(spacing: 0) {
             Spacer()
 
-            AHIconTile(symbol: "sparkles", size: AHIconBox.hero)
+            AHIconTile(symbol: "doc.text.magnifyingglass", size: AHIconBox.hero)
                 .padding(.bottom, AHSpacing.xxxl)
 
-            Text("企业智能调研平台")
+            Text("Aham Survey")
                 .ahTitle()
 
-            Text("AI 重构业务")
+            Text("把现场调研变成结构化洞察")
                 .ahTitle3()
                 .foregroundStyle(.secondary)
                 .padding(.top, AHSpacing.xs)
@@ -129,7 +120,7 @@ struct WelcomeView: View {
         HStack(spacing: AHSpacing.s) {
             Image(systemName: icon)
                 .ahCallout()
-                .foregroundStyle(Color.ahAccent)
+                .foregroundStyle(Color.ahInk60)
                 .frame(width: AHIconBox.xs)
             Text(text)
                 .ahCallout()

@@ -38,7 +38,7 @@ struct KnowledgeTrainingView: View {
             if let error = trainer.lastError {
                 Label(error, systemImage: "exclamationmark.triangle")
                     .ahCaption()
-                    .foregroundStyle(.red)
+                    .foregroundStyle(Color.ahDanger)
             }
 
             Divider()
@@ -81,7 +81,7 @@ struct KnowledgeTrainingView: View {
             VStack(alignment: .leading, spacing: AHSpacing.xxs) {
                 if let manifest, let lastTrained = manifest.lastTrainedAt {
                     HStack(spacing: AHSpacing.s) {
-                        Image(systemName: "brain").foregroundStyle(.purple)
+                        Image(systemName: "brain").foregroundStyle(Color.ahInk60)
                         Text("知识库 V\(manifest.version)")
                             .ahBody().fontWeight(.medium)
                     }
@@ -132,7 +132,7 @@ struct KnowledgeTrainingView: View {
     private var trainingCompletionBanner: some View {
         HStack(spacing: AHSpacing.s) {
             Image(systemName: "checkmark.circle.fill")
-                .foregroundStyle(.green)
+                .foregroundStyle(Color.ahSuccess)
                 .ahTitle3()
             VStack(alignment: .leading, spacing: 2) {
                 Text("训练完成").ahCallout().fontWeight(.medium)
@@ -144,7 +144,7 @@ struct KnowledgeTrainingView: View {
             Spacer()
         }
         .padding(AHSpacing.m)
-        .background(.green.opacity(0.08), in: .rect(cornerRadius: AHRadius.md))
+        .background(Color.ahSuccessBG, in: .rect(cornerRadius: AHRadius.md))
     }
 
     // MARK: - 训练操作
@@ -175,15 +175,15 @@ struct KnowledgeTrainingView: View {
                     Text("正在训练...").ahCallout().fontWeight(.medium)
                     Spacer()
                     Button("取消") { trainTask?.cancel(); trainTask = nil }
-                        .foregroundStyle(.red).buttonStyle(.borderless)
+                        .foregroundStyle(Color.ahDanger).buttonStyle(.borderless)
                 }
                 ProgressView(value: Double(prog.processedFiles),
                              total: Double(max(prog.totalFiles, 1)))
                 HStack(spacing: AHSpacing.l) {
                     Text("进度: \(prog.processedFiles)/\(prog.totalFiles)").ahCaption()
                     Text("跳过: \(prog.skippedFiles)").ahCaption().foregroundStyle(.secondary)
-                    Text("新增: \(prog.newEntries)").ahCaption().foregroundStyle(.green)
-                    Text("更新: \(prog.updatedEntries)").ahCaption().foregroundStyle(.blue)
+                    Text("新增: \(prog.newEntries)").ahCaption().foregroundStyle(Color.ahSuccess)
+                    Text("更新: \(prog.updatedEntries)").ahCaption().foregroundStyle(Color.ahAccent)
                 }
                 Text("当前: \(prog.currentFile)").ahCaption().foregroundStyle(.tertiary).lineLimit(1)
             }
@@ -227,7 +227,7 @@ struct KnowledgeTrainingView: View {
     private var rebuildSection: some View {
         VStack(alignment: .leading, spacing: AHSpacing.s) {
             HStack(spacing: AHSpacing.xs) {
-                Image(systemName: "wand.and.stars").foregroundStyle(.orange)
+                Image(systemName: "wand.and.stars").foregroundStyle(Color.ahInk60)
                 Text("问题重构").ahBody().fontWeight(.medium)
             }
 
@@ -244,7 +244,7 @@ struct KnowledgeTrainingView: View {
 
             if let status = trainer.rebuildStatus {
                 Label(status, systemImage: "checkmark.circle.fill")
-                    .ahCaption().foregroundStyle(.green)
+                    .ahCaption().foregroundStyle(Color.ahSuccess)
             }
 
             if trainer.isRebuilding {
@@ -483,9 +483,9 @@ private struct RebuildConfirmSheet: View {
                         .ahCaption().foregroundStyle(.secondary).frame(width: 12)
                     Text(entry.deptName).ahCallout().fontWeight(.medium)
                     Text("\(entry.questions.count) 条")
-                        .ahCaption().foregroundStyle(.secondary)
+                        .ahCaption().foregroundStyle(Color.ahInk60)
                         .padding(.horizontal, AHSpacing.xs).padding(.vertical, AHSpacing.xxs)
-                        .background(.secondary.opacity(0.12), in: .capsule)
+                        .background(Color.ahPaperAlt, in: .capsule)
                     Spacer()
                 }
                 .padding(.vertical, AHSpacing.s)
@@ -509,8 +509,8 @@ private struct RebuildConfirmSheet: View {
                         Text(q.section.label)
                             .ahCaption()
                             .padding(.horizontal, AHSpacing.xxs).padding(.vertical, AHSpacing.xxs)
-                            .background(sectionColor(q.section).opacity(0.12), in: .capsule)
-                            .foregroundStyle(sectionColor(q.section))
+                            .background(Color.ahPaperAlt, in: .capsule)
+                            .foregroundStyle(Color.ahInk60)
                             .frame(width: 54, alignment: .center)
 
                         Text(q.question)
@@ -524,16 +524,6 @@ private struct RebuildConfirmSheet: View {
             }
 
             Divider().padding(.leading, AHSpacing.xl)
-        }
-    }
-
-    private func sectionColor(_ section: QuestionSection) -> Color {
-        switch section {
-        case .opening:    return .blue
-        case .process:    return .teal
-        case .painpoint:  return .orange
-        case .expectation: return .purple
-        case .compliance: return .green
         }
     }
 }

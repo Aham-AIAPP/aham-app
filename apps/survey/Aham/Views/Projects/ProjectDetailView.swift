@@ -92,14 +92,12 @@ struct ProjectDetailView: View {
             HStack(alignment: .top, spacing: AHSpacing.m) {
                 AHIconTile(symbol: project.status.icon,
                            size: AHIconBox.md,
-                           tint: statusColor)
+                           tint: .ahInk60)
 
                 VStack(alignment: .leading, spacing: AHSpacing.xs) {
                     HStack(alignment: .firstTextBaseline, spacing: AHSpacing.s) {
                         Text(project.displayName).ahTitle()
-                        AHPill(text: project.status.label,
-                               icon: project.status.icon,
-                               style: statusPillStyle)
+                        AHStatus(text: project.status.label, color: statusColor)
                     }
 
                     HStack(spacing: AHSpacing.m) {
@@ -232,7 +230,7 @@ struct ProjectDetailView: View {
                             } else {
                                 HStack(spacing: AHSpacing.xs) {
                                     ForEach(project.surveyScopes, id: \.self) { s in
-                                        AHPill(text: s.label, style: .info)
+                                        AHPill(text: s.label, style: .neutral)
                                     }
                                 }
                             }
@@ -261,31 +259,27 @@ struct ProjectDetailView: View {
             AHCard {
                 AHSection("快速操作") {
                     HStack(spacing: AHSpacing.m) {
-                        quickAction("开始调研", "play.circle", .accent) { appStore.isSurveying = true }
-                        quickAction("生成 AI 增强", "wand.and.stars", .accent) { runAIEnhancement() }
-                        quickAction("导入文档", "doc.badge.plus", .neutral) { importDocument() }
-                        quickAction("导出报告", "square.and.arrow.up", .neutral) { showExportPanel = true }
+                        quickAction("开始调研", "play.circle") { appStore.isSurveying = true }
+                        quickAction("生成 AI 增强", "wand.and.stars") { runAIEnhancement() }
+                        quickAction("导入文档", "doc.badge.plus") { importDocument() }
+                        quickAction("导出报告", "square.and.arrow.up") { showExportPanel = true }
                     }
                 }
             }
         }
     }
 
-    private func quickAction(_ label: String, _ icon: String, _ style: AHPill.Style, action: @escaping () -> Void) -> some View {
+    private func quickAction(_ label: String, _ icon: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             VStack(spacing: AHSpacing.xs) {
-                AHIconTile(symbol: icon, size: AHIconBox.lg, tint: style.fg)
+                AHIconTile(symbol: icon, size: AHIconBox.lg, tint: .ahInk60)
                 Text(label).ahCallout().fontWeight(.medium)
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, AHSpacing.m)
             .background(
                 RoundedRectangle(cornerRadius: AHRadius.md, style: .continuous)
-                    .fill(Color.ahPaperAlt)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: AHRadius.md, style: .continuous)
-                    .strokeBorder(Color.ahBorder, lineWidth: 1)
+                    .fill(Color.ahPaper)
             )
         }
         .buttonStyle(.plain)
@@ -445,7 +439,7 @@ struct ProjectDetailView: View {
                 .padding(AHSpacing.m)
                 .background(
                     RoundedRectangle(cornerRadius: AHRadius.sm)
-                        .fill(Color.ahAccentBG)
+                        .fill(Color.ahPaper)
                 )
             }
 
@@ -462,15 +456,13 @@ struct ProjectDetailView: View {
             }
 
             if docImportPhase == .applied {
-                AHPill(text: "已应用到本项目",
-                       icon: "checkmark.circle.fill",
-                       style: .success)
+                AHStatus(text: "已应用到本项目", color: .ahSuccess)
             }
 
             if let error = docAnalyzer.lastError {
                 HStack(spacing: AHSpacing.xs) {
                     Image(systemName: "exclamationmark.triangle.fill")
-                        .foregroundStyle(.orange).ahCaption()
+                        .foregroundStyle(Color.ahWarning).ahCaption()
                     Text(error).foregroundStyle(Color.ahDanger).ahCaption()
                     Spacer()
                     Button {
@@ -513,7 +505,7 @@ struct ProjectDetailView: View {
                     }
                 }
                 .padding(AHSpacing.m)
-                .background(RoundedRectangle(cornerRadius: AHRadius.sm).fill(Color.ahAccentBG))
+                .background(RoundedRectangle(cornerRadius: AHRadius.sm).fill(Color.ahPaper))
             } else {
                 Text("未提取到结构化信息，仍可直接生成补充问题")
                     .ahCaption()
@@ -607,7 +599,7 @@ struct ProjectDetailView: View {
                             .padding(AHSpacing.xs)
                             .background(
                                 RoundedRectangle(cornerRadius: AHRadius.xs)
-                                    .fill(isSelected ? Color.ahAccentBG : Color.clear)
+                                    .fill(isSelected ? Color.ahSelected : Color.clear)
                             )
                         }
                         .buttonStyle(.plain)
@@ -634,11 +626,7 @@ struct ProjectDetailView: View {
         .padding(AHSpacing.m)
         .background(
             RoundedRectangle(cornerRadius: AHRadius.sm)
-                .fill(Color.ahAccentBG)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: AHRadius.sm)
-                .strokeBorder(Color.ahAccentBorder, lineWidth: 1)
+                .fill(Color.ahPaper)
         )
     }
 
@@ -667,7 +655,7 @@ struct ProjectDetailView: View {
                 AHCard {
                     VStack(alignment: .leading, spacing: AHSpacing.m) {
                         HStack {
-                            AHPill(text: "AI 增强已完成", icon: "checkmark.circle.fill", style: .success)
+                            AHStatus(text: "AI 增强已完成", color: .ahSuccess)
                             Spacer()
                             Text(enhancement.generatedAt, format: .dateTime.month().day().hour().minute())
                                 .ahCaption()
@@ -699,7 +687,7 @@ struct ProjectDetailView: View {
                 AHCard {
                     VStack(alignment: .leading, spacing: AHSpacing.m) {
                         HStack(spacing: AHSpacing.m) {
-                            AHIconTile(symbol: "wand.and.stars", size: AHIconBox.lg, tint: Color.ahAccent)
+                            AHIconTile(symbol: "wand.and.stars", size: AHIconBox.lg, tint: .ahInk60)
                             VStack(alignment: .leading, spacing: AHSpacing.xs) {
                                 Text("AI 智能增强").ahTitle3()
                                 Text("根据客户属性和行业特征，自动生成动态选项、调整优先级、筛除冗余问题。")
@@ -715,10 +703,10 @@ struct ProjectDetailView: View {
                         }
 
                         if let enhancer = aiEnhancer, let error = enhancer.lastError {
-                            AHPill(text: error, icon: "exclamationmark.triangle", style: .danger)
+                            noticeRow("exclamationmark.triangle", error, color: .ahDanger)
                         }
                         if !settings.isLLMConfigured {
-                            AHPill(text: "请先在设置中配置 LLM API Key", icon: "gearshape", style: .warning)
+                            noticeRow("gearshape", "请先在设置中配置 LLM API Key", color: .ahWarning)
                         }
                     }
                 }
@@ -733,12 +721,21 @@ struct ProjectDetailView: View {
                 Text(label).ahCaption()
             }
             Text("\(count)")
-                .font(.system(size: AHIconBox.sm, weight: .semibold, design: .rounded))
-                .foregroundStyle(count > 0 ? Color.ahAccent : Color.ahInk40)
+                .font(.system(size: 22, weight: .semibold, design: .monospaced))
+                .foregroundStyle(count > 0 ? Color.ahInk : Color.ahInk40)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(AHSpacing.m)
         .background(RoundedRectangle(cornerRadius: AHRadius.sm).fill(Color.ahPaper))
+    }
+
+    /// 通知行 —— 图标 + 文字（铁规：通知用文字+图标，不用色块/徽章）。
+    private func noticeRow(_ icon: String, _ text: String, color: Color) -> some View {
+        HStack(spacing: AHSpacing.xs) {
+            Image(systemName: icon).foregroundStyle(color).ahCaption()
+            Text(text).foregroundStyle(Color.ahInk60).ahCaption()
+            Spacer(minLength: 0)
+        }
     }
 
     // MARK: - Tab: 进度
@@ -784,7 +781,7 @@ struct ProjectDetailView: View {
                                         appStore.isSurveying = true
                                     } label: {
                                         HStack(spacing: AHSpacing.s) {
-                                            AHIconTile(symbol: dept.sfSymbol, size: AHIconBox.sm, tint: Color.ahAccent)
+                                            AHIconTile(symbol: dept.sfSymbol, size: AHIconBox.sm, tint: .ahInk60)
                                             Text(dept.name)
                                                 .ahCallout().fontWeight(.medium)
                                                 .frame(width: 100, alignment: .leading)
@@ -1110,19 +1107,10 @@ struct ProjectDetailView: View {
 
     private var statusColor: Color {
         switch project.status {
-        case .draft:      .gray
+        case .draft:      .ahInk40
         case .inProgress: Color.ahAccent
         case .completed:  Color.ahSuccess
-        case .archived:   .secondary
-        }
-    }
-
-    private var statusPillStyle: AHPill.Style {
-        switch project.status {
-        case .draft:      .neutral
-        case .inProgress: .info
-        case .completed:  .success
-        case .archived:   .neutral
+        case .archived:   .ahInk20
         }
     }
 }

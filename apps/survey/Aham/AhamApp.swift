@@ -49,5 +49,6 @@ struct AhamApp: App {
                 .environment(settingsManager)
                 .environment(pluginLoader)
         }
+        .defaultPosition(.center)
     }
 }

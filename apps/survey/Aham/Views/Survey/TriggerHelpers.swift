@@ -12,9 +12,9 @@ func triggerIcon(for type: TriggerEngine.TriggerType) -> String {
 
 func triggerColor(for type: TriggerEngine.TriggerType) -> Color {
     switch type {
-    case .followup: .blue
-    case .tip: .orange
-    case .warning: .red
-    case .rule: .purple
+    case .followup: .ahAccent
+    case .tip: .ahWarning
+    case .warning: .ahDanger
+    case .rule: .ahInk60
     }
 }

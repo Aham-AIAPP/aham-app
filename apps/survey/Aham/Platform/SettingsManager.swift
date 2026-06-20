@@ -14,11 +14,6 @@ final class SettingsManager {
         didSet { save() }
     }
 
-    // MARK: - 金蝶云星空配置
-    var kingdeeConfig: KingdeeConfig {
-        didSet { save() }
-    }
-
     // MARK: - LLM Provider（缓存实例，配置变更时重建）
     private var _cachedProvider: OpenAICompatibleProvider?
     private var _cachedProviderConfig: LLMConfig?
@@ -50,11 +45,9 @@ final class SettingsManager {
            let stored = try? JSONDecoder().decode(StoredSettings.self, from: data) {
             self.llmConfig      = stored.llm
             self.obsidianConfig = stored.obsidian
-            self.kingdeeConfig  = stored.kingdee
         } else {
             self.llmConfig      = .default
             self.obsidianConfig = .default
-            self.kingdeeConfig  = .default
         }
     }
 
@@ -66,8 +59,7 @@ final class SettingsManager {
             guard let self else { return }
             let stored = StoredSettings(
                 llm: self.llmConfig,
-                obsidian: self.obsidianConfig,
-                kingdee: self.kingdeeConfig
+                obsidian: self.obsidianConfig
             )
             if let data = try? JSONEncoder().encode(stored) {
                 UserDefaults.standard.set(data, forKey: Self.storageKey)
@@ -89,7 +81,6 @@ final class SettingsManager {
 private struct StoredSettings: Codable {
     let llm: LLMConfig
     let obsidian: ObsidianConfig
-    var kingdee: KingdeeConfig
 }
 
 // MARK: - Obsidian 配置
@@ -125,28 +116,4 @@ struct ObsidianConfig: Codable, Equatable {
                         relativeTo: nil,
                         bookmarkDataIsStale: &stale)
     }
-}
-
-// MARK: - 金蝶云星空配置
-
-struct KingdeeConfig: Codable, Equatable {
-    var serverURL: String
-    var acctId: String
-    var username: String
-    var appId: String
-    var appSecret: String
-    var lcid: String
-
-    var isConfigured: Bool {
-        !serverURL.isEmpty && !acctId.isEmpty && !appId.isEmpty && !appSecret.isEmpty
-    }
-
-    static let `default` = KingdeeConfig(
-        serverURL: "",
-        acctId: "",
-        username: "",
-        appId: "",
-        appSecret: "",
-        lcid: "2052"
-    )
 }

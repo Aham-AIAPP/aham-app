@@ -115,14 +115,14 @@ struct NewProjectView: View {
                                     else { selectedSystems.insert(sys) }
                                 } label: {
                                     Text(sys.rawValue)
-                                        .foregroundStyle(isOn ? .primary : .secondary)
+                                        .foregroundStyle(isOn ? Color.ahInk : Color.ahInk60)
                                         .ahCaption()
                                         .frame(maxWidth: .infinity)
                                         .padding(.vertical, AHSpacing.xxs)
-                                        .background(isOn ? Color.ahAccentBG : Color.clear, in: .rect(cornerRadius: AHRadius.xs))
+                                        .background(isOn ? Color.ahSelected : Color.clear, in: .rect(cornerRadius: AHRadius.xs))
                                         .overlay(
                                             RoundedRectangle(cornerRadius: AHRadius.xs)
-                                                .stroke(isOn ? Color.ahAccent : Color.secondary.opacity(0.2), lineWidth: isOn ? 1.5 : 0.5)
+                                                .stroke(Color.ahBorder, lineWidth: 1)
                                         )
                                 }
                                 .buttonStyle(.plain)
@@ -175,21 +175,20 @@ struct NewProjectView: View {
                         Image(systemName: scope.icon)
                             .ahTitle3()
                         Text(scope.label)
-                            .foregroundStyle(isSelected ? Color.ahAccent : Color.ahInk60)
+                            .foregroundStyle(isSelected ? Color.ahInk : Color.ahInk60)
                             .ahCaption()
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, AHSpacing.s)
-                    .background(isSelected ? Color.ahAccentBG : Color.clear,
+                    .background(isSelected ? Color.ahSelected : Color.clear,
                                 in: .rect(cornerRadius: AHRadius.lg))
                     .overlay(
                         RoundedRectangle(cornerRadius: AHRadius.lg)
-                            .stroke(isSelected ? Color.ahAccentBorder : Color.ahBorder,
-                                    lineWidth: isSelected ? 1.5 : 0.5)
+                            .stroke(Color.ahBorder, lineWidth: 1)
                     )
                 }
                 .buttonStyle(.plain)
-                .foregroundStyle(isSelected ? Color.ahAccent : Color.ahInk60)
+                .foregroundStyle(isSelected ? Color.ahInk : Color.ahInk60)
             }
         }
     }
