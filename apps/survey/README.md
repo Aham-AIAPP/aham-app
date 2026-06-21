@@ -1,5 +1,9 @@
 # Aham Survey
 
+[![License: MIT](https://img.shields.io/github/license/li599198347-svg/aham-survey)](LICENSE)
+[![Release](https://img.shields.io/github/v/release/li599198347-svg/aham-survey)](https://github.com/li599198347-svg/aham-survey/releases/latest)
+[![Platform: macOS](https://img.shields.io/badge/platform-macOS-5366C9)](https://github.com/li599198347-svg/aham-survey/releases/latest)
+
 ![Aham Survey — 现场调研工具](assets/social-preview.png)
 
 > 把现场调研变成结构化洞察的 macOS 应用。
@@ -31,7 +35,7 @@ Aham 来自 *aha moment*。每个工具只把一件事做利落。
 
 ## 下载
 
-[**↓ 下载 Aham Survey v1.0.0（.dmg）**](https://github.com/li599198347-svg/aham-survey/releases/latest)
+[**↓ 下载最新版 Aham Survey（.dmg）**](https://github.com/li599198347-svg/aham-survey/releases/latest)
 
 仅 Apple Silicon（M 系列）。打开 DMG 后把 `Aham Survey` 拖入「应用程序」。
 
@@ -49,3 +53,9 @@ Aham 来自 *aha moment*。每个工具只把一件事做利落。
 - 当前仅支持 macOS；跨平台版（Tauri）暂未发布。
 - 这是对外公开的示例版：内部行业知识库（方法论 / 售前框架等文档）已从代码与 git 历史中移除。
 - 功能清单整理自源码盘点，若与最新代码不一致以代码为准。
+
+## 版本与许可
+
+- 完整版本记录见 [CHANGELOG.md](CHANGELOG.md)，所有发布见 [Releases](https://github.com/li599198347-svg/aham-survey/releases)。
+- 贡献与发版流程见 [CONTRIBUTING.md](CONTRIBUTING.md)。
+- 许可证：[MIT](LICENSE)。
