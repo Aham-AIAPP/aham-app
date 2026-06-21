@@ -13,6 +13,21 @@
 
 **🖥 项目主页 → <https://li599198347-svg.github.io/aham-survey/>**
 
+## 预览
+
+> 同一套 Aham UI v6.1 设计语言 · 亮 / 暗双色。
+
+<table>
+  <tr>
+    <td width="50%"><img src="assets/shots/survey-light.png" alt="Aham Survey · 亮色"></td>
+    <td width="50%"><img src="assets/shots/survey-dark.png" alt="Aham Survey · 暗色"></td>
+  </tr>
+  <tr>
+    <td align="center">亮色 · 部门分栏 + 聚焦式问答 + 顾问记录</td>
+    <td align="center">暗色 · 实时录音转写 + 部门进度</td>
+  </tr>
+</table>
+
 ## 能做什么
 
 - **项目制调研**：按客户 / 项目建调研，状态分进行中 / 草稿 / 已完成 / 已归档，可复制、归档、导出。
