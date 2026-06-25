@@ -21,6 +21,8 @@ ExportOptions.plist
 
 # Build products
 Products/
+dist/
+dmg-stage/
 
 # CocoaPods
 Pods/

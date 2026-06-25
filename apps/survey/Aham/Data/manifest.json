@@ -1,93 +1,14 @@
 {
   "departmentFiles": [
-    "executive", "sales", "rd-project", "planning",
-    "production", "procurement", "warehouse", "quality",
-    "equipment", "process-tech", "finance", "it"
+    "procurement"
   ],
   "departments": [
-    {
-      "id": "executive",
-      "name": "总经理/高层",
-      "icon": "Enterprise",
-      "defaultSelected": true,
-      "description": "企业战略方向、数字化愿景、整体规划与资源投入决策"
-    },
-    {
-      "id": "sales",
-      "name": "销售/客服",
-      "icon": "ShoppingCart",
-      "defaultSelected": true,
-      "description": "客户需求管理、订单处理、报价管理、客户关系维护"
-    },
-    {
-      "id": "rd-project",
-      "name": "研发/项目",
-      "icon": "Chemistry",
-      "defaultSelected": true,
-      "description": "产品研发流程、项目管理、APQP、PPAP、变更管理"
-    },
-    {
-      "id": "planning",
-      "name": "计划/PMC",
-      "icon": "Calendar",
-      "defaultSelected": true,
-      "description": "生产计划排程、物料需求计划、产能规划、交期管理"
-    },
-    {
-      "id": "production",
-      "name": "生产/车间",
-      "icon": "Industry",
-      "defaultSelected": true,
-      "description": "生产执行、工单管理、报工、在制品管理、异常处理"
-    },
     {
       "id": "procurement",
       "name": "采购",
       "icon": "Purchase",
       "defaultSelected": true,
       "description": "供应商管理、采购订单、比价、交期跟踪、供应商评审"
-    },
-    {
-      "id": "warehouse",
-      "name": "仓储/物流",
-      "icon": "Warehouse",
-      "defaultSelected": true,
-      "description": "原材料/成品仓管理、出入库、库存盘点、物流配送"
-    },
-    {
-      "id": "quality",
-      "name": "质量",
-      "icon": "CheckmarkOutline",
-      "defaultSelected": true,
-      "description": "来料检验、过程检验、成品检验、质量追溯、SPC、客诉处理"
-    },
-    {
-      "id": "equipment",
-      "name": "设备/模具",
-      "icon": "ToolKit",
-      "defaultSelected": false,
-      "description": "设备管理、点检保养、模具寿命管理、备件管理、OEE"
-    },
-    {
-      "id": "process-tech",
-      "name": "工艺/生技",
-      "icon": "FlowData",
-      "defaultSelected": false,
-      "description": "工艺路线管理、BOM维护、作业指导书、工时定额"
-    },
-    {
-      "id": "finance",
-      "name": "财务/成本",
-      "icon": "Finance",
-      "defaultSelected": false,
-      "description": "成本核算、应收应付、预算管理、费用控制"
-    },
-    {
-      "id": "it",
-      "name": "IT",
-      "icon": "Network",
-      "defaultSelected": false,
-      "description": "信息化现状、系统架构、网络基础设施、数据安全"
     }
   ]
 }
