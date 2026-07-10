@@ -7,6 +7,10 @@
 
 ## [Unreleased]
 
+### 变更
+- 仓库迁移至新账号 [Aham-AIAPP](https://github.com/Aham-AIAPP)（旧账号不可用），全部链接更新；README 徽章行加「联系我（微信）」，「关于 Aham」加公众号/作者微信二维码，产品矩阵补 Aham Word。
+
+
 ## [1.0.1] - 2026-06-21
 
 ### 新增
@@ -28,11 +32,11 @@
 - 导出：Markdown 报告、单部门导出、Obsidian URI。
 
 ### 变更
-- 全面对齐兄弟仓库 [aham-ui](https://github.com/li599198347-svg/aham-ui) 设计系统，独立 App 化，更新调研图标。
+- 全面对齐兄弟仓库 [aham-ui](https://github.com/Aham-AIAPP/aham-ui) 设计系统，独立 App 化，更新调研图标。
 
 ### 安全
 - 语音强制本地识别；从代码与 git 历史中移除内部行业知识库与 `xcuserdata`。
 
-[Unreleased]: https://github.com/li599198347-svg/aham-survey/compare/v1.0.1...HEAD
-[1.0.1]: https://github.com/li599198347-svg/aham-survey/releases/tag/v1.0.1
-[1.0.0]: https://github.com/li599198347-svg/aham-survey/releases/tag/v1.0.0
+[Unreleased]: https://github.com/Aham-AIAPP/aham-survey/compare/v1.0.1...HEAD
+[1.0.1]: https://github.com/Aham-AIAPP/aham-survey/releases/tag/v1.0.1
+[1.0.0]: https://github.com/Aham-AIAPP/aham-survey/releases/tag/v1.0.0

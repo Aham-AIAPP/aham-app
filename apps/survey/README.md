@@ -1,9 +1,10 @@
 # Aham Survey — 现场调研工具（macOS）
 
-[![Release](https://img.shields.io/github/v/release/li599198347-svg/aham-survey?color=336EE8)](https://github.com/li599198347-svg/aham-survey/releases)
+[![Release](https://img.shields.io/github/v/release/Aham-AIAPP/aham-survey?color=336EE8)](https://github.com/Aham-AIAPP/aham-survey/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-336EE8.svg)](LICENSE)
-[![Design](https://img.shields.io/badge/Design-Aham%20UI%20v6.1-336EE8.svg)](https://github.com/li599198347-svg/aham-ui)
+[![Design](https://img.shields.io/badge/Design-Aham%20UI%20v6.1-336EE8.svg)](https://github.com/Aham-AIAPP/aham-ui)
 [![Type](https://img.shields.io/badge/type-macOS%20App-336EE8.svg)](#)
+[![联系我](https://img.shields.io/badge/%E8%81%94%E7%B3%BB%E6%88%91-%E5%BE%AE%E4%BF%A1-336EE8.svg?logo=wechat&logoColor=white)](assets/wechat-qr.png)
 
 ![Aham Survey — 现场调研工具](assets/social-preview.png)
 
@@ -48,7 +49,7 @@ Aham Survey 为此而做：它不止于「记下来」，而是把现场调研�
 
 ## 开始使用
 
-[**↓ 下载最新版（.dmg）**](https://github.com/li599198347-svg/aham-survey/releases/latest)（仅 Apple Silicon）。拖入「应用程序」；首次打开右键 → 打开，或终端执行 `xattr -dr com.apple.quarantine "/Applications/Aham Survey.app"` 解除隔离。AI 能力在「设置」里填自己的 LLM API Key（仅存本机）。
+[**↓ 下载最新版（.dmg）**](https://github.com/Aham-AIAPP/aham-survey/releases/latest)（仅 Apple Silicon）。拖入「应用程序」；首次打开右键 → 打开，或终端执行 `xattr -dr com.apple.quarantine "/Applications/Aham Survey.app"` 解除隔离。AI 能力在「设置」里填自己的 LLM API Key（仅存本机）。
 
 从源码运行需 Xcode 打开 `Aham.xcodeproj`。当前仅 macOS；本仓为对外示例版，内部行业知识库（方法论 / 售前框架）已从代码与历史移除。
 
@@ -56,7 +57,7 @@ Aham Survey 为此而做：它不止于「记下来」，而是把现场调研�
 
 ## 更新记录
 
-[Releases](https://github.com/li599198347-svg/aham-survey/releases) · [CHANGELOG](CHANGELOG.md)（Keep a Changelog · SemVer） · [CONTRIBUTING](CONTRIBUTING.md) · [MIT](LICENSE)
+[Releases](https://github.com/Aham-AIAPP/aham-survey/releases) · [CHANGELOG](CHANGELOG.md)（Keep a Changelog · SemVer） · [CONTRIBUTING](CONTRIBUTING.md) · [MIT](LICENSE)
 
 ## 关于 Aham
 
@@ -64,7 +65,14 @@ Aham Survey 为此而做：它不止于「记下来」，而是把现场调研�
 
 | 应用 | 一句话 |
 |---|---|
-| [Aham UI](https://github.com/li599198347-svg/aham-ui) | 供 AI 消费的设计系统——写一次规范，AI 产出处处一致 |
+| [Aham UI](https://github.com/Aham-AIAPP/aham-ui) | 供 AI 消费的设计系统——写一次规范，AI 产出处处一致 |
+| [Aham Word](https://github.com/Aham-AIAPP/aham-word) | 供 AI 消费的 Word 规范——AI 据规范产出处处一致的 .docx |
 | **Aham Survey** | 现场调研工具（macOS）——本地优先，把现场对话做成结构化调研成果 |
-| [Aham Voice](https://github.com/li599198347-svg/aham-voice) | 录音转写与会议纪要（macOS）——本地离线转写，纪要走你自己的模型 |
-| [Aham PPT](https://github.com/li599198347-svg/aham-ppt) | 克制的 AI PPT 制作技能——把素材做成方案级 PPT |
+| [Aham Voice](https://github.com/Aham-AIAPP/aham-voice) | 录音转写与会议纪要（macOS）——本地离线转写，纪要走你自己的模型 |
+| [Aham PPT](https://github.com/Aham-AIAPP/aham-ppt) | 克制的 AI PPT 制作技能——把素材做成方案级 PPT |
+
+### 关注 · 交流
+
+公众号看更多 AI 工具实践与更新；也欢迎扫码加我，交流与反馈。
+
+<p><img src="assets/wechat-qr.png" width="640" alt="关注 Aham 公众号 / 加作者微信"></p>
