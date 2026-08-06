@@ -26,7 +26,7 @@
       ],
       "triggers": [
         {
-          "condition": "采购人数 < 3",
+          "condition": "answer.number < 3",
           "type": "warning",
           "content": "采购团队规模较小，可能存在职责重叠、一人多岗的情况，需关注关键人离职风险和审批合规性",
           "model": "岗位风险"
@@ -144,7 +144,7 @@
       ],
       "triggers": [
         {
-          "condition": "紧急采购>30%",
+          "condition": "answer == '月均>2000张，紧急采购>30%'",
           "type": "followup",
           "content": "紧急采购比例过高，建议追问：紧急采购的主要原因是什么？（计划不准、客户插单、物料短缺、供应商延迟？）有无紧急采购的审批和追溯机制？",
           "model": "安全库存"

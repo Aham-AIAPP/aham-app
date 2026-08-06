@@ -9,6 +9,9 @@ final class PluginLoader {
 
     init() {
         loadBuiltinData()
+        #if DEBUG
+        validateTriggerConditions()
+        #endif
     }
 
     // MARK: - 加载内置数据
@@ -42,6 +45,28 @@ final class PluginLoader {
             print("[PluginLoader] 加载 \(url.lastPathComponent) 失败: \(error)")
         }
     }
+
+    // MARK: - 触发规则自检
+
+    #if DEBUG
+    /// 题库里的触发条件一旦写成 TriggerEngine 解析不了的形式，就会永远不触发且毫无提示。
+    /// 这里在 DEBUG 构建下全量走一遍，把哑规则暴露在控制台。
+    private func validateTriggerConditions() {
+        var bad: [String] = []
+        for (deptId, file) in departmentQuestions {
+            for question in file.questions {
+                for trigger in question.triggers ?? [] where !TriggerEngine.validate(trigger.condition) {
+                    bad.append("[\(deptId)] \(question.id): \(trigger.condition)")
+                }
+            }
+        }
+        guard !bad.isEmpty else { return }
+        for line in bad {
+            print("[TriggerEngine] 无法解析的条件: \(line)")
+        }
+        assertionFailure("题库存在 \(bad.count) 条无法解析的触发条件，详见控制台")
+    }
+    #endif
 
     // MARK: - 查询
 
