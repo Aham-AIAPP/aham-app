@@ -6,6 +6,10 @@
 
 ## HomeView
 
+> ⚠️ aham-survey 实际首页为 `MCPConsoleView`（MCP 接入控制台），结构铁律见该仓库
+> `CLAUDE.md`。下方 HomeView 规范供其他仓库沿用。
+
+
 ```
 ┌─────────────────────────────┐
 │                             │

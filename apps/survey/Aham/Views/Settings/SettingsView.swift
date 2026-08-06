@@ -9,12 +9,8 @@ struct SettingsView: View {
             Tab("通用", systemImage: "gearshape") {
                 GeneralSettingsTab()
             }
-
-            Tab("备份", systemImage: "externaldrive") {
-                BackupSettingsTab()
-            }
         }
-        .frame(width: 580, height: 480)
+        .frame(width: 560, height: 320)
     }
 }
 
@@ -70,89 +66,6 @@ private struct GeneralSettingsTab: View {
         Task {
             let result = await settings.testLLMConnection()
             connectionResult = result; testingConnection = false
-        }
-    }
-}
-
-// MARK: - 备份 Tab
-
-private struct BackupSettingsTab: View {
-    @State private var manager = BackupManager()
-
-    var body: some View {
-        Form {
-            Section {
-                VStack(alignment: .leading, spacing: AHSpacing.xs) {
-                    Text("将所有调研项目、回答和配置打包为 ZIP 文件，可在重装系统或换电脑后恢复。")
-                        .ahCaption()
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-
-                    HStack(spacing: AHSpacing.m) {
-                        Button {
-                            manager.export()
-                        } label: {
-                            if manager.isExporting {
-                                ProgressView().controlSize(.small)
-                                Text("正在导出...")
-                            } else {
-                                Label("导出备份...", systemImage: "arrow.down.circle")
-                            }
-                        }
-                        .disabled(manager.isExporting)
-
-                        if let msg = manager.exportMessage {
-                            Text(msg)
-                                .ahCaption()
-                                .foregroundStyle(msg.hasPrefix("✅") ? Color.ahSuccess : Color.ahDanger)
-                        }
-                    }
-                }
-            } header: {
-                Label("导出备份", systemImage: "square.and.arrow.down")
-            }
-
-            Section {
-                VStack(alignment: .leading, spacing: AHSpacing.xs) {
-                    Text("选择之前导出的备份文件，导入后 App 将自动重启，重启后数据恢复完成。")
-                        .ahCaption()
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-
-                    HStack(spacing: AHSpacing.m) {
-                        Button {
-                            manager.selectAndImport()
-                        } label: {
-                            if manager.isImporting {
-                                ProgressView().controlSize(.small)
-                                Text("正在导入...")
-                            } else {
-                                Label("选择备份文件...", systemImage: "arrow.up.circle")
-                            }
-                        }
-                        .disabled(manager.isImporting)
-
-                        if let msg = manager.importMessage {
-                            Text(msg)
-                                .ahCaption()
-                                .foregroundStyle(msg.hasPrefix("✅") ? Color.ahSuccess : Color.ahDanger)
-                        }
-                    }
-                }
-            } header: {
-                Label("导入备份", systemImage: "square.and.arrow.up")
-            } footer: {
-                Text("⚠️ 导入会覆盖当前全部数据，请确认备份文件来源正确。")
-                    .ahCaption()
-                    .foregroundStyle(Color.ahWarning)
-            }
-        }
-        .formStyle(.grouped)
-        .alert("确认导入备份？", isPresented: $manager.showImportConfirm) {
-            Button("取消", role: .cancel) { manager.cancelImport() }
-            Button("导入并重启", role: .destructive) { manager.confirmImport() }
-        } message: {
-            Text("导入后将覆盖当前所有数据（项目、回答、配置），App 会自动重启。此操作不可撤销。")
         }
     }
 }

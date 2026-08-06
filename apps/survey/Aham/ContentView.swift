@@ -9,8 +9,6 @@ struct ContentView: View {
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
 
     var body: some View {
-        @Bindable var store = appStore
-
         NavigationSplitView(columnVisibility: $columnVisibility) {
             // Sidebar: 项目列表（宽度对齐 aham-ui sidebar-width 264）
             ProjectListView()
@@ -49,9 +47,6 @@ struct ContentView: View {
                 appStore.isSurveying = false
             }
         }
-        .sheet(isPresented: $store.showNewProject) {
-            NewProjectView()
-        }
     }
 
     // MARK: - Computed
@@ -68,62 +63,7 @@ struct ContentView: View {
         if let project = currentProject {
             ProjectDetailView(project: project)
         } else {
-            WelcomeView()
-        }
-    }
-}
-
-// MARK: - Welcome
-
-struct WelcomeView: View {
-    @Environment(AppStore.self) private var appStore
-
-    var body: some View {
-        VStack(spacing: 0) {
-            Spacer()
-
-            AHIconTile(symbol: "doc.text.magnifyingglass", size: AHIconBox.hero)
-                .padding(.bottom, AHSpacing.xxxl)
-
-            Text("Aham Survey")
-                .ahTitle()
-
-            Text("把现场调研变成结构化洞察")
-                .ahTitle3()
-                .foregroundStyle(.secondary)
-                .padding(.top, AHSpacing.xs)
-
-            AHDivider()
-                .frame(maxWidth: 240)
-                .padding(.vertical, AHSpacing.xl)
-
-            VStack(alignment: .leading, spacing: AHSpacing.s) {
-                featureRow("doc.text.magnifyingglass", "结构化调研，覆盖 14 大职能部门")
-                featureRow("brain.head.profile",       "现场追问建议与风险提醒")
-            }
-
-            Button {
-                appStore.showNewProject = true
-            } label: {
-                Label("新建调研项目", systemImage: "plus")
-            }
-            .buttonStyle(.ahPrimaryLarge)
-            .padding(.top, AHSpacing.xxxl)
-
-            Spacer()
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-
-    private func featureRow(_ icon: String, _ text: String) -> some View {
-        HStack(spacing: AHSpacing.s) {
-            Image(systemName: icon)
-                .ahCallout()
-                .foregroundStyle(Color.ahInk60)
-                .frame(width: AHIconBox.xs)
-            Text(text)
-                .ahCallout()
-                .foregroundStyle(Color.ahInk60)
+            MCPConsoleView()
         }
     }
 }
@@ -133,5 +73,6 @@ struct WelcomeView: View {
         .environment(AppStore())
         .environment(PluginLoader())
         .environment(SettingsManager())
+        .environment(MCPSettings())
         .modelContainer(for: [Project.self, Answer.self, MemoItem.self, AdoptedFollowup.self], inMemory: true)
 }

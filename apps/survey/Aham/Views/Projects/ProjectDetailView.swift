@@ -29,9 +29,8 @@ struct ProjectDetailView: View {
     @Environment(AppStore.self) private var appStore
     @Environment(SettingsManager.self) private var settings
     @Environment(PluginLoader.self) private var pluginLoader
+    @Environment(\.modelContext) private var modelContext
     @Query private var allAnswers: [Answer]
-    @Query private var allMemoItems: [MemoItem]
-    @Query private var allAdoptedFollowups: [AdoptedFollowup]
 
 
     @State private var showExportPanel = false
@@ -468,86 +467,16 @@ struct ProjectDetailView: View {
 
     // MARK: - Business Logic (保留 V2 原样)
 
+    private var exportService: ExportService {
+        ExportService(context: modelContext, pluginLoader: pluginLoader)
+    }
+
     private func buildExportPanelData() -> ExportPanelData {
-        var deptNames: [String: String] = [:]
-        var deptCounts: [String: Int] = [:]
-        for deptId in project.selectedDepartmentIds {
-            let dept = pluginLoader.departments.first { $0.id == deptId }
-            deptNames[deptId] = dept?.name ?? deptId
-            deptCounts[deptId] = projectAnswers.filter { $0.departmentId == deptId && $0.hasContent }.count
-        }
-        return ExportPanelData(
-            projectName: project.displayName,
-            selectedDeptIds: project.selectedDepartmentIds,
-            deptNames: deptNames,
-            deptAnsweredCounts: deptCounts
-        )
+        exportService.panelData(for: project)
     }
 
     private func buildExportSnapshot() -> ExportSnapshot {
-        let answers = projectAnswers
-        var deptNames: [String: String] = [:]
-        var deptSections: [String: [ExportSnapshot.ExportSectionData]] = [:]
-        for deptId in project.selectedDepartmentIds {
-            let dept = pluginLoader.departments.first { $0.id == deptId }
-            deptNames[deptId] = dept?.name ?? deptId
-            let deptAnswers = answers.filter { $0.departmentId == deptId }
-            let deptFollowups = allAdoptedFollowups
-                .filter { $0.projectId == project.id && $0.departmentId == deptId }
-                .sorted { $0.createdAt < $1.createdAt }
-            let rawSections = pluginLoader.questionsBySection(for: deptId)
-
-            func item(for q: QuestionTemplate, isFollowup: Bool) -> ExportSnapshot.ExportItem {
-                let ans = deptAnswers.first { $0.questionId == q.id }
-                return ExportSnapshot.ExportItem(
-                    topic: q.topic,
-                    question: q.question,
-                    isFollowup: isFollowup,
-                    selectedOptions: ans?.selectedOptions ?? [],
-                    textValue: ans?.textValue ?? "",
-                    noteText: ans?.noteText ?? "",
-                    polishedText: ans?.polishedText ?? "",
-                    voiceTranscript: ans?.voiceTranscript ?? "",
-                    hasContent: ans?.hasContent ?? false
-                )
-            }
-
-            let sections: [ExportSnapshot.ExportSectionData] = rawSections.map { (section, questions) in
-                var items: [ExportSnapshot.ExportItem] = []
-                for q in questions {
-                    items.append(item(for: q, isFollowup: false))
-                    // 现场采纳的 AI 追问紧跟其父题目输出
-                    for fu in deptFollowups where fu.parentQuestionId == q.id {
-                        items.append(item(for: fu.asTemplate(section: section), isFollowup: true))
-                    }
-                }
-                return ExportSnapshot.ExportSectionData(label: section.label, items: items)
-            }
-            deptSections[deptId] = sections
-        }
-        return ExportSnapshot(
-            displayName: project.displayName, customerName: project.customerName,
-            consultant: project.consultant, surveyDate: project.surveyDate,
-            statusLabel: project.status.label, industryLabel: project.industryEnum.label,
-            companyScale: project.companyScale, headcount: project.headcount,
-            revenue: project.revenue, existingSystems: project.existingSystems,
-            surveyGoal: project.surveyGoal, totalQuestions: project.totalQuestions,
-            answeredQuestions: project.answeredQuestions, progress: project.progress,
-            selectedDepartmentIds: project.selectedDepartmentIds,
-            departmentNames: deptNames, departmentSections: deptSections,
-            memoItems: memoGroupsForExport()
-        )
-    }
-
-    /// 现场备忘按四类固定顺序导出
-    private func memoGroupsForExport() -> [(category: String, texts: [String])] {
-        MemoCategory.allCases.map { category in
-            let texts = allMemoItems
-                .filter { $0.projectId == project.id && $0.category == category.rawValue }
-                .sorted { $0.createdAt < $1.createdAt }
-                .map(\.text)
-            return (category: category.label, texts: texts)
-        }
+        exportService.snapshot(for: project)
     }
 
     private func saveExportFile(data: Data, fileName: String) {
@@ -568,12 +497,7 @@ struct ProjectDetailView: View {
     }
 
     private func syncProgress() {
-        let selectedDepts = Set(project.selectedDepartmentIds)
-        let total = pluginLoader.questionsForProject(project).values.reduce(0) { $0 + $1.count }
-        let answered = projectAnswers.filter { selectedDepts.contains($0.departmentId) && $0.hasContent }.count
-        project.totalQuestions = total
-        project.answeredQuestions = answered
-        project.progress = total > 0 ? Double(answered) / Double(total) : 0
+        ProjectService(context: modelContext, pluginLoader: pluginLoader).syncProgress(project)
     }
 
     // MARK: - Status helpers

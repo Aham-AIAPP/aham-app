@@ -7,7 +7,7 @@
 	objects = {
 
 /* Begin PBXFileReference section */
-		936945412F8CAA7F006633ED /* Aham.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Aham.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		936945412F8CAA7F006633ED /* Aham Survey.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Aham Survey.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -53,7 +53,7 @@
 		936945422F8CAA7F006633ED /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				936945412F8CAA7F006633ED /* Aham.app */,
+				936945412F8CAA7F006633ED /* Aham Survey.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -80,7 +80,7 @@
 			packageProductDependencies = (
 			);
 			productName = Aham;
-			productReference = 936945412F8CAA7F006633ED /* Aham.app */;
+			productReference = 936945412F8CAA7F006633ED /* Aham Survey.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */

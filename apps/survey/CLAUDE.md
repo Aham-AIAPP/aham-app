@@ -65,12 +65,17 @@ Claude desktop 气质——极简、克制、留白、内容优先。**冷色的
 - Header 固定结构：`AHIconTile(中性) + 标题 + AHStatus(状态点+文字) + meta + 操作按钮`。
 
 ### SurveyView
-- 顶部：部门 Tab 栏（扁平灰选中）+ 状态指示（`AHStatus` AI/麦克风点+文字）+ 进度条。
+- 顶部：部门 Tab 栏（扁平灰选中）+ 状态指示（`AHStatus` AI 点+文字）+ 进度条。
 - 中部：左侧 sidebar + 中间焦点卡 + 右侧 AI 面板。
 - 焦点卡样式：tier1 白填充 + `ahAccent` 1.5pt 焦点边（focus-ring 语义）+ **无阴影**。侧栏/选项选中=`ahSelected` 灰。
 
-### HomeView
-- hero squircle（仅 logo 蓝着色）+ 标题 + slogan + 三张关键词卡（`AHCard` + 中性 `AHIconTile`）。
+### MCPConsoleView（首页）
+- App 内无「新建项目」入口，项目由 MCP 创建，首页即接入控制台。五段固定顺序：
+  hero squircle（仅 logo 蓝着色）→ 服务状态 → 怎么接入 → 能做什么 → 开始使用。
+- 服务状态**必须**用 `AHStatus`（6px 点 + 文字），禁止用色块/徽章表达运行与否。
+- 端口、令牌、命令、工具名一律 `.ahMono`（铁规：数字与标识符 mono）。
+- 命令块背景用 tier2 `ahPaperAlt`，不加边框不加阴影。
+- 四张卡片一律 `AHCard`；「写入」类工具用中性 `AHPill` 标注，不得用语义色。
 
 ### Sidebar
 - 模块按钮选中态：左侧 2pt accent 指示条 + `ahSelected` 灰背景（**非** `ahAccentBG` 蓝）。

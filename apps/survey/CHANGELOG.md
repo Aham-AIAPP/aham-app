@@ -7,7 +7,15 @@
 
 ## [Unreleased]
 
+### 新增
+- **MCP 服务**：App 内置绑定 `127.0.0.1` 的本地服务 + 随包分发的 stdio 适配器 `aham-survey-mcp.mjs`，Claude Code 与 Codex 均可接入。8 个工具：`list_projects` / `get_project` / `list_questions` / `export_report` / `create_project` / `upsert_answers` / `import_transcript` / `update_project`。
+- **首页改为 MCP 控制台**：服务状态、接入命令（一键复制）、工具清单、示例指令。
+- **Service 层**：`ProjectService` / `SurveyService` / `ExportService`，视图与 MCP 共用同一套业务逻辑。
+
 ### 移除
+- **新建项目 UI**：`NewProjectView`、⌘N、侧栏 + 按钮全部删除。项目只能由 MCP 创建。
+- **复制项目**。
+- **备份导出 / 导入**：`BackupManager` 与设置页「备份」Tab 删除，App 内不再派生 `zip` / `unzip` 子进程。
 - **实时录音与语音转写**：删除 `SpeechRecognitionService` 及右侧面板录音区、语音自动填充；转写交由 [Aham Voice](https://github.com/Aham-AIAPP/aham-voice) 承担，后续通过外部通道注入文本。App 不再申请麦克风与语音识别权限。
 - **Obsidian 对接**：沙盒下未使用 security-scoped bookmark，重启后写入必然失败；Markdown / Word 导出已覆盖该场景。
 - **项目级 AI 增强**：动态选项集、优先级排序、跳过建议。
@@ -20,6 +28,8 @@
 - **现场备忘与已采纳追问持久化**：两者此前是内存状态，退出调研页即丢失且不进报告；现落库并纳入 Markdown / Word 导出（新增「现场备忘」章节，追问紧跟父题目输出）。
 
 ### 变更
+- 设置页只剩「通用」一个 Tab（LLM 配置）。
+- 删除项目现在会一并清除该项目的备忘与已采纳追问（原实现只删答案，留下孤儿记录）。
 - **AI 润色改为手动触发**：按钮或 `⌘⇧P`，不再随每次输入自动调用。现场追问仍为自动。
 
 ### 修复

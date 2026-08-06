@@ -3,6 +3,7 @@ import SwiftData
 
 struct ProjectListView: View {
     @Environment(AppStore.self) private var appStore
+    @Environment(PluginLoader.self) private var pluginLoader
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \Project.updatedAt, order: .reverse) private var allProjects: [Project]
 
@@ -15,7 +16,7 @@ struct ProjectListView: View {
         @Bindable var store = appStore
 
         VStack(spacing: 0) {
-            // 搜索 + 设置 + 新建
+            // 搜索 + 设置
             HStack(spacing: AHSpacing.s) {
                 Image(systemName: "magnifyingglass").foregroundStyle(.tertiary)
                 TextField("搜索项目", text: $searchText)
@@ -28,15 +29,6 @@ struct ProjectListView: View {
                 }
                 .buttonStyle(.plain)
                 .help("设置 (⌘,)")
-                Button {
-                    appStore.showNewProject = true
-                } label: {
-                    Image(systemName: "plus.circle.fill")
-                        .ahTitle3()
-                        .foregroundStyle(Color.ahAccent)
-                }
-                .buttonStyle(.plain)
-                .help("新建调研项目 (⌘N)")
             }
             .padding(.horizontal, AHSpacing.m).padding(.vertical, AHSpacing.s)
             .ahGlassBar()
@@ -68,11 +60,7 @@ struct ProjectListView: View {
                     ContentUnavailableView {
                         Label("暂无调研项目", systemImage: "doc.text.magnifyingglass")
                     } description: {
-                        Text("点击 + 创建你的第一个现场调研项目")
-                    } actions: {
-                        Button("新建调研") {
-                            appStore.showNewProject = true
-                        }
+                        Text("项目由 Claude / Codex 通过 MCP 创建，右侧有接入说明")
                     }
                 }
             }
@@ -160,14 +148,6 @@ struct ProjectListView: View {
 
         Divider()
 
-        Button {
-            duplicateProject(project)
-        } label: {
-            Label("复制项目", systemImage: "doc.on.doc")
-        }
-
-        Divider()
-
         Button(role: .destructive) {
             projectToDelete = project
             showDeleteConfirm = true
@@ -178,41 +158,11 @@ struct ProjectListView: View {
 
     // MARK: - Actions
 
-    private func duplicateProject(_ project: Project) {
-        let copy = Project(
-            name: project.name,
-            customerName: project.customerName + " (副本)",
-            consultant: project.consultant,
-            surveyDate: .now
-        )
-        copy.selectedDepartmentIds = project.selectedDepartmentIds
-        copy.industry = project.industry
-        copy.surveyScopeIds = project.surveyScopeIds
-        copy.aiEnhancementData = project.aiEnhancementData
-        copy.companyScale = project.companyScale
-        copy.headcount = project.headcount
-        copy.revenue = project.revenue
-        copy.existingSystems = project.existingSystems
-        copy.surveyGoal = project.surveyGoal
-        copy.totalQuestions = project.totalQuestions
-        modelContext.insert(copy)
-        appStore.selectedProjectId = copy.id
-    }
-
     private func deleteProject(_ project: Project) {
         if appStore.selectedProjectId == project.id {
             appStore.selectedProjectId = nil
             appStore.isSurveying = false
         }
-        // Delete associated answers first
-        let projectId = project.id
-        let descriptor = FetchDescriptor<Answer>(predicate: #Predicate { $0.projectId == projectId })
-        if let answers = try? modelContext.fetch(descriptor) {
-            for answer in answers {
-                modelContext.delete(answer)
-            }
-        }
-        modelContext.delete(project)
+        try? ProjectService(context: modelContext, pluginLoader: pluginLoader).delete(project)
     }
 }
-
