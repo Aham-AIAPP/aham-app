@@ -1,14 +1,12 @@
 import Foundation
 
-/// 加载内置问题库数据（部门模板 + 基础问题 + 行业补充问题 + 知识库补充问题）
+/// 加载内置问题库数据（部门模板 + 基础问题 + 行业补充问题）
 @Observable
 final class PluginLoader {
     private(set) var departments: [DepartmentTemplate] = []
     private(set) var departmentQuestions: [String: DepartmentQuestions] = [:]
     private(set) var industrySupplements: [String: IndustrySupplementFile] = [:]
     private(set) var loadError: String?
-
-    private let knowledgeQuestionStore = KnowledgeQuestionStore()
 
     init() {
         loadBuiltinData()
@@ -114,29 +112,14 @@ final class PluginLoader {
         }
     }
 
-    /// 获取项目所有问题（合并 scope 过滤 + 行业补充 + 知识库补充）
+    /// 获取项目所有问题（scope 过滤 + 行业补充）
     func questionsForProject(_ project: Project) -> [String: [QuestionTemplate]] {
         var result: [String: [QuestionTemplate]] = [:]
         let scopes = project.surveyScopes
         let industry = project.industryEnum
-        // 始终尝试加载知识库补充问题（有则加载，无则跳过）
-        let kqSupplement = knowledgeQuestionStore.load()
 
         for deptId in project.selectedDepartmentIds {
-            var questions = questions(for: deptId, scopes: scopes, industry: industry)
-
-            // 追加知识库补充问题（置于列表末尾）
-            if let extra = kqSupplement?.supplements[deptId] {
-                questions.append(contentsOf: extra)
-            }
-
-            // 应用问题排除规则（仅新建项目时启用排除）
-            if project.usesQuestionExclusions {
-                let exclusions = QuestionExclusionStore().load()
-                if !exclusions.isEmpty {
-                    questions = questions.filter { !exclusions.contains($0.id) }
-                }
-            }
+            let questions = questions(for: deptId, scopes: scopes, industry: industry)
 
             result[deptId] = questions
         }

@@ -252,10 +252,6 @@ struct NewProjectView: View {
         project.revenue = revenueScale.rawValue
         project.existingSystems = selectedSystems.map(\.rawValue).sorted().joined(separator: "、")
         project.selectedDepartmentIds = Array(selectedDeptIds)
-        let kqVersion = KnowledgeQuestionStore().currentVersion()
-        project.knowledgeQuestionVersion = kqVersion
-        let exclusions = QuestionExclusionStore().load()
-        project.usesQuestionExclusions = !exclusions.isEmpty
         project.totalQuestions = pluginLoader.questionsForProject(project).values.reduce(0) { $0 + $1.count }
 
         modelContext.insert(project)

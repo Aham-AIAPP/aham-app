@@ -19,10 +19,6 @@ final class BackupManager {
         FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
     }
 
-    private var knowledgeBaseDir: URL {
-        appSupportDir.appendingPathComponent("Aham/KnowledgeBase", isDirectory: true)
-    }
-
     // MARK: - 导出
 
     func export() {
@@ -83,22 +79,12 @@ final class BackupManager {
             }
         }
 
-        // 2. 知识库
-        let kbDir = tempDir.appendingPathComponent("KnowledgeBase", isDirectory: true)
-        try FileManager.default.createDirectory(at: kbDir, withIntermediateDirectories: true)
-        for name in ["knowledge.json", "manifest.json", "question_supplements.json", "question_exclusions.json"] {
-            let src = knowledgeBaseDir.appendingPathComponent(name)
-            if FileManager.default.fileExists(atPath: src.path) {
-                try FileManager.default.copyItem(at: src, to: kbDir.appendingPathComponent(name))
-            }
-        }
-
-        // 3. 设置（API Key、金蝶配置等）
+        // 2. 设置（API Key 等）
         if let settingsData = UserDefaults.standard.data(forKey: "aham_settings") {
             try settingsData.write(to: tempDir.appendingPathComponent("settings.json"))
         }
 
-        // 4. 备份信息
+        // 3. 备份信息
         let info: [String: String] = [
             "appVersion": Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "2.2",
             "date": ISO8601DateFormatter().string(from: Date()),
@@ -108,7 +94,7 @@ final class BackupManager {
             try infoData.write(to: tempDir.appendingPathComponent("backup_info.json"))
         }
 
-        // 5. 压缩
+        // 4. 压缩
         let zipURL = FileManager.default.temporaryDirectory
             .appendingPathComponent("AhamBackup_\(Int(Date().timeIntervalSince1970)).zip")
 
@@ -204,10 +190,10 @@ final class BackupManager {
         }
 
         // 校验：必须含有已知备份目录或文件
+        // 兼容旧备份：旧包里还有 KnowledgeBase/ 目录，解压后直接忽略即可
         let hasSwiftData = FileManager.default.fileExists(atPath: tempDir.appendingPathComponent("SwiftData").path)
-        let hasKB       = FileManager.default.fileExists(atPath: tempDir.appendingPathComponent("KnowledgeBase").path)
         let hasSettings = FileManager.default.fileExists(atPath: tempDir.appendingPathComponent("settings.json").path)
-        guard hasSwiftData || hasKB || hasSettings else {
+        guard hasSwiftData || hasSettings else {
             throw BackupError.invalidBackup
         }
 
@@ -218,19 +204,6 @@ final class BackupManager {
                 let src = srcDir.appendingPathComponent(name)
                 guard FileManager.default.fileExists(atPath: src.path) else { continue }
                 let dst = appSupportDir.appendingPathComponent(name)
-                try? FileManager.default.removeItem(at: dst)
-                try FileManager.default.copyItem(at: src, to: dst)
-            }
-        }
-
-        // 恢复知识库
-        if hasKB {
-            try FileManager.default.createDirectory(at: knowledgeBaseDir, withIntermediateDirectories: true)
-            let srcDir = tempDir.appendingPathComponent("KnowledgeBase")
-            for name in ["knowledge.json", "manifest.json", "question_supplements.json", "question_exclusions.json"] {
-                let src = srcDir.appendingPathComponent(name)
-                guard FileManager.default.fileExists(atPath: src.path) else { continue }
-                let dst = knowledgeBaseDir.appendingPathComponent(name)
                 try? FileManager.default.removeItem(at: dst)
                 try FileManager.default.copyItem(at: src, to: dst)
             }

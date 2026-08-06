@@ -10,10 +10,6 @@ struct SettingsView: View {
                 GeneralSettingsTab()
             }
 
-            Tab("知识库", systemImage: "brain") {
-                KnowledgeSettingsTab()
-            }
-
             Tab("备份", systemImage: "externaldrive") {
                 BackupSettingsTab()
             }
@@ -78,17 +74,6 @@ private struct GeneralSettingsTab: View {
     }
 }
 
-// MARK: - 知识库 Tab
-
-private struct KnowledgeSettingsTab: View {
-    var body: some View {
-        Form {
-            Section { KnowledgeTrainingView() }
-        }
-        .formStyle(.grouped)
-    }
-}
-
 // MARK: - 备份 Tab
 
 private struct BackupSettingsTab: View {
@@ -98,7 +83,7 @@ private struct BackupSettingsTab: View {
         Form {
             Section {
                 VStack(alignment: .leading, spacing: AHSpacing.xs) {
-                    Text("将所有调研项目、回答、知识库和配置打包为 ZIP 文件，可在重装系统或换电脑后恢复。")
+                    Text("将所有调研项目、回答和配置打包为 ZIP 文件，可在重装系统或换电脑后恢复。")
                         .ahCaption()
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
@@ -167,7 +152,7 @@ private struct BackupSettingsTab: View {
             Button("取消", role: .cancel) { manager.cancelImport() }
             Button("导入并重启", role: .destructive) { manager.confirmImport() }
         } message: {
-            Text("导入后将覆盖当前所有数据（项目、回答、知识库、配置），App 会自动重启。此操作不可撤销。")
+            Text("导入后将覆盖当前所有数据（项目、回答、配置），App 会自动重启。此操作不可撤销。")
         }
     }
 }

@@ -11,15 +11,8 @@ final class AISurveyEnhancer {
         self.settings = settings
     }
 
-    private let knowledgeStore = KnowledgeStore()
-
     private var provider: (any LLMProvider)? {
         settings.llmProvider
-    }
-
-    /// 获取知识库上下文摘要
-    private var knowledgeContext: String {
-        knowledgeStore.knowledgeSummary()
     }
 
     // MARK: - 笔记润色 + 数据提取
@@ -90,8 +83,7 @@ final class AISurveyEnhancer {
             options: options,
             answer: answer,
             note: note,
-            context: context,
-            knowledgeContext: knowledgeContext
+            context: context
         )
 
         do {

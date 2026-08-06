@@ -63,18 +63,11 @@ struct SurveyView: View {
     @State var answerLookup: [String: Answer] = [:]
     @State var cachedDisplayQuestions: [QuestionTemplate] = []
     @State var cachedFollowupIds: Set<String> = []
-    @State private var cachedExclusionIds: Set<String> = []
 
     // MARK: - 业务方法（V2 原样保留）
 
     func baseQuestions(for deptId: String) -> [QuestionTemplate] {
-        var base = pluginLoader.questions(for: deptId, scopes: project.surveyScopes, industry: project.industryEnum)
-        let extra = KnowledgeQuestionStore().questions(for: deptId)
-        if !extra.isEmpty { base.append(contentsOf: extra) }
-        if !cachedExclusionIds.isEmpty {
-            base = base.filter { !cachedExclusionIds.contains($0.id) }
-        }
-        return base
+        pluginLoader.questions(for: deptId, scopes: project.surveyScopes, industry: project.industryEnum)
     }
 
     private var currentSections: [(section: QuestionSection, questions: [QuestionTemplate])] {
@@ -135,7 +128,6 @@ struct SurveyView: View {
            let first = project.selectedDepartmentIds.first {
             selectedDepartmentId = first
         }
-        cachedExclusionIds = project.usesQuestionExclusions ? QuestionExclusionStore().load() : []
         rebuildAnswerLookup()
         ensureAnswersExist()
         rebuildDisplayQuestions()

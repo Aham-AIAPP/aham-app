@@ -40,8 +40,7 @@ enum PromptTemplates {
         options: [String] = [],
         answer: String,
         note: String,
-        context: String,
-        knowledgeContext: String = ""
+        context: String
     ) -> [LLMMessage] {
         let system = """
         你是企业数字化调研专家。根据客户回答判断是否需要追问。
@@ -69,7 +68,6 @@ enum PromptTemplates {
         userParts.append("答：\(answer)")
         if !note.isEmpty { userParts.append("笔记：\(note)") }
         if !context.isEmpty { userParts.append("上下文：\(context)") }
-        if !knowledgeContext.isEmpty { userParts.append("参考：\(knowledgeContext)") }
 
         return [
             LLMMessage(role: .system, content: system),
