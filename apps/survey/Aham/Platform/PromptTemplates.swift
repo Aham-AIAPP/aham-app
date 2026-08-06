@@ -10,8 +10,7 @@ enum PromptTemplates {
         department: String,
         question: String,
         answer: String,
-        note: String,
-        transcript: String
+        note: String
     ) -> [LLMMessage] {
         let system = """
         润色调研笔记并提取关键数据。只输出JSON：
@@ -22,7 +21,7 @@ enum PromptTemplates {
 
         let user = """
         [\(department)] \(question)
-        回答：\(answer)\(note.isEmpty ? "" : "\n笔记：\(note)")\(transcript.isEmpty ? "" : "\n转写：\(transcript)")
+        回答：\(answer)\(note.isEmpty ? "" : "\n笔记：\(note)")
         """
 
         return [
@@ -75,29 +74,6 @@ enum PromptTemplates {
         return [
             LLMMessage(role: .system, content: system),
             LLMMessage(role: .user, content: userParts.joined(separator: "\n"))
-        ]
-    }
-
-    // MARK: - 3. 语音自动填充
-
-    static func voiceAutoFill(
-        department: String,
-        questions: String,
-        transcript: String
-    ) -> [LLMMessage] {
-        let system = """
-        将语音转写映射到调研问题。只映射明确提及的内容。输出JSON：
-        {"answers":[{"questionId":"ID","answer":"回答","confidence":"high/medium/low"}],"note":"补充信息"}
-        """
-
-        let user = """
-        [\(department)] 问题：\(questions)
-        转写：\(transcript)
-        """
-
-        return [
-            LLMMessage(role: .system, content: system),
-            LLMMessage(role: .user, content: user)
         ]
     }
 

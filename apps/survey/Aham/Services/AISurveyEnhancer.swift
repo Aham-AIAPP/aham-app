@@ -34,8 +34,7 @@ final class AISurveyEnhancer {
         department: String,
         question: String,
         answer: String,
-        note: String,
-        transcript: String = ""
+        note: String
     ) async -> PolishResult? {
         guard let provider else { return nil }
 
@@ -43,8 +42,7 @@ final class AISurveyEnhancer {
             department: department,
             question: question,
             answer: answer,
-            note: note,
-            transcript: transcript
+            note: note
         )
 
         do {
@@ -140,45 +138,6 @@ final class AISurveyEnhancer {
                 let action = json["action"] as? String ?? "add"
                 let replaceIndex = json["replaceIndex"] as? Int ?? 0
                 return MemoCategorizeResult(category: category, text: normalized, action: action, replaceIndex: replaceIndex)
-            }
-        } catch {
-            lastError = error.localizedDescription
-        }
-        return nil
-    }
-
-    // MARK: - 语音自动填充
-
-    struct VoiceFillResult {
-        let answers: [(questionId: String, answer: String, confidence: String)]
-        let note: String
-    }
-
-    func voiceAutoFill(
-        project: Project,
-        department: String,
-        questions: [QuestionTemplate],
-        transcript: String
-    ) async -> VoiceFillResult? {
-        guard let provider else { return nil }
-
-        let qList = PromptTemplates.formatQuestionList(questions)
-        let messages = PromptTemplates.voiceAutoFill(
-            department: department,
-            questions: qList,
-            transcript: transcript
-        )
-
-        do {
-            let response = try await provider.chat(messages: messages, options: .followup)
-            if let json = LLMJSONParser.parse(response) as? [String: Any] {
-                let answers = (json["answers"] as? [[String: Any]] ?? []).compactMap { a -> (String, String, String)? in
-                    guard let qId = a["questionId"] as? String,
-                          let ans = a["answer"] as? String else { return nil }
-                    return (qId, ans, a["confidence"] as? String ?? "low")
-                }
-                let note = json["note"] as? String ?? ""
-                return VoiceFillResult(answers: answers, note: note)
             }
         } catch {
             lastError = error.localizedDescription

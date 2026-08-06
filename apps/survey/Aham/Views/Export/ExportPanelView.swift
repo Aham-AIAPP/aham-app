@@ -85,7 +85,7 @@ struct ExportPanelView: View {
                             VStack(alignment: .leading, spacing: AHSpacing.s) {
                                 Toggle("顾问笔记",    isOn: $includeNotes)
                                 Toggle("AI 润色结果", isOn: $includeAIPolish)
-                                Toggle("语音转写记录", isOn: $includeVoice)
+                                Toggle("转写文本",     isOn: $includeVoice)
                                 if panelData.hasAIEnhancement {
                                     Toggle("AI 项目分析", isOn: $includeAIEnhancement)
                                 }

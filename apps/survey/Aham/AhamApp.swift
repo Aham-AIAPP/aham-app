@@ -6,7 +6,6 @@ struct AhamApp: App {
     @State private var appStore        = AppStore()
     @State private var pluginLoader    = PluginLoader()
     @State private var settingsManager = SettingsManager()
-    @State private var speechService   = SpeechRecognitionService()
 
     var body: some Scene {
         WindowGroup {
@@ -14,7 +13,6 @@ struct AhamApp: App {
                 .environment(appStore)
                 .environment(pluginLoader)
                 .environment(settingsManager)
-                .environment(speechService)
         }
         .modelContainer(for: [Project.self, Answer.self])
         .defaultSize(width: 1200, height: 800)

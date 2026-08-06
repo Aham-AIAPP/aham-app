@@ -99,8 +99,7 @@ struct WelcomeView: View {
 
             VStack(alignment: .leading, spacing: AHSpacing.s) {
                 featureRow("doc.text.magnifyingglass", "结构化调研，覆盖 14 大职能部门")
-                featureRow("brain.head.profile",       "AI 智能分析，自动生成洞察报告")
-                featureRow("mic.circle",               "语音转写，对话内容自动填入答案")
+                featureRow("brain.head.profile",       "现场追问建议与风险提醒")
             }
 
             Button {
@@ -134,6 +133,5 @@ struct WelcomeView: View {
         .environment(AppStore())
         .environment(PluginLoader())
         .environment(SettingsManager())
-        .environment(SpeechRecognitionService())
         .modelContainer(for: [Project.self, Answer.self], inMemory: true)
 }

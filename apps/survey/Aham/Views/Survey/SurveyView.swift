@@ -10,9 +10,8 @@ import SwiftData
 //      - V3：整个 tab 做成"胶囊选中"，保留数字但用 AHPill 独立显示进度
 //      - 去掉 Tab 栏底部的 Divider，改为 ahPaperBar 背景分区
 //
-//   2. AI / 麦克风状态指示器：
+//   2. AI 状态指示器：
 //      - 迁移到 AHPill（更小，颜色更节制）
-//      - 录音时红色胶囊带微微呼吸动画
 //
 //   3. 左侧问题侧边栏：
 //      - 改用 AHCard 分组 Section 头
@@ -31,7 +30,7 @@ import SwiftData
 //      - 跳转圆点行改为 horizontal scroll，超过 20 个时不截断
 //      - 改用 AHGhost 按钮样式
 //
-// ⚠️ 所有状态管理、AI 调度、录音逻辑、追问采纳等代码保持 V2 不变。
+// ⚠️ 所有状态管理、AI 调度、追问采纳等代码保持 V2 不变。
 //    V3 只改装饰层。
 
 struct SurveyView: View {
@@ -39,7 +38,6 @@ struct SurveyView: View {
     @Environment(PluginLoader.self) var pluginLoader
     @Environment(\.modelContext) var modelContext
     @Query var allAnswers: [Answer]
-    @Environment(SpeechRecognitionService.self) var speechService
     @Environment(SettingsManager.self) var settings
 
     @State var selectedDepartmentId: String?
@@ -96,9 +94,6 @@ struct SurveyView: View {
     }
 
     var isAIAvailable: Bool { settings.isLLMConfigured }
-    var isRecordingAvailable: Bool {
-        speechService.micPermissionGranted && speechService.speechPermissionGranted
-    }
 
     private func parentQuestionText(for questionId: String) -> String? {
         guard let fu = adoptedFollowups.first(where: { $0.template.id == questionId }) else { return nil }
@@ -136,10 +131,6 @@ struct SurveyView: View {
         }
         .onChange(of: allAnswers.count) { rebuildAnswerLookup() }
         .onChange(of: focusedQuestionIndex) { _, _ in resetAIState() }
-        .onChange(of: speechService.latestConfirmedText) { _, newText in
-            guard !newText.isEmpty else { return }
-            autoFillConfirmedSegment(newText)
-        }
     }
 
     private func initialLoad() {
@@ -151,7 +142,6 @@ struct SurveyView: View {
         rebuildAnswerLookup()
         ensureAnswersExist()
         rebuildDisplayQuestions()
-        Task { await speechService.checkPermissions() }
     }
 
     // MARK: - 顶部部门 Tab（V3）
@@ -171,7 +161,7 @@ struct SurveyView: View {
 
             Spacer(minLength: AHSpacing.s)
 
-            // AI / 麦克风 状态
+            // AI 状态
             HStack(spacing: AHSpacing.xs) {
                 Rectangle()
                     .fill(Color.ahDivider)
@@ -180,14 +170,6 @@ struct SurveyView: View {
 
                 AHStatus(text: "AI", color: isAIAvailable ? .ahSuccess : .ahInk40)
                     .help(isAIAvailable ? "AI 已连接" : "请在设置中配置 API Key")
-
-                AHStatus(
-                    text: speechService.isRecording ? "录音中" : "麦克风",
-                    color: speechService.isRecording ? .ahDanger : (isRecordingAvailable ? .ahSuccess : .ahInk40)
-                )
-                .help(speechService.isRecording ? "正在录音"
-                      : isRecordingAvailable ? "可用"
-                      : "请授予麦克风与语音识别权限")
             }
             .padding(.trailing, AHSpacing.m)
         }
@@ -610,21 +592,19 @@ struct SurveyView: View {
 
     func scheduleAIPolish(question: QuestionTemplate, answer: Answer) {
         guard settings.isLLMConfigured else { return }
-        let hasLiveTranscript = speechService.isRecording && !speechService.latestConfirmedText.isEmpty
-        guard answer.hasContent || !answer.noteText.isEmpty || !answer.voiceTranscript.isEmpty || hasLiveTranscript else { return }
+        guard answer.hasContent || !answer.noteText.isEmpty || !answer.voiceTranscript.isEmpty else { return }
 
         polishTask?.cancel()
         polishStatus = .pending
         let enhancer  = getEnhancer()
         let deptId    = selectedDepartmentId ?? ""
-        let transcript = answer.voiceTranscript
 
         polishTask = Task { @MainActor in
             guard !Task.isCancelled else { polishStatus = .idle; return }
             if let result = await enhancer.polishNote(
                 project: project, department: deptId,
                 question: question.question, answer: answer.textValue,
-                note: answer.noteText, transcript: transcript
+                note: answer.noteText
             ) {
                 guard !Task.isCancelled else { return }
                 answer.polishedText = result.polished
@@ -678,35 +658,6 @@ struct SurveyView: View {
             guard !Task.isCancelled else { return }
             isLoadingFollowups = false
             if !results.isEmpty { followups = results }
-        }
-    }
-
-    func scheduleVoiceAutoFill(question: QuestionTemplate, answer: Answer) {
-        guard settings.isLLMConfigured else { return }
-        guard let options = question.options, !options.isEmpty else { return }
-        let deptId     = selectedDepartmentId ?? ""
-        let transcript = answer.voiceTranscript
-        guard !transcript.isEmpty else { return }
-        Task { @MainActor in
-            let enhancer = getEnhancer()
-            guard let result = await enhancer.voiceAutoFill(
-                project: project, department: deptId, questions: [question], transcript: transcript
-            ) else { return }
-            guard let match = result.answers.first(where: { $0.questionId == question.id }),
-                  match.confidence != "low" else { return }
-            let matched = options.filter { opt in
-                opt.localizedCaseInsensitiveContains(match.answer) ||
-                match.answer.localizedCaseInsensitiveContains(opt)
-            }
-            guard !matched.isEmpty else { return }
-            if question.type == .singleChoice {
-                answer.selectedOptions = [matched[0]]
-            } else {
-                for opt in matched where !answer.selectedOptions.contains(opt) {
-                    answer.selectedOptions.append(opt)
-                }
-            }
-            if answer.status == .unanswered { answer.status = .answered }
         }
     }
 

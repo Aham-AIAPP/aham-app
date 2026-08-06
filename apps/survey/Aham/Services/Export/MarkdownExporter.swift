@@ -208,9 +208,9 @@ struct MarkdownExporter {
             md += "*笔记:* \(answer.noteText)\n\n"
         }
 
-        // 语音转写
+        // 转写文本
         if config.includeVoice && !answer.voiceTranscript.isEmpty {
-            md += "*语音记录:* \(answer.voiceTranscript)\n\n"
+            md += "*转写文本:* \(answer.voiceTranscript)\n\n"
         }
 
         return md
@@ -406,7 +406,7 @@ extension MarkdownExporter {
 
         if config.includeAIPolish  && !item.polishedText.isEmpty    { md += "*AI 润色:* \(item.polishedText)\n\n" }
         if config.includeNotes     && !item.noteText.isEmpty         { md += "*笔记:* \(item.noteText)\n\n" }
-        if config.includeVoice     && !item.voiceTranscript.isEmpty  { md += "*语音记录:* \(item.voiceTranscript)\n\n" }
+        if config.includeVoice     && !item.voiceTranscript.isEmpty  { md += "*转写文本:* \(item.voiceTranscript)\n\n" }
 
         return md
     }
