@@ -90,7 +90,7 @@ struct ExportPanelView: View {
                                     Toggle("AI 项目分析", isOn: $includeAIEnhancement)
                                 }
                                 AHDivider()
-                                Toggle("包含 YAML 文件头（Obsidian 兼容）", isOn: $addFrontmatter)
+                                Toggle("包含 YAML 文件头", isOn: $addFrontmatter)
                                     .foregroundStyle(.secondary)
                             }
                         }

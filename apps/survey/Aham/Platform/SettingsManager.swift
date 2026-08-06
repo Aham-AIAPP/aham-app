@@ -9,11 +9,6 @@ final class SettingsManager {
         didSet { save() }
     }
 
-    // MARK: - Obsidian 配置
-    var obsidianConfig: ObsidianConfig {
-        didSet { save() }
-    }
-
     // MARK: - LLM Provider（缓存实例，配置变更时重建）
     private var _cachedProvider: OpenAICompatibleProvider?
     private var _cachedProviderConfig: LLMConfig?
@@ -43,11 +38,9 @@ final class SettingsManager {
     init() {
         if let data = UserDefaults.standard.data(forKey: Self.storageKey),
            let stored = try? JSONDecoder().decode(StoredSettings.self, from: data) {
-            self.llmConfig      = stored.llm
-            self.obsidianConfig = stored.obsidian
+            self.llmConfig = stored.llm
         } else {
-            self.llmConfig      = .default
-            self.obsidianConfig = .default
+            self.llmConfig = .default
         }
     }
 
@@ -57,10 +50,7 @@ final class SettingsManager {
         _pendingSave?.cancel()
         let item = DispatchWorkItem { [weak self] in
             guard let self else { return }
-            let stored = StoredSettings(
-                llm: self.llmConfig,
-                obsidian: self.obsidianConfig
-            )
+            let stored = StoredSettings(llm: self.llmConfig)
             if let data = try? JSONEncoder().encode(stored) {
                 UserDefaults.standard.set(data, forKey: Self.storageKey)
             }
@@ -80,40 +70,4 @@ final class SettingsManager {
 
 private struct StoredSettings: Codable {
     let llm: LLMConfig
-    let obsidian: ObsidianConfig
-}
-
-// MARK: - Obsidian 配置
-
-struct ObsidianConfig: Codable, Equatable {
-    var enabled: Bool
-    var vaultPath: String
-    var exportFolder: String
-    var addFrontmatter: Bool
-    var vaultBookmark: Data?
-
-    static let `default` = ObsidianConfig(
-        enabled: false,
-        vaultPath: "",
-        exportFolder: "Aham",
-        addFrontmatter: true,
-        vaultBookmark: nil
-    )
-
-    static func createBookmark(from url: URL) -> Data? {
-        try? url.bookmarkData(
-            options: .withSecurityScope,
-            includingResourceValuesForKeys: nil,
-            relativeTo: nil
-        )
-    }
-
-    var resolvedVaultURL: URL? {
-        guard let data = vaultBookmark else { return nil }
-        var stale = false
-        return try? URL(resolvingBookmarkData: data,
-                        options: .withSecurityScope,
-                        relativeTo: nil,
-                        bookmarkDataIsStale: &stale)
-    }
 }

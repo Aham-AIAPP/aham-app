@@ -14,10 +14,6 @@ struct SettingsView: View {
                 KnowledgeSettingsTab()
             }
 
-            Tab("导出", systemImage: "square.and.arrow.up") {
-                ExportSettingsTab()
-            }
-
             Tab("备份", systemImage: "externaldrive") {
                 BackupSettingsTab()
             }
@@ -90,47 +86,6 @@ private struct KnowledgeSettingsTab: View {
             Section { KnowledgeTrainingView() }
         }
         .formStyle(.grouped)
-    }
-}
-
-// MARK: - 导出 Tab
-
-private struct ExportSettingsTab: View {
-    @Environment(SettingsManager.self) private var settings
-
-    var body: some View {
-        @Bindable var s = settings
-
-        Form {
-            Section("Obsidian 集成") {
-                Toggle("启用 Obsidian", isOn: $s.obsidianConfig.enabled)
-
-                if settings.obsidianConfig.enabled {
-                    HStack {
-                        TextField("Vault 路径", text: $s.obsidianConfig.vaultPath)
-                            .textFieldStyle(.roundedBorder)
-                        Button("选择...") { selectVaultPath() }
-                    }
-                    TextField("导出目录", text: $s.obsidianConfig.exportFolder)
-                        .textFieldStyle(.roundedBorder)
-                    Toggle("添加 YAML Frontmatter", isOn: $s.obsidianConfig.addFrontmatter)
-                }
-            }
-        }
-        .formStyle(.grouped)
-    }
-
-    private func selectVaultPath() {
-        let panel = NSOpenPanel()
-        panel.canChooseDirectories = true
-        panel.canChooseFiles = false
-        panel.allowsMultipleSelection = false
-        panel.message = "选择 Obsidian Vault 目录"
-        panel.begin { [self] response in
-            guard response == .OK, let url = panel.url else { return }
-            settings.obsidianConfig.vaultPath = url.path
-            settings.obsidianConfig.vaultBookmark = ObsidianConfig.createBookmark(from: url)
-        }
     }
 }
 

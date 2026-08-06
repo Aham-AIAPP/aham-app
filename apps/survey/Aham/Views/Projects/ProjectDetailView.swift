@@ -29,7 +29,7 @@ import UniformTypeIdentifiers
 //      - 状态、进度、结果一屏呈现
 //      - 补充问题的 picker 从弹层改为 inline sheet
 //
-// ⚠️ 逻辑层（importDocument / exportToObsidian / AI enhancer 调用等）
+// ⚠️ 逻辑层（importDocument / AI enhancer 调用等）
 //    保持不变 —— 只重写 UI，所有函数签名原样。
 
 struct ProjectDetailView: View {
@@ -47,8 +47,6 @@ struct ProjectDetailView: View {
     @State private var docImportPhase: DocImportPhase = .idle
 
     @State private var showExportPanel = false
-    @State private var isExportingToObsidian = false
-    @State private var obsidianExportMessage: String?
     @State private var aiEnhancer: AIProjectEnhancer?
     @State private var isSearchingProductInfo = false
 
@@ -824,25 +822,6 @@ struct ProjectDetailView: View {
                 Label(project.status.label, systemImage: project.status.icon)
             }
         }
-
-        if !settings.obsidianConfig.vaultPath.isEmpty && project.answeredQuestions > 0 {
-            ToolbarItem {
-                Button {
-                    exportToObsidian()
-                } label: {
-                    if isExportingToObsidian {
-                        HStack(spacing: 4) {
-                            ProgressView().controlSize(.mini)
-                            Text("写入中")
-                        }
-                    } else {
-                        Label("Obsidian", systemImage: "note.text")
-                    }
-                }
-                .disabled(isExportingToObsidian)
-                .help(obsidianExportMessage ?? "导出到 Obsidian Vault")
-            }
-        }
     }
 
     // MARK: - Export Sheet
@@ -1059,38 +1038,6 @@ struct ProjectDetailView: View {
         panel.begin { response in
             guard response == .OK, let url = panel.url else { return }
             try? data.write(to: url, options: .atomic)
-        }
-    }
-
-    private func exportToObsidian() {
-        let vaultPath = settings.obsidianConfig.vaultPath
-        guard !vaultPath.isEmpty else {
-            obsidianExportMessage = "请先在设置中选择 Obsidian Vault"
-            return
-        }
-        isExportingToObsidian = true
-        obsidianExportMessage = nil
-        let snapshot = buildExportSnapshot()
-        let vaultURL = URL(fileURLWithPath: vaultPath)
-        Task {
-            let content = MarkdownExporter.exportProject(snapshot: snapshot, config: .default)
-            let folderURL = vaultURL.appendingPathComponent("调研报告")
-            let fileURL = folderURL.appendingPathComponent("\(snapshot.displayName) 调研报告.md")
-            do {
-                try FileManager.default.createDirectory(at: folderURL, withIntermediateDirectories: true)
-                try content.write(to: fileURL, atomically: true, encoding: .utf8)
-                isExportingToObsidian = false
-                withAnimation { obsidianExportMessage = "✅ 已写入 Obsidian" }
-                try? await Task.sleep(for: .seconds(2))
-                withAnimation {
-                    if obsidianExportMessage?.hasPrefix("✅") == true {
-                        obsidianExportMessage = nil
-                    }
-                }
-            } catch {
-                isExportingToObsidian = false
-                withAnimation { obsidianExportMessage = "❌ 写入失败" }
-            }
         }
     }
 
