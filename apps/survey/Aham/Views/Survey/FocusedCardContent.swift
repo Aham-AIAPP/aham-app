@@ -426,10 +426,16 @@ struct FocusedCardContent: View {
                         .ahCaption()
                         .foregroundStyle(Color.ahSuccess)
                 case .idle:
+                    EmptyView()
+                }
+
+                // 润色改为手动触发后，按钮在生成中之外的所有状态都要在
+                // —— 否则答案改完就再也无法重新润色
+                if polishStatus != .pending {
                     Button {
                         onManualPolish()
                     } label: {
-                        Text("润色 ⌘⇧P")
+                        Text(polishStatus == .idle ? "润色 ⌘⇧P" : "重新润色")
                     }
                     .buttonStyle(.borderless)
                     .keyboardShortcut("p", modifiers: [.command, .shift])
