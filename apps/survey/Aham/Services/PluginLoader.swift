@@ -1,16 +1,14 @@
 import Foundation
 
-/// 加载内置问题库数据（部门模板 + 基础问题 + 行业补充问题）
+/// 加载内置问题库数据（部门模板 + 基础问题）
 @Observable
 final class PluginLoader {
     private(set) var departments: [DepartmentTemplate] = []
     private(set) var departmentQuestions: [String: DepartmentQuestions] = [:]
-    private(set) var industrySupplements: [String: IndustrySupplementFile] = [:]
     private(set) var loadError: String?
 
     init() {
         loadBuiltinData()
-        loadIndustrySupplements()
     }
 
     // MARK: - 加载内置数据
@@ -45,39 +43,11 @@ final class PluginLoader {
         }
     }
 
-    // MARK: - 行业补充问题
-
-    private func loadIndustrySupplements() {
-        for industry in Industry.allCases where industry != .general {
-            guard let url = Bundle.main.url(forResource: "industry-\(industry.rawValue)", withExtension: "json") else {
-                continue
-            }
-            do {
-                let data = try Data(contentsOf: url)
-                let supplement = try JSONDecoder().decode(IndustrySupplementFile.self, from: data)
-                industrySupplements[industry.rawValue] = supplement
-            } catch {
-                print("[PluginLoader] 行业补充问题 \(industry.rawValue) 加载失败: \(error)")
-            }
-        }
-    }
-
     // MARK: - 查询
 
     /// 获取指定部门的基础问题列表
     func questions(for departmentId: String) -> [QuestionTemplate] {
         departmentQuestions[departmentId]?.questions ?? []
-    }
-
-    /// 获取指定部门的问题列表（含行业补充）
-    func questions(for departmentId: String, industry: Industry) -> [QuestionTemplate] {
-        var result = questions(for: departmentId)
-        if industry != .general, let supplement = industrySupplements[industry.rawValue] {
-            if let extra = supplement.supplements[departmentId] {
-                result.append(contentsOf: extra)
-            }
-        }
-        return result
     }
 
     /// 获取指定部门按分区分组的问题
@@ -100,9 +70,9 @@ final class PluginLoader {
 
     // MARK: - Scope 过滤
 
-    /// 根据调研范围获取指定部门的问题（按 focusSections 排序，含行业补充）
-    func questions(for departmentId: String, scopes: [SurveyScope], industry: Industry = .general) -> [QuestionTemplate] {
-        let all = questions(for: departmentId, industry: industry)
+    /// 根据调研范围获取指定部门的问题（按 focusSections 排序）
+    func questions(for departmentId: String, scopes: [SurveyScope]) -> [QuestionTemplate] {
+        let all = questions(for: departmentId)
         let focusSections = scopes.reduce(into: Set<String>()) { $0.formUnion($1.focusSections) }
         return all.sorted { a, b in
             let aFocus = focusSections.contains(a.section.rawValue)
@@ -112,14 +82,13 @@ final class PluginLoader {
         }
     }
 
-    /// 获取项目所有问题（scope 过滤 + 行业补充）
+    /// 获取项目所有问题（scope 过滤）
     func questionsForProject(_ project: Project) -> [String: [QuestionTemplate]] {
         var result: [String: [QuestionTemplate]] = [:]
         let scopes = project.surveyScopes
-        let industry = project.industryEnum
 
         for deptId in project.selectedDepartmentIds {
-            let questions = questions(for: deptId, scopes: scopes, industry: industry)
+            let questions = questions(for: deptId, scopes: scopes)
 
             result[deptId] = questions
         }

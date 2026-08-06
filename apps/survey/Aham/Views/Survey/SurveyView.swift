@@ -67,7 +67,7 @@ struct SurveyView: View {
     // MARK: - 业务方法（V2 原样保留）
 
     func baseQuestions(for deptId: String) -> [QuestionTemplate] {
-        pluginLoader.questions(for: deptId, scopes: project.surveyScopes, industry: project.industryEnum)
+        pluginLoader.questions(for: deptId, scopes: project.surveyScopes)
     }
 
     private var currentSections: [(section: QuestionSection, questions: [QuestionTemplate])] {

@@ -72,11 +72,3 @@ struct DepartmentQuestions: Codable {
     let sections: [String: String]
     let questions: [QuestionTemplate]
 }
-
-/// 行业补充问题集合（按行业叠加在通用问题之上）
-struct IndustrySupplementFile: Codable {
-    let industry: String
-    let industryName: String
-    let version: String
-    let supplements: [String: [QuestionTemplate]]  // departmentId -> questions
-}
