@@ -211,6 +211,7 @@ struct ExportConfig {
     var includeNotes: Bool
     var includeAIPolish: Bool
     var includeVoice: Bool
+    var includeMemo: Bool
     /// nil 表示导出全部部门
     var departmentFilter: [String]?
 
@@ -220,6 +221,7 @@ struct ExportConfig {
         includeNotes: true,
         includeAIPolish: true,
         includeVoice: true,
+        includeMemo: true,
         departmentFilter: nil
     )
 }
@@ -245,6 +247,7 @@ struct ExportSnapshot {
     var selectedDepartmentIds: [String]
     var departmentNames: [String: String]   // deptId → 显示名称
     var departmentSections: [String: [ExportSectionData]]  // deptId → sections
+    var memoItems: [(category: String, texts: [String])] = []  // 现场备忘，四类有序
 
     struct ExportSectionData {
         var label: String
@@ -254,6 +257,7 @@ struct ExportSnapshot {
     struct ExportItem {
         var topic: String
         var question: String
+        var isFollowup: Bool = false
         var selectedOptions: [String]
         var textValue: String
         var noteText: String
@@ -298,6 +302,16 @@ extension MarkdownExporter {
                 for item in visibleItems {
                     md += snapshotQuestionBlock(item: item, config: config)
                 }
+            }
+        }
+
+        if config.includeMemo, !snapshot.memoItems.isEmpty,
+           snapshot.memoItems.contains(where: { !$0.texts.isEmpty }) {
+            md += "\n---\n\n## 现场备忘\n\n"
+            for group in snapshot.memoItems where !group.texts.isEmpty {
+                md += "### \(group.category)\n\n"
+                for text in group.texts { md += "- \(text)\n" }
+                md += "\n"
             }
         }
 
@@ -369,7 +383,8 @@ extension MarkdownExporter {
     }
 
     private static func snapshotQuestionBlock(item: ExportSnapshot.ExportItem, config: ExportConfig) -> String {
-        var md = "**\(item.topic)** — \(item.question)\n\n"
+        let prefix = item.isFollowup ? "追问 · " : ""
+        var md = "**\(prefix)\(item.topic)** — \(item.question)\n\n"
 
         if !item.selectedOptions.isEmpty {
             for opt in item.selectedOptions { md += "- [x] \(opt)\n" }

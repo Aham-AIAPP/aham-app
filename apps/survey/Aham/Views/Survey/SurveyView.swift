@@ -51,15 +51,14 @@ struct SurveyView: View {
     @State var isLoadingFollowups = false
     @State var followupTask: Task<Void, Never>?
 
-    // 备忘录
+    // 备忘录（持久化：SwiftData）
+    @Query var allMemoItems: [MemoItem]
     @State var memoExpanded = false
-    @State var memoItems: [MemoCategory: [String]] = [
-        .forms: [], .metrics: [], .approvals: [], .needs: []
-    ]
     @State var newMemoText = ""
     @State var activeMemoCategory: MemoCategory = .forms
 
-    @State var adoptedFollowups: [AdoptedFollowup] = []
+    // 已采纳追问（持久化：SwiftData）
+    @Query var allAdoptedFollowups: [AdoptedFollowup]
     @State var answerLookup: [String: Answer] = [:]
     @State var cachedDisplayQuestions: [QuestionTemplate] = []
     @State var cachedFollowupIds: Set<String> = []
@@ -85,8 +84,29 @@ struct SurveyView: View {
 
     var isAIAvailable: Bool { settings.isLLMConfigured }
 
+    /// 本项目的已采纳追问（按采纳时间排序）
+    var adoptedFollowups: [AdoptedFollowup] {
+        allAdoptedFollowups
+            .filter { $0.projectId == project.id }
+            .sorted { $0.createdAt < $1.createdAt }
+    }
+
+    /// 本项目的备忘条目，按类别分组
+    var memoItems: [MemoCategory: [MemoItem]] {
+        var result: [MemoCategory: [MemoItem]] = [:]
+        for category in MemoCategory.allCases { result[category] = [] }
+        for item in allMemoItems where item.projectId == project.id {
+            guard let category = item.categoryEnum else { continue }
+            result[category, default: []].append(item)
+        }
+        for key in result.keys {
+            result[key]?.sort { $0.createdAt < $1.createdAt }
+        }
+        return result
+    }
+
     private func parentQuestionText(for questionId: String) -> String? {
-        guard let fu = adoptedFollowups.first(where: { $0.template.id == questionId }) else { return nil }
+        guard let fu = adoptedFollowups.first(where: { $0.id == questionId }) else { return nil }
         return cachedDisplayQuestions.first(where: { $0.id == fu.parentQuestionId })?.question
     }
 
@@ -267,7 +287,8 @@ struct SurveyView: View {
                                     $0.parentQuestionId == question.id && $0.departmentId == deptId
                                 }
                                 ForEach(childFollowups) { fu in
-                                    sidebarQuestionRow(question: fu.template, isFollowup: true)
+                                    sidebarQuestionRow(question: fu.asTemplate(section: question.section),
+                                                       isFollowup: true)
                                 }
                             }
                         }
@@ -606,17 +627,7 @@ struct SurveyView: View {
                     }
                     if let cat = category {
                         for item in items where !item.isEmpty {
-                            var existing = memoItems[cat] ?? []
-                            let isDuplicate = existing.contains(where: {
-                                $0.localizedCaseInsensitiveCompare(item) == .orderedSame ||
-                                $0.localizedCaseInsensitiveContains(item) ||
-                                item.localizedCaseInsensitiveContains($0)
-                            })
-                            if !isDuplicate, existing.count < 20 {
-                                existing.append(item); memoItems[cat] = existing
-                            } else if let idx = existing.firstIndex(where: { item.localizedCaseInsensitiveContains($0) && item.count > $0.count }) {
-                                existing[idx] = item; memoItems[cat] = existing
-                            }
+                            mergeExtractedMemo(item, into: cat)
                         }
                     }
                 }
@@ -624,6 +635,25 @@ struct SurveyView: View {
             } else {
                 polishStatus = .error(enhancer.lastError ?? "未知错误")
             }
+        }
+    }
+
+    /// 把 AI 提取的条目并入备忘：完全重复跳过，更详细的版本替换旧条目，每类上限 20 条。
+    /// 规则与改为持久化之前的实现保持一致。
+    private func mergeExtractedMemo(_ item: String, into category: MemoCategory) {
+        let existing = memoItems[category] ?? []
+        let isDuplicate = existing.contains {
+            $0.text.localizedCaseInsensitiveCompare(item) == .orderedSame ||
+            $0.text.localizedCaseInsensitiveContains(item) ||
+            item.localizedCaseInsensitiveContains($0.text)
+        }
+        if !isDuplicate {
+            guard existing.count < 20 else { return }
+            modelContext.insert(MemoItem(projectId: project.id, category: category, text: item))
+        } else if let older = existing.first(where: {
+            item.localizedCaseInsensitiveContains($0.text) && item.count > $0.text.count
+        }) {
+            older.text = item
         }
     }
 
@@ -654,22 +684,19 @@ struct SurveyView: View {
         let fq = followups[index]
         let deptId = selectedDepartmentId ?? ""
         let fuId = "followup-\(UUID().uuidString)"
-        let template = QuestionTemplate(
-            id: fuId, section: parentQuestion.section,
-            topic: "追问·\(parentQuestion.topic)",
-            question: fq.question,
-            type: fq.options.isEmpty ? .text : .singleChoice,
-            options: fq.options.isEmpty ? nil : fq.options,
-            required: false,
-            hints: fq.reason.isEmpty ? nil : [fq.reason],
-            triggers: nil, meceGroup: nil, knowledgeRef: nil,
-            industrySpecific: nil, order: parentQuestion.order
-        )
         let adopted = AdoptedFollowup(
-            id: fuId, parentQuestionId: parentQuestion.id,
-            departmentId: deptId, template: template
+            id: fuId,
+            projectId: project.id,
+            departmentId: deptId,
+            parentQuestionId: parentQuestion.id,
+            topic: "追问·\(parentQuestion.topic)",
+            questionText: fq.question,
+            type: fq.options.isEmpty ? .text : .singleChoice,
+            options: fq.options,
+            hint: fq.reason,
+            order: parentQuestion.order
         )
-        adoptedFollowups.append(adopted)
+        modelContext.insert(adopted)
         let answer = Answer(projectId: project.id, departmentId: deptId, questionId: fuId)
         modelContext.insert(answer)
         answerLookup["\(deptId)::\(fuId)"] = answer
@@ -725,7 +752,7 @@ struct SurveyView: View {
     }
 
     func rebuildDisplayQuestions() {
-        cachedFollowupIds = Set(adoptedFollowups.map(\.template.id))
+        cachedFollowupIds = Set(adoptedFollowups.map(\.id))
         guard let deptId = selectedDepartmentId else {
             cachedDisplayQuestions = []; return
         }
@@ -735,7 +762,7 @@ struct SurveyView: View {
         for q in base {
             result.append(q)
             for fu in deptFollowups where fu.parentQuestionId == q.id {
-                result.append(fu.template)
+                result.append(fu.asTemplate(section: q.section))
             }
         }
         cachedDisplayQuestions = result

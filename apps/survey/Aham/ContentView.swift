@@ -133,5 +133,5 @@ struct WelcomeView: View {
         .environment(AppStore())
         .environment(PluginLoader())
         .environment(SettingsManager())
-        .modelContainer(for: [Project.self, Answer.self], inMemory: true)
+        .modelContainer(for: [Project.self, Answer.self, MemoItem.self, AdoptedFollowup.self], inMemory: true)
 }

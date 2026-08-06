@@ -53,11 +53,3 @@ enum PolishStatus: Equatable {
     case ready
     case error(String)
 }
-
-/// 已采纳的 AI 追问（插入为二级问题）
-struct AdoptedFollowup: Identifiable {
-    let id: String
-    let parentQuestionId: String
-    let departmentId: String
-    let template: QuestionTemplate
-}

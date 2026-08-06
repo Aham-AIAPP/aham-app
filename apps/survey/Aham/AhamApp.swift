@@ -14,7 +14,7 @@ struct AhamApp: App {
                 .environment(pluginLoader)
                 .environment(settingsManager)
         }
-        .modelContainer(for: [Project.self, Answer.self])
+        .modelContainer(for: [Project.self, Answer.self, MemoItem.self, AdoptedFollowup.self])
         .defaultSize(width: 1200, height: 800)
         .windowToolbarStyle(.unified)
         .commands {

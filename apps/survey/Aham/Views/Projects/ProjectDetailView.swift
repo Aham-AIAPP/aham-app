@@ -30,6 +30,8 @@ struct ProjectDetailView: View {
     @Environment(SettingsManager.self) private var settings
     @Environment(PluginLoader.self) private var pluginLoader
     @Query private var allAnswers: [Answer]
+    @Query private var allMemoItems: [MemoItem]
+    @Query private var allAdoptedFollowups: [AdoptedFollowup]
 
 
     @State private var showExportPanel = false
@@ -490,20 +492,34 @@ struct ProjectDetailView: View {
             let dept = pluginLoader.departments.first { $0.id == deptId }
             deptNames[deptId] = dept?.name ?? deptId
             let deptAnswers = answers.filter { $0.departmentId == deptId }
+            let deptFollowups = allAdoptedFollowups
+                .filter { $0.projectId == project.id && $0.departmentId == deptId }
+                .sorted { $0.createdAt < $1.createdAt }
             let rawSections = pluginLoader.questionsBySection(for: deptId)
+
+            func item(for q: QuestionTemplate, isFollowup: Bool) -> ExportSnapshot.ExportItem {
+                let ans = deptAnswers.first { $0.questionId == q.id }
+                return ExportSnapshot.ExportItem(
+                    topic: q.topic,
+                    question: q.question,
+                    isFollowup: isFollowup,
+                    selectedOptions: ans?.selectedOptions ?? [],
+                    textValue: ans?.textValue ?? "",
+                    noteText: ans?.noteText ?? "",
+                    polishedText: ans?.polishedText ?? "",
+                    voiceTranscript: ans?.voiceTranscript ?? "",
+                    hasContent: ans?.hasContent ?? false
+                )
+            }
+
             let sections: [ExportSnapshot.ExportSectionData] = rawSections.map { (section, questions) in
-                let items: [ExportSnapshot.ExportItem] = questions.map { q in
-                    let ans = deptAnswers.first { $0.questionId == q.id }
-                    return ExportSnapshot.ExportItem(
-                        topic: q.topic,
-                        question: q.question,
-                        selectedOptions: ans?.selectedOptions ?? [],
-                        textValue: ans?.textValue ?? "",
-                        noteText: ans?.noteText ?? "",
-                        polishedText: ans?.polishedText ?? "",
-                        voiceTranscript: ans?.voiceTranscript ?? "",
-                        hasContent: ans?.hasContent ?? false
-                    )
+                var items: [ExportSnapshot.ExportItem] = []
+                for q in questions {
+                    items.append(item(for: q, isFollowup: false))
+                    // 现场采纳的 AI 追问紧跟其父题目输出
+                    for fu in deptFollowups where fu.parentQuestionId == q.id {
+                        items.append(item(for: fu.asTemplate(section: section), isFollowup: true))
+                    }
                 }
                 return ExportSnapshot.ExportSectionData(label: section.label, items: items)
             }
@@ -518,8 +534,20 @@ struct ProjectDetailView: View {
             surveyGoal: project.surveyGoal, totalQuestions: project.totalQuestions,
             answeredQuestions: project.answeredQuestions, progress: project.progress,
             selectedDepartmentIds: project.selectedDepartmentIds,
-            departmentNames: deptNames, departmentSections: deptSections
+            departmentNames: deptNames, departmentSections: deptSections,
+            memoItems: memoGroupsForExport()
         )
+    }
+
+    /// 现场备忘按四类固定顺序导出
+    private func memoGroupsForExport() -> [(category: String, texts: [String])] {
+        MemoCategory.allCases.map { category in
+            let texts = allMemoItems
+                .filter { $0.projectId == project.id && $0.category == category.rawValue }
+                .sorted { $0.createdAt < $1.createdAt }
+                .map(\.text)
+            return (category: category.label, texts: texts)
+        }
     }
 
     private func saveExportFile(data: Data, fileName: String) {

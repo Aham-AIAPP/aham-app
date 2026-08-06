@@ -90,23 +90,21 @@ extension SurveyView {
 
                             // 条目列表
                             ScrollView {
-                                if let items = memoItems[category] {
-                                    ForEach(Array(items.enumerated()), id: \.offset) { idx, item in
-                                        HStack(spacing: AHSpacing.xxs) {
-                                            Text(item)
+                                ForEach(memoItems[category] ?? []) { item in
+                                    HStack(spacing: AHSpacing.xxs) {
+                                        Text(item.text)
+                                            .ahCaption()
+                                            .foregroundStyle(.primary)
+                                            .lineLimit(1)
+                                        Spacer()
+                                        Button {
+                                            modelContext.delete(item)
+                                        } label: {
+                                            Image(systemName: "xmark")
                                                 .ahCaption()
-                                                .foregroundStyle(.primary)
-                                                .lineLimit(1)
-                                            Spacer()
-                                            Button {
-                                                memoItems[category]?.remove(at: idx)
-                                            } label: {
-                                                Image(systemName: "xmark")
-                                                    .ahCaption()
-                                                    .foregroundStyle(.tertiary)
-                                            }
-                                            .buttonStyle(.plain)
+                                                .foregroundStyle(.tertiary)
                                         }
+                                        .buttonStyle(.plain)
                                     }
                                 }
                             }
@@ -155,9 +153,7 @@ extension SurveyView {
         guard !trimmed.isEmpty else { return }
         newMemoText = ""
 
-        var items = memoItems[category] ?? []
-        guard items.count < 20 else { return }
-        items.append(trimmed)
-        memoItems[category] = items
+        guard (memoItems[category] ?? []).count < 20 else { return }
+        modelContext.insert(MemoItem(projectId: project.id, category: category, text: trimmed))
     }
 }

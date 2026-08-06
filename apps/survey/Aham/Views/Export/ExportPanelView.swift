@@ -23,6 +23,7 @@ struct ExportPanelView: View {
     @State private var includeNotes = true
     @State private var includeAIPolish = true
     @State private var includeVoice = true
+    @State private var includeMemo = true
     @State private var addFrontmatter = true
     @State private var selectedDepts: Set<String>
     @State private var isGenerating = false
@@ -84,6 +85,7 @@ struct ExportPanelView: View {
                                 Toggle("顾问笔记",    isOn: $includeNotes)
                                 Toggle("AI 润色结果", isOn: $includeAIPolish)
                                 Toggle("转写文本",     isOn: $includeVoice)
+                                Toggle("现场备忘",     isOn: $includeMemo)
                                 AHDivider()
                                 Toggle("包含 YAML 文件头", isOn: $addFrontmatter)
                                     .foregroundStyle(.secondary)
@@ -165,6 +167,7 @@ struct ExportPanelView: View {
             includeNotes: includeNotes,
             includeAIPolish: includeAIPolish,
             includeVoice: includeVoice,
+            includeMemo: includeMemo,
             departmentFilter: Array(selectedDepts)
         )
         isGenerating = true
