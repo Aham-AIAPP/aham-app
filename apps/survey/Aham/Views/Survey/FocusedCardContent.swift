@@ -9,7 +9,6 @@ struct FocusedCardContent: View {
     let project: Project
     let departments: [DepartmentTemplate]
     let selectedDepartmentId: String
-    var aiOptions: [String]? = nil  // AI 增强的动态选项集
 
     // AI 回调
     var onIgnoreToggle: () -> Void = {}
@@ -252,10 +251,9 @@ struct FocusedCardContent: View {
 
     // MARK: - Answer Input
 
-    /// 实际使用的选项：AI 动态选项 > 问题默认选项
+    /// 实际使用的选项
     private var effectiveOptions: [String] {
-        if let ai = aiOptions, !ai.isEmpty { return ai }
-        return question.options ?? []
+        question.options ?? []
     }
 
     /// 是否为多选模式

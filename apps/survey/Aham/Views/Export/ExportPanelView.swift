@@ -7,7 +7,6 @@ struct ExportPanelData {
     var selectedDeptIds: [String]
     var deptNames: [String: String]          // deptId → 显示名
     var deptAnsweredCounts: [String: Int]    // deptId → 已回答数
-    var hasAIEnhancement: Bool
 }
 
 // MARK: - ExportPanelView
@@ -24,7 +23,6 @@ struct ExportPanelView: View {
     @State private var includeNotes = true
     @State private var includeAIPolish = true
     @State private var includeVoice = true
-    @State private var includeAIEnhancement = true
     @State private var addFrontmatter = true
     @State private var selectedDepts: Set<String>
     @State private var isGenerating = false
@@ -86,9 +84,6 @@ struct ExportPanelView: View {
                                 Toggle("顾问笔记",    isOn: $includeNotes)
                                 Toggle("AI 润色结果", isOn: $includeAIPolish)
                                 Toggle("转写文本",     isOn: $includeVoice)
-                                if panelData.hasAIEnhancement {
-                                    Toggle("AI 项目分析", isOn: $includeAIEnhancement)
-                                }
                                 AHDivider()
                                 Toggle("包含 YAML 文件头", isOn: $addFrontmatter)
                                     .foregroundStyle(.secondary)
@@ -170,7 +165,6 @@ struct ExportPanelView: View {
             includeNotes: includeNotes,
             includeAIPolish: includeAIPolish,
             includeVoice: includeVoice,
-            includeAIEnhancement: includeAIEnhancement,
             departmentFilter: Array(selectedDepts)
         )
         isGenerating = true

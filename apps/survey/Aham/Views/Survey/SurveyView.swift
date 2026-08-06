@@ -74,9 +74,6 @@ struct SurveyView: View {
         if !cachedExclusionIds.isEmpty {
             base = base.filter { !cachedExclusionIds.contains($0.id) }
         }
-        if let skips = project.aiEnhancement?.skipSuggestions {
-            base = base.filter { !skips.contains($0.id) }
-        }
         return base
     }
 
@@ -430,7 +427,6 @@ struct SurveyView: View {
                 project: project,
                 departments: pluginLoader.selectedDepartments(ids: project.selectedDepartmentIds),
                 selectedDepartmentId: selectedDepartmentId ?? "",
-                aiOptions: project.aiEnhancement?.optionSets[question.id],
                 onIgnoreToggle: {
                     answer.status = answer.status == .ignored ? .unanswered : .ignored
                 },
@@ -741,40 +737,13 @@ struct SurveyView: View {
         guard let deptId = selectedDepartmentId else {
             cachedDisplayQuestions = []; return
         }
-        var base = baseQuestions(for: deptId)
-        if let priorities = project.aiEnhancement?.priorityAdjustments {
-            base.sort { a, b in
-                let pa = priorities[a.id] ?? 3
-                let pb = priorities[b.id] ?? 3
-                return pa < pb
-            }
-        }
+        let base = baseQuestions(for: deptId)
         let deptFollowups = adoptedFollowups.filter { $0.departmentId == deptId }
         var result: [QuestionTemplate] = []
         for q in base {
             result.append(q)
             for fu in deptFollowups where fu.parentQuestionId == q.id {
                 result.append(fu.template)
-            }
-        }
-        if let additional = project.aiEnhancement?.additionalQuestions {
-            let deptAdditional = additional.filter { $0.departmentId == deptId }
-            for aq in deptAdditional {
-                let template = QuestionTemplate(
-                    id: aq.id, section: QuestionSection(rawValue: aq.section) ?? .painpoint,
-                    topic: "AI补充", question: aq.text,
-                    type: aq.type == "multi_choice" ? .multiChoice : .singleChoice,
-                    options: aq.options, required: false, hints: [aq.reason],
-                    triggers: nil, meceGroup: nil, knowledgeRef: nil,
-                    industrySpecific: true, order: 999
-                )
-                result.append(template)
-                let key = "\(deptId)::\(aq.id)"
-                if answerLookup[key] == nil {
-                    let answer = Answer(projectId: project.id, departmentId: deptId, questionId: aq.id)
-                    modelContext.insert(answer)
-                    answerLookup[key] = answer
-                }
             }
         }
         cachedDisplayQuestions = result

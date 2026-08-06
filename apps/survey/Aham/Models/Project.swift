@@ -164,16 +164,6 @@ final class Project {
         set { surveyScopeIds = newValue.map(\.rawValue) }
     }
 
-    var aiEnhancement: AIProjectEnhancement? {
-        get {
-            guard let data = aiEnhancementData else { return nil }
-            return try? JSONDecoder().decode(AIProjectEnhancement.self, from: data)
-        }
-        set {
-            aiEnhancementData = try? JSONEncoder().encode(newValue)
-        }
-    }
-
     /// 根据调研范围自动计算的部门集合
     var scopeDepartmentIds: Set<String> {
         SurveyScope.mergedDepartmentIds(surveyScopes)

@@ -106,25 +106,6 @@ struct MarkdownExporter {
 
     // MARK: - Private
 
-    private static func aiEnhancementSection(enhancement: AIProjectEnhancement) -> String {
-        var md = "\n---\n\n## AI 项目分析\n\n"
-        if !enhancement.industryContext.isEmpty {
-            md += "### 行业上下文\n\n\(enhancement.industryContext)\n\n"
-        }
-        if !enhancement.documentContext.isEmpty {
-            md += "### 文档摘要\n\n\(enhancement.documentContext)\n\n"
-        }
-        if !enhancement.additionalQuestions.isEmpty {
-            md += "### AI 补充问题建议\n\n"
-            for q in enhancement.additionalQuestions {
-                md += "- **[\(q.departmentId)]** \(q.text)\n"
-                if !q.reason.isEmpty { md += "  > \(q.reason)\n" }
-            }
-            md += "\n"
-        }
-        return md
-    }
-
     private static func frontmatter(project: Project) -> String {
         var yaml: [String] = ["---"]
         yaml.append("title: \"\(yamlEscape(project.displayName + " 调研报告"))\"")
@@ -230,7 +211,6 @@ struct ExportConfig {
     var includeNotes: Bool
     var includeAIPolish: Bool
     var includeVoice: Bool
-    var includeAIEnhancement: Bool
     /// nil 表示导出全部部门
     var departmentFilter: [String]?
 
@@ -240,7 +220,6 @@ struct ExportConfig {
         includeNotes: true,
         includeAIPolish: true,
         includeVoice: true,
-        includeAIEnhancement: true,
         departmentFilter: nil
     )
 }
@@ -263,7 +242,6 @@ struct ExportSnapshot {
     var totalQuestions: Int
     var answeredQuestions: Int
     var progress: Double
-    var aiEnhancement: AIProjectEnhancement?
     var selectedDepartmentIds: [String]
     var departmentNames: [String: String]   // deptId → 显示名称
     var departmentSections: [String: [ExportSectionData]]  // deptId → sections
@@ -304,10 +282,6 @@ extension MarkdownExporter {
 
         md += "# \(snapshot.displayName) — 调研报告\n\n"
         md += snapshotOverview(snapshot)
-
-        if config.includeAIEnhancement, let enhancement = snapshot.aiEnhancement {
-            md += aiEnhancementSection(enhancement: enhancement)
-        }
 
         let deptIds = config.departmentFilter ?? snapshot.selectedDepartmentIds
         for deptId in deptIds {

@@ -114,12 +114,11 @@ final class PluginLoader {
         }
     }
 
-    /// 获取项目所有问题（合并 scope 过滤 + 行业补充 + 知识库补充 + AI 增强）
+    /// 获取项目所有问题（合并 scope 过滤 + 行业补充 + 知识库补充）
     func questionsForProject(_ project: Project) -> [String: [QuestionTemplate]] {
         var result: [String: [QuestionTemplate]] = [:]
         let scopes = project.surveyScopes
         let industry = project.industryEnum
-        let enhancement = project.aiEnhancement
         // 始终尝试加载知识库补充问题（有则加载，无则跳过）
         let kqSupplement = knowledgeQuestionStore.load()
 
@@ -136,20 +135,6 @@ final class PluginLoader {
                 let exclusions = QuestionExclusionStore().load()
                 if !exclusions.isEmpty {
                     questions = questions.filter { !exclusions.contains($0.id) }
-                }
-            }
-
-            // 应用 AI 跳过建议
-            if let skips = enhancement?.skipSuggestions {
-                questions = questions.filter { !skips.contains($0.id) }
-            }
-
-            // 应用 AI 优先级排序
-            if let priorities = enhancement?.priorityAdjustments {
-                questions.sort { a, b in
-                    let pa = priorities[a.id] ?? 3
-                    let pb = priorities[b.id] ?? 3
-                    return pa < pb
                 }
             }
 

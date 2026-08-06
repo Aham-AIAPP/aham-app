@@ -20,17 +20,9 @@ import UniformTypeIdentifiers
 //      - 彻底消除 GroupBox / .borderedProminent / .font(.title) 这类原始 API
 //      - 所有 padding、radius 都走 AHSpacing / AHRadius token
 //
-//   4. Customer Info 卡片分离成 3 个 AHCard：
+//   4. Customer Info 卡片分离成 2 个 AHCard：
 //      - 基本信息（editable inline，去掉"编辑"开关）
 //      - 产品与工艺
-//      - 文档导入（独立卡片，不再嵌在客户信息内）
-//
-//   5. AI 增强全流程独立 tab：
-//      - 状态、进度、结果一屏呈现
-//      - 补充问题的 picker 从弹层改为 inline sheet
-//
-// ⚠️ 逻辑层（importDocument / AI enhancer 调用等）
-//    保持不变 —— 只重写 UI，所有函数签名原样。
 
 struct ProjectDetailView: View {
     @Bindable var project: Project
@@ -39,22 +31,15 @@ struct ProjectDetailView: View {
     @Environment(PluginLoader.self) private var pluginLoader
     @Query private var allAnswers: [Answer]
 
-    // 文档导入相关 state —— 与 V2 完全一致
-    @State private var docAnalyzer = ProjectDocumentAnalyzer()
-    @State private var analysisResult: ProjectDocumentAnalyzer.DocumentAnalysisResult?
-    @State private var pendingDocQuestions: [AIGeneratedQuestion] = []
-    @State private var pendingQuestionSelection: [Int: Bool] = [:]
-    @State private var docImportPhase: DocImportPhase = .idle
 
     @State private var showExportPanel = false
-    @State private var aiEnhancer: AIProjectEnhancer?
     @State private var isSearchingProductInfo = false
 
     // V3 新增：tab 选择
     @State private var activeTab: DetailTab = .overview
 
     enum DetailTab: Hashable {
-        case overview, customer, aiEnhancement, progress
+        case overview, customer, progress
     }
 
     private var projectAnswers: [Answer] {
@@ -178,7 +163,6 @@ struct ProjectDetailView: View {
                 items: [
                     (.overview,      "概览",    "square.grid.2x2"),
                     (.customer,      "客户信息", "person.text.rectangle"),
-                    (.aiEnhancement, "AI 增强", "wand.and.stars"),
                     (.progress,      "进度",    "chart.bar")
                 ]
             )
@@ -195,7 +179,6 @@ struct ProjectDetailView: View {
         switch activeTab {
         case .overview:       overviewTab
         case .customer:       customerTab
-        case .aiEnhancement:  aiEnhancementTab
         case .progress:       progressTab
         }
     }
@@ -258,8 +241,6 @@ struct ProjectDetailView: View {
                 AHSection("快速操作") {
                     HStack(spacing: AHSpacing.m) {
                         quickAction("开始调研", "play.circle") { appStore.isSurveying = true }
-                        quickAction("生成 AI 增强", "wand.and.stars") { runAIEnhancement() }
-                        quickAction("导入文档", "doc.badge.plus") { importDocument() }
                         quickAction("导出报告", "square.and.arrow.up") { showExportPanel = true }
                     }
                 }
@@ -383,356 +364,6 @@ struct ProjectDetailView: View {
                         .padding(.top, AHSpacing.xs)
                 }
             }
-
-            // 文档导入
-            AHCard {
-                documentImportInnerContent
-            }
-        }
-    }
-
-    @ViewBuilder
-    private var documentImportInnerContent: some View {
-        VStack(alignment: .leading, spacing: AHSpacing.m) {
-            AHSection("文档导入") {
-                EmptyView()
-            } trailing: {
-                if docImportPhase == .idle || docImportPhase == .applied {
-                    Button {
-                        importDocument()
-                    } label: {
-                        Label("选择文档", systemImage: "doc.badge.plus")
-                    }
-                    .buttonStyle(.ahSecondary)
-                }
-            }
-
-            if let docs = project.aiEnhancement?.importedDocsSummary, !docs.isEmpty {
-                VStack(alignment: .leading, spacing: AHSpacing.xxs) {
-                    Text("已导入").ahCaption()
-                    ForEach(docs, id: \.self) { doc in
-                        HStack(spacing: AHSpacing.xs) {
-                            Image(systemName: "doc.fill")
-                                .foregroundStyle(.secondary).ahCaption()
-                            Text(doc).foregroundStyle(.secondary).ahCaption()
-                        }
-                    }
-                }
-            }
-
-            let isBusy = docAnalyzer.isAnalyzing || docAnalyzer.isRebuildingQuestions
-            if isBusy {
-                VStack(alignment: .leading, spacing: AHSpacing.xs) {
-                    HStack(spacing: AHSpacing.xs) {
-                        ProgressView().controlSize(.small)
-                        Text(docAnalyzer.progressMessage.isEmpty
-                             ? (docAnalyzer.isAnalyzing ? "正在分析..." : "生成补充问题...")
-                             : docAnalyzer.progressMessage)
-                            .ahCallout()
-                            .foregroundStyle(.secondary)
-                    }
-                    ProgressView(value: docAnalyzer.progress, total: 1.0)
-                        .progressViewStyle(.linear)
-                }
-                .padding(AHSpacing.m)
-                .background(
-                    RoundedRectangle(cornerRadius: AHRadius.sm)
-                        .fill(Color.ahPaper)
-                )
-            }
-
-            if case .analyzed(let result) = docImportPhase {
-                docAnalysisResultInline(result)
-            }
-            if case .pendingConfirm = docImportPhase {
-                docQuestionPreviewInline()
-            }
-
-            if docImportPhase == .idle || docImportPhase == .applied {
-                Text("支持 Word / PPT / Excel / PDF / Markdown 等，可多选 5 个")
-                    .ahCaption()
-            }
-
-            if docImportPhase == .applied {
-                AHStatus(text: "已应用到本项目", color: .ahSuccess)
-            }
-
-            if let error = docAnalyzer.lastError {
-                HStack(spacing: AHSpacing.xs) {
-                    Image(systemName: "exclamationmark.triangle.fill")
-                        .foregroundStyle(Color.ahWarning).ahCaption()
-                    Text(error).foregroundStyle(Color.ahDanger).ahCaption()
-                    Spacer()
-                    Button {
-                        docAnalyzer.lastError = nil
-                        docImportPhase = .idle
-                    } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .ahCaption()
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-        }
-    }
-
-    @ViewBuilder
-    private func docAnalysisResultInline(_ result: ProjectDocumentAnalyzer.DocumentAnalysisResult) -> some View {
-        VStack(alignment: .leading, spacing: AHSpacing.s) {
-            if !result.fileNames.isEmpty {
-                HStack(spacing: AHSpacing.xxs) {
-                    Image(systemName: "doc.fill")
-                        .foregroundStyle(.secondary).ahCaption()
-                    Text(result.fileNames.joined(separator: "、"))
-                        .foregroundStyle(.secondary).ahCaption()
-                        .lineLimit(2)
-                }
-            }
-
-            let hasContent = !result.keyFindings.isEmpty || !result.knownIssues.isEmpty || !result.knownNeeds.isEmpty
-            if hasContent {
-                VStack(alignment: .leading, spacing: AHSpacing.xs) {
-                    if !result.keyFindings.isEmpty {
-                        analysisGroup("关键发现", icon: "lightbulb", items: Array(result.keyFindings.prefix(3)))
-                    }
-                    if !result.knownIssues.isEmpty {
-                        analysisGroup("已知问题", icon: "exclamationmark.triangle", items: Array(result.knownIssues.prefix(2)))
-                    }
-                    if !result.knownNeeds.isEmpty {
-                        analysisGroup("已知需求", icon: "star", items: Array(result.knownNeeds.prefix(2)))
-                    }
-                }
-                .padding(AHSpacing.m)
-                .background(RoundedRectangle(cornerRadius: AHRadius.sm).fill(Color.ahPaper))
-            } else {
-                Text("未提取到结构化信息，仍可直接生成补充问题")
-                    .ahCaption()
-            }
-
-            HStack(spacing: AHSpacing.s) {
-                Button("应用客户信息") {
-                    docAnalyzer.applyToProject(result, project: project)
-                }
-                .buttonStyle(.ahSecondary)
-
-                if settings.isLLMConfigured {
-                    Button {
-                        generateDocQuestions(docContent: result.rawDocContent)
-                    } label: {
-                        Label("生成补充问题", systemImage: "wand.and.stars")
-                    }
-                    .buttonStyle(.ahPrimary)
-                }
-
-                Button("取消") {
-                    docImportPhase = .idle
-                }
-                .buttonStyle(.ahGhost)
-            }
-        }
-    }
-
-    private func analysisGroup(_ title: String, icon: String, items: [String]) -> some View {
-        VStack(alignment: .leading, spacing: AHSpacing.xxs) {
-            HStack(spacing: AHSpacing.xxs) {
-                Image(systemName: icon).foregroundStyle(.secondary).ahCaption()
-                Text(title).ahSectionLabel()
-            }
-            ForEach(items, id: \.self) { item in
-                Text("• \(item)").foregroundStyle(.primary).ahCaption()
-            }
-        }
-    }
-
-    @ViewBuilder
-    private func docQuestionPreviewInline() -> some View {
-        VStack(alignment: .leading, spacing: AHSpacing.s) {
-            HStack(spacing: AHSpacing.xs) {
-                Image(systemName: "wand.and.stars").foregroundStyle(Color.ahAccent)
-                Text("AI 生成了 \(pendingDocQuestions.count) 道补充问题")
-                    .ahCallout().fontWeight(.medium)
-                Spacer()
-                Button(pendingQuestionSelection.values.allSatisfy({ $0 }) ? "全不选" : "全选") {
-                    let allSelected = pendingQuestionSelection.values.allSatisfy({ $0 })
-                    for i in pendingDocQuestions.indices {
-                        pendingQuestionSelection[i] = !allSelected
-                    }
-                }
-                .buttonStyle(.ahGhost)
-            }
-
-            let grouped = Dictionary(grouping: pendingDocQuestions.indices) {
-                pendingDocQuestions[$0].departmentId
-            }
-            ForEach(grouped.keys.sorted(), id: \.self) { deptId in
-                let dept = pluginLoader.departments.first { $0.id == deptId }
-                let indices = grouped[deptId] ?? []
-
-                VStack(alignment: .leading, spacing: AHSpacing.xxs) {
-                    HStack(spacing: AHSpacing.xxs) {
-                        Image(systemName: dept?.sfSymbol ?? "folder")
-                            .foregroundStyle(Color.ahAccent).ahCaption()
-                        Text(dept?.name ?? deptId)
-                            .foregroundStyle(.primary).ahCaption().fontWeight(.semibold)
-                        Text("\(indices.count) 题").ahCaption()
-                    }
-
-                    ForEach(indices, id: \.self) { idx in
-                        let q = pendingDocQuestions[idx]
-                        let isSelected = pendingQuestionSelection[idx] ?? true
-                        Button {
-                            pendingQuestionSelection[idx] = !isSelected
-                        } label: {
-                            HStack(alignment: .top, spacing: AHSpacing.xs) {
-                                Image(systemName: isSelected ? "checkmark.square.fill" : "square")
-                                    .foregroundStyle(isSelected ? Color.ahAccent : .secondary)
-                                    .ahCaption()
-                                VStack(alignment: .leading, spacing: AHSpacing.xxs) {
-                                    Text(q.text).foregroundStyle(isSelected ? .primary : .secondary).ahCaption().lineLimit(2)
-                                    if !q.reason.isEmpty {
-                                        Text(q.reason).ahCaption().lineLimit(1)
-                                    }
-                                }
-                            }
-                            .padding(AHSpacing.xs)
-                            .background(
-                                RoundedRectangle(cornerRadius: AHRadius.xs)
-                                    .fill(isSelected ? Color.ahSelected : Color.clear)
-                            )
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-            }
-
-            HStack(spacing: AHSpacing.s) {
-                let selectedCount = pendingQuestionSelection.values.filter({ $0 }).count
-                Button("应用选中的 \(selectedCount) 道题") {
-                    applySelectedDocQuestions()
-                }
-                .buttonStyle(.ahPrimary)
-                .disabled(selectedCount == 0)
-
-                Button("放弃") {
-                    pendingDocQuestions = []
-                    pendingQuestionSelection = [:]
-                    docImportPhase = .idle
-                }
-                .buttonStyle(.ahGhost)
-            }
-        }
-        .padding(AHSpacing.m)
-        .background(
-            RoundedRectangle(cornerRadius: AHRadius.sm)
-                .fill(Color.ahPaper)
-        )
-    }
-
-    // MARK: - Tab: AI 增强
-
-    @ViewBuilder
-    private var aiEnhancementTab: some View {
-        VStack(alignment: .leading, spacing: AHSpacing.xl) {
-            if let enhancer = aiEnhancer, enhancer.isEnhancing {
-                AHCard {
-                    VStack(alignment: .leading, spacing: AHSpacing.m) {
-                        HStack {
-                            Text("正在生成 AI 增强...").ahTitle3()
-                            Spacer()
-                            Text("\(Int(enhancer.progressFraction * 100))%")
-                                .ahMono(13, weight: .semibold)
-                                .foregroundStyle(.secondary)
-                        }
-                        Text(enhancer.progress).ahMeta()
-                        ProgressView(value: enhancer.progressFraction)
-                            .tint(Color.ahAccent)
-                    }
-                }
-            } else if let enhancement = project.aiEnhancement {
-                // 已生成
-                AHCard {
-                    VStack(alignment: .leading, spacing: AHSpacing.m) {
-                        HStack {
-                            AHStatus(text: "AI 增强已完成", color: .ahSuccess)
-                            Spacer()
-                            Text(enhancement.generatedAt, format: .dateTime.month().day().hour().minute())
-                                .ahCaption()
-                        }
-
-                        if !enhancement.industryContext.isEmpty {
-                            Text(enhancement.industryContext)
-                                .ahCallout()
-                                .foregroundStyle(.primary)
-                        }
-
-                        // 四个统计
-                        HStack(spacing: AHSpacing.m) {
-                            enhancementStat("动态选项", enhancement.optionSets.count, "list.bullet")
-                            enhancementStat("优先级调整", enhancement.priorityAdjustments.count, "arrow.up.arrow.down")
-                            enhancementStat("跳过建议", enhancement.skipSuggestions.count, "forward.end")
-                            enhancementStat("补充问题", enhancement.additionalQuestions.count, "plus.bubble")
-                        }
-
-                        HStack {
-                            Button("重新生成") { runAIEnhancement() }
-                                .buttonStyle(.ahSecondary)
-                            Spacer()
-                        }
-                    }
-                }
-            } else {
-                // 未生成
-                AHCard {
-                    VStack(alignment: .leading, spacing: AHSpacing.m) {
-                        HStack(spacing: AHSpacing.m) {
-                            AHIconTile(symbol: "wand.and.stars", size: AHIconBox.lg, tint: .ahInk60)
-                            VStack(alignment: .leading, spacing: AHSpacing.xs) {
-                                Text("AI 智能增强").ahTitle3()
-                                Text("根据客户属性和行业特征，自动生成动态选项、调整优先级、筛除冗余问题。")
-                                    .ahMeta()
-                            }
-                            Spacer()
-                        }
-                        HStack {
-                            Spacer()
-                            Button("开始生成") { runAIEnhancement() }
-                                .buttonStyle(.ahPrimary)
-                                .disabled(!settings.isLLMConfigured)
-                        }
-
-                        if let enhancer = aiEnhancer, let error = enhancer.lastError {
-                            noticeRow("exclamationmark.triangle", error, color: .ahDanger)
-                        }
-                        if !settings.isLLMConfigured {
-                            noticeRow("gearshape", "请先在设置中配置 LLM API Key", color: .ahWarning)
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    private func enhancementStat(_ label: String, _ count: Int, _ icon: String) -> some View {
-        VStack(alignment: .leading, spacing: AHSpacing.xxs) {
-            HStack(spacing: AHSpacing.xxs) {
-                Image(systemName: icon).foregroundStyle(.secondary).ahCaption()
-                Text(label).ahCaption()
-            }
-            Text("\(count)")
-                .font(.system(size: 22, weight: .semibold, design: .monospaced))
-                .foregroundStyle(count > 0 ? Color.ahInk : Color.ahInk40)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(AHSpacing.m)
-        .background(RoundedRectangle(cornerRadius: AHRadius.sm).fill(Color.ahPaper))
-    }
-
-    /// 通知行 —— 图标 + 文字（铁规：通知用文字+图标，不用色块/徽章）。
-    private func noticeRow(_ icon: String, _ text: String, color: Color) -> some View {
-        HStack(spacing: AHSpacing.xs) {
-            Image(systemName: icon).foregroundStyle(color).ahCaption()
-            Text(text).foregroundStyle(Color.ahInk60).ahCaption()
-            Spacer(minLength: 0)
         }
     }
 
@@ -871,101 +502,6 @@ struct ProjectDetailView: View {
         }
     }
 
-    private func runAIEnhancement() {
-        let enhancer = AIProjectEnhancer(settings: settings)
-        self.aiEnhancer = enhancer
-        let questionsByDept = pluginLoader.questionsForProject(project)
-        Task {
-            if let result = await enhancer.enhance(project: project, questionsByDept: questionsByDept) {
-                project.aiEnhancement = result
-                project.updatedAt = .now
-            }
-        }
-    }
-
-    private func importDocument() {
-        let panel = NSOpenPanel()
-        panel.canChooseFiles = true
-        panel.canChooseDirectories = false
-        panel.allowsMultipleSelection = true
-        panel.allowedContentTypes = [
-            .plainText, .pdf,
-            UTType(filenameExtension: "docx") ?? .data,
-            UTType(filenameExtension: "doc")  ?? .data,
-            UTType(filenameExtension: "xlsx") ?? .data,
-            UTType(filenameExtension: "xls")  ?? .data,
-            UTType(filenameExtension: "pptx") ?? .data,
-            UTType(filenameExtension: "ppt")  ?? .data,
-            UTType(filenameExtension: "md")   ?? .plainText,
-            UTType(filenameExtension: "csv")  ?? .plainText,
-            UTType(filenameExtension: "rtf")  ?? .data
-        ]
-        panel.message = "选择客户提供的文档（最多 5 个）"
-        panel.begin { [self] response in
-            guard response == .OK, !panel.urls.isEmpty else { return }
-            let urls = Array(panel.urls.prefix(5))
-            docImportPhase = .idle
-            pendingDocQuestions = []
-            pendingQuestionSelection = [:]
-            Task { @MainActor in
-                if let result = await self.docAnalyzer.analyze(fileURLs: urls, settings: self.settings) {
-                    self.analysisResult = result
-                    self.docImportPhase = .analyzed(result)
-                }
-            }
-        }
-    }
-
-    private func generateDocQuestions(docContent: String) {
-        let departments = pluginLoader.selectedDepartments(ids: project.selectedDepartmentIds)
-        Task { @MainActor in
-            if let questions = await docAnalyzer.rebuildProjectQuestions(
-                docContent: docContent,
-                project: project,
-                departments: departments,
-                settings: settings
-            ) {
-                pendingDocQuestions = questions
-                pendingQuestionSelection = Dictionary(
-                    uniqueKeysWithValues: questions.indices.map { ($0, true) }
-                )
-                docImportPhase = .pendingConfirm
-            }
-        }
-    }
-
-    private func applySelectedDocQuestions() {
-        let selected = pendingDocQuestions.enumerated().compactMap { idx, q in
-            (pendingQuestionSelection[idx] ?? true) ? q : nil
-        }
-        guard !selected.isEmpty else { return }
-
-        var enhancement = project.aiEnhancement ?? AIProjectEnhancement()
-        let existingIds = Set(enhancement.additionalQuestions.map(\.id))
-        let newOnes = selected.filter { !existingIds.contains($0.id) }
-        enhancement.additionalQuestions.append(contentsOf: newOnes)
-
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MM-dd HH:mm"
-        let timeStr = formatter.string(from: Date())
-        let fileLabel: String
-        if let result = analysisResult, !result.fileNames.isEmpty {
-            fileLabel = result.fileNames.count == 1
-                ? result.fileNames[0]
-                : "\(result.fileNames[0]) 等 \(result.fileNames.count) 个文档"
-        } else {
-            fileLabel = "文档"
-        }
-        enhancement.importedDocsSummary.append("\(fileLabel)（\(timeStr)，+\(newOnes.count)题）")
-
-        project.aiEnhancement = enhancement
-        project.updatedAt = .now
-
-        pendingDocQuestions = []
-        pendingQuestionSelection = [:]
-        docImportPhase = .applied
-    }
-
     private func buildExportPanelData() -> ExportPanelData {
         var deptNames: [String: String] = [:]
         var deptCounts: [String: Int] = [:]
@@ -978,8 +514,7 @@ struct ProjectDetailView: View {
             projectName: project.displayName,
             selectedDeptIds: project.selectedDepartmentIds,
             deptNames: deptNames,
-            deptAnsweredCounts: deptCounts,
-            hasAIEnhancement: project.aiEnhancement != nil
+            deptAnsweredCounts: deptCounts
         )
     }
 
@@ -1018,7 +553,6 @@ struct ProjectDetailView: View {
             revenue: project.revenue, existingSystems: project.existingSystems,
             surveyGoal: project.surveyGoal, totalQuestions: project.totalQuestions,
             answeredQuestions: project.answeredQuestions, progress: project.progress,
-            aiEnhancement: project.aiEnhancement,
             selectedDepartmentIds: project.selectedDepartmentIds,
             departmentNames: deptNames, departmentSections: deptSections
         )
@@ -1058,23 +592,6 @@ struct ProjectDetailView: View {
         case .inProgress: Color.ahAccent
         case .completed:  Color.ahSuccess
         case .archived:   .ahInk20
-        }
-    }
-}
-
-// MARK: - DocImportPhase
-
-enum DocImportPhase: Equatable {
-    case idle
-    case analyzed(ProjectDocumentAnalyzer.DocumentAnalysisResult)
-    case pendingConfirm
-    case applied
-
-    static func == (lhs: DocImportPhase, rhs: DocImportPhase) -> Bool {
-        switch (lhs, rhs) {
-        case (.idle, .idle), (.pendingConfirm, .pendingConfirm), (.applied, .applied): return true
-        case (.analyzed, .analyzed): return true
-        default: return false
         }
     }
 }

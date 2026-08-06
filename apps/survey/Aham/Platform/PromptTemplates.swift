@@ -77,30 +77,6 @@ enum PromptTemplates {
         ]
     }
 
-    // MARK: - 4. 文档分析（支持分块）
-
-    /// - Parameters:
-    ///   - docContent: 当前块的文本（外部已截断至合理长度）
-    ///   - extractProfile: 是否提取公司画像（仅第一块需要，后续块设为 false 节省 Token）
-    static func documentAnalysis(docContent: String, extractProfile: Bool = true) -> [LLMMessage] {
-        let profileField = extractProfile
-            ? "\"companyProfile\":{\"industry\":\"\",\"scale\":\"\",\"products\":\"\",\"systems\":[],\"certifications\":[]},"
-            : "\"companyProfile\":null,"
-
-        let system = """
-        分析客户文档片段，提取调研有价值的信息。输出JSON（严格格式）：
-        {\(profileField)"knownIssues":[],"knownNeeds":[],"keyFindings":[]}
-        \(extractProfile ? "" : "本片段无需提取 companyProfile，直接输出 null。")条目控制在3个以内，内容精炼。
-        """
-
-        let user = "文档片段：\n\(docContent)"
-
-        return [
-            LLMMessage(role: .system, content: system),
-            LLMMessage(role: .user, content: user)
-        ]
-    }
-
     // MARK: - 5. 备忘录智能分类
 
     static func memoCategorize(
@@ -116,64 +92,6 @@ enum PromptTemplates {
         """
 
         let user = "输入：\(text)\(existing.isEmpty ? "" : "\n已有：\(existing)")"
-
-        return [
-            LLMMessage(role: .system, content: system),
-            LLMMessage(role: .user, content: user)
-        ]
-    }
-
-    // MARK: - 5.5 项目文档补充问题重构（项目级，不写入全局知识库）
-
-    /// 基于客户文档内容 + 项目已选部门，生成针对该项目的补充调研问题
-    static func projectDocumentQuestionRebuild(
-        docContent: String,
-        customerName: String,
-        departments: [DepartmentTemplate]
-    ) -> [LLMMessage] {
-        let system = """
-        你是企业调研问题设计专家。根据客户提供的文档内容，为各调研部门生成有针对性的补充问题。
-
-        规则：
-        - 仅为文档中有明确相关信息的部门生成问题
-        - 每个部门最多 3 道补充问题，聚焦文档中揭示的痛点、缺失或需求
-        - 问题应比通用问题更具体，直接引用或呼应文档中的关键信息
-        - id 格式：doc_{dept_id}_{3位序号}（如 doc_production_001）
-        - section 必须是：opening / process / painpoint / expectation / compliance 之一
-        - type 必须是：text / single_choice / multi_choice / number / boolean 之一
-        - 选择题需提供 options 数组（3-5个选项）；开放题 options 为空数组
-
-        输出 JSON（严格格式，无多余文字）：
-        {
-          "supplements": {
-            "dept_id": [
-              {
-                "id": "doc_dept_001",
-                "departmentId": "dept_id",
-                "section": "painpoint",
-                "text": "具体问题内容",
-                "type": "text",
-                "options": [],
-                "reason": "生成原因（引用文档中的依据）"
-              }
-            ]
-          }
-        }
-        """
-
-        let deptList = departments.isEmpty
-            ? "（使用项目已选部门）"
-            : departments.map { "- \($0.id): \($0.name)" }.joined(separator: "\n")
-
-        let truncatedDoc = String(docContent.prefix(5000))
-        let user = """
-        客户：\(customerName)
-        部门列表：
-        \(deptList)
-
-        文档内容：
-        \(truncatedDoc)
-        """
 
         return [
             LLMMessage(role: .system, content: system),
