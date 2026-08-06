@@ -133,8 +133,10 @@ final class MCPServer {
         }
         let args = payload["args"] as? [String: Any] ?? [:]
 
+        // 必须用 mainContext：视图的 @Query 观察的就是它。
+        // 另开 ModelContext 会让 Claude 建的项目不出现在侧栏，直到重启 App。
         let tools = MCPTools(
-            context: ModelContext(container),
+            context: container.mainContext,
             pluginLoader: pluginLoader
         )
         callCount += 1
