@@ -104,36 +104,4 @@ final class AISurveyEnhancer {
         }
         return []
     }
-
-    // MARK: - 备忘录智能分类
-
-    struct MemoCategorizeResult {
-        let category: String  // forms/metrics/approvals/needs or ""
-        let text: String
-        let action: String    // add/skip/replace
-        let replaceIndex: Int
-    }
-
-    func categorizeMemo(
-        text: String,
-        existingItems: [String: [String]]
-    ) async -> MemoCategorizeResult? {
-        guard let provider else { return nil }
-
-        let messages = PromptTemplates.memoCategorize(text: text, existingItems: existingItems)
-
-        do {
-            let response = try await provider.chat(messages: messages, options: .followup)
-            if let json = LLMJSONParser.parse(response) as? [String: Any] {
-                let category = json["category"] as? String ?? ""
-                let normalized = json["text"] as? String ?? text
-                let action = json["action"] as? String ?? "add"
-                let replaceIndex = json["replaceIndex"] as? Int ?? 0
-                return MemoCategorizeResult(category: category, text: normalized, action: action, replaceIndex: replaceIndex)
-            }
-        } catch {
-            lastError = error.localizedDescription
-        }
-        return nil
-    }
 }

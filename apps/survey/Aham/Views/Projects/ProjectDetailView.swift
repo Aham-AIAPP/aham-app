@@ -33,7 +33,6 @@ struct ProjectDetailView: View {
 
 
     @State private var showExportPanel = false
-    @State private var isSearchingProductInfo = false
 
     // V3 新增：tab 选择
     @State private var activeTab: DetailTab = .overview
@@ -323,23 +322,6 @@ struct ProjectDetailView: View {
             // 产品与工艺
             AHCard {
                 AHSection("产品与工艺") {
-                    HStack(alignment: .top, spacing: AHSpacing.s) {
-                        Button {
-                            searchProductInfo()
-                        } label: {
-                            if isSearchingProductInfo {
-                                HStack(spacing: AHSpacing.xxs) {
-                                    ProgressView().controlSize(.mini)
-                                    Text("搜索中")
-                                }
-                            } else {
-                                Label("AI 搜索", systemImage: "magnifyingglass")
-                            }
-                        }
-                        .buttonStyle(.ahSecondary)
-                        .disabled(!settings.isLLMConfigured || project.customerName.isEmpty || isSearchingProductInfo)
-                    }
-                } trailing: {
                     EmptyView()
                 }
 
@@ -359,7 +341,7 @@ struct ProjectDetailView: View {
                     .padding(.top, AHSpacing.s)
 
                 if project.productInfo.isEmpty {
-                    Text("填写或 AI 搜索客户的主要产品和生产工艺")
+                    Text("填写客户的主要产品和生产工艺")
                         .ahCaption()
                         .padding(.top, AHSpacing.xs)
                 }
@@ -483,24 +465,6 @@ struct ProjectDetailView: View {
     }
 
     // MARK: - Business Logic (保留 V2 原样)
-
-    private func searchProductInfo() {
-        guard let provider = settings.llmProvider, !project.customerName.isEmpty else { return }
-        isSearchingProductInfo = true
-        Task {
-            let messages = [
-                LLMMessage(role: .system, content: "根据公司名称，简要描述该公司的主要产品、生产工艺和业务范围。用中文，3-5句话。如果不确定，注明是推测。"),
-                LLMMessage(role: .user, content: "公司名称：\(project.customerName)")
-            ]
-            do {
-                let result = try await provider.chat(messages: messages, options: .default)
-                project.productInfo = result
-            } catch {
-                project.productInfo = "搜索失败：\(error.localizedDescription)"
-            }
-            isSearchingProductInfo = false
-        }
-    }
 
     private func buildExportPanelData() -> ExportPanelData {
         var deptNames: [String: String] = [:]

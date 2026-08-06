@@ -148,63 +148,16 @@ extension SurveyView {
         }
     }
 
-    /// AI 驱动的备忘条目添加：自动分类、去重、规范化
+    /// 添加备忘条目：写入用户选中的类别，不再经过 LLM 分类。
+    /// 旧实现会在 AI 判定「不属于任何类别」时静默丢弃用户输入，这里保证非空输入必定落地。
     private func addMemoItem(to category: MemoCategory) {
         let trimmed = newMemoText.trimmingCharacters(in: .whitespaces)
         guard !trimmed.isEmpty else { return }
-
-        let inputText = newMemoText
         newMemoText = ""
 
-        guard settings.isLLMConfigured else {
-            // LLM 未配置时直接添加到当前类别
-            var items = memoItems[category] ?? []
-            guard items.count < 20 else { return }
-            items.append(trimmed)
-            memoItems[category] = items
-            return
-        }
-
-        let enhancer = getEnhancer()
-        let existing = Dictionary(uniqueKeysWithValues: MemoCategory.allCases.map {
-            ($0.rawValue, memoItems[$0] ?? [])
-        })
-
-        Task {
-            guard let result = await enhancer.categorizeMemo(text: inputText, existingItems: existing) else {
-                // AI 失败时回退到直接添加
-                var items = memoItems[category] ?? []
-                guard items.count < 20 else { return }
-                items.append(trimmed)
-                memoItems[category] = items
-                return
-            }
-
-            let targetCategory: MemoCategory? = switch result.category {
-            case "forms": .forms
-            case "metrics": .metrics
-            case "approvals": .approvals
-            case "needs": .needs
-            default: nil
-            }
-
-            guard let cat = targetCategory else { return }
-
-            switch result.action {
-            case "skip":
-                break
-            case "replace":
-                var items = memoItems[cat] ?? []
-                if result.replaceIndex < items.count {
-                    items[result.replaceIndex] = result.text
-                    memoItems[cat] = items
-                }
-            default: // "add"
-                var items = memoItems[cat] ?? []
-                guard items.count < 20 else { return }
-                items.append(result.text)
-                memoItems[cat] = items
-            }
-        }
+        var items = memoItems[category] ?? []
+        guard items.count < 20 else { return }
+        items.append(trimmed)
+        memoItems[category] = items
     }
 }

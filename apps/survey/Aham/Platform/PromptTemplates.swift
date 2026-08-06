@@ -75,28 +75,6 @@ enum PromptTemplates {
         ]
     }
 
-    // MARK: - 5. 备忘录智能分类
-
-    static func memoCategorize(
-        text: String,
-        existingItems: [String: [String]]
-    ) -> [LLMMessage] {
-        let existing = existingItems.map { "\($0.key): \($0.value.joined(separator: "; "))" }.joined(separator: "\n")
-        let system = """
-        将用户输入分类到备忘录类别。类别：forms(表单/报表/系统名称), metrics(KPI/指标/数据), approvals(审批/签字/流程), needs(客户明确需求)。
-        如果与已有条目重复或包含，标记skip。如果是已有条目的更详细版本，标记replace并指定index。
-        输出JSON：{"category":"forms/metrics/approvals/needs","text":"规范化文本","action":"add/skip/replace","replaceIndex":0}
-        如果内容不属于任何类别，category为空字符串。
-        """
-
-        let user = "输入：\(text)\(existing.isEmpty ? "" : "\n已有：\(existing)")"
-
-        return [
-            LLMMessage(role: .system, content: system),
-            LLMMessage(role: .user, content: user)
-        ]
-    }
-
     // MARK: - 辅助格式化
 
     /// 构建客户画像摘要
