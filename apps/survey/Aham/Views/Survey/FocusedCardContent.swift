@@ -426,14 +426,15 @@ struct FocusedCardContent: View {
                         .ahCaption()
                         .foregroundStyle(Color.ahSuccess)
                 case .idle:
-                    if isLLMConfigured {
-                        Button {
-                            onManualPolish()
-                        } label: {
-                            Text("手动润色")
-                        }
-                        .buttonStyle(.borderless)
+                    Button {
+                        onManualPolish()
+                    } label: {
+                        Text("润色 ⌘⇧P")
                     }
+                    .buttonStyle(.borderless)
+                    .keyboardShortcut("p", modifiers: [.command, .shift])
+                    .disabled(!isLLMConfigured)
+                    .help(isLLMConfigured ? "用 AI 整理这条记录（⌘⇧P）" : "请先在设置中配置 API Key")
                 }
             }
 

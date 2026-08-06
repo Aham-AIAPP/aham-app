@@ -450,11 +450,12 @@ struct SurveyView: View {
                     }
                 },
                 onClear: { resetAIState() },
+                // 润色改为手动触发（按钮 / ⌘⇧P）：现场每改一个字就打一次 LLM
+                // 既打断节奏又费 token。追问仍然自动。
                 onAnswerChanged: {
                     scheduleFollowups(question: question, answer: answer)
-                    scheduleAIPolish(question: question, answer: answer)
                 },
-                onNoteChanged: { scheduleAIPolish(question: question, answer: answer) },
+                onNoteChanged: {},
                 polishStatus: polishStatus,
                 isLLMConfigured: settings.isLLMConfigured,
                 onManualPolish: { scheduleAIPolish(question: question, answer: answer) },
