@@ -73,10 +73,11 @@ struct SurveyView: View {
         let questions = cachedDisplayQuestions.filter { !cachedFollowupIds.contains($0.id) }
         guard !questions.isEmpty else { return [] }
         var result: [(QuestionSection, [QuestionTemplate])] = []
-        for section in QuestionSection.allCases {
-            let sectionQuestions = questions.filter { $0.section == section }
-            if !sectionQuestions.isEmpty {
-                result.append((section, sectionQuestions))
+        for question in questions {
+            if let index = result.firstIndex(where: { $0.0 == question.section }) {
+                result[index].1.append(question)
+            } else {
+                result.append((question.section, [question]))
             }
         }
         return result
@@ -141,6 +142,22 @@ struct SurveyView: View {
         }
         .onChange(of: allAnswers.count) { rebuildAnswerLookup() }
         .onChange(of: focusedQuestionIndex) { _, _ in resetAIState() }
+        .disabled(project.status == .archived)
+        .overlay {
+            if project.status == .archived {
+                VStack(spacing: AHSpacing.s) {
+                    Image(systemName: "archivebox")
+                        .ahTitle2()
+                        .foregroundStyle(Color.ahInk40)
+                    Text("项目已归档").ahTitle3()
+                    Text("请先在项目详情中取消归档，再继续调研。")
+                        .ahCallout()
+                        .foregroundStyle(Color.ahInk60)
+                }
+                .padding(AHSpacing.xl)
+                .background(Color.ahPaper, in: .rect(cornerRadius: AHRadius.lg))
+            }
+        }
     }
 
     private func initialLoad() {
@@ -311,7 +328,7 @@ struct SurveyView: View {
     private func sectionHeader(_ section: QuestionSection, questions: [QuestionTemplate]) -> some View {
         let sectionDone = questions.filter { q in
             let a = findAnswer(for: q.id, departmentId: selectedDepartmentId ?? "")
-            return a?.hasContent ?? false
+            return isValidAnswer(a, for: q)
         }.count
 
         return HStack(spacing: AHSpacing.xxs) {
@@ -353,7 +370,7 @@ struct SurveyView: View {
                     .foregroundStyle(
                         isFocused
                         ? Color.ahInk
-                        : (answer?.hasContent == true ? Color.ahInk60 : Color.ahInk40)
+                        : (isValidAnswer(answer, for: question) ? Color.ahInk60 : Color.ahInk40)
                     )
                 Spacer(minLength: 0)
             }
@@ -427,7 +444,9 @@ struct SurveyView: View {
         let question = questions[fi]
         if let answer = findAnswer(for: question.id, departmentId: selectedDepartmentId ?? "") {
             let triggerResults: [TriggerEngine.TriggerResult] = {
-                guard let triggers = question.triggers, !triggers.isEmpty, answer.hasContent else { return [] }
+                guard let triggers = question.triggers,
+                      !triggers.isEmpty,
+                      isValidAnswer(answer, for: question) else { return [] }
                 return TriggerEngine.evaluate(
                     triggers: triggers,
                     answer: answer.textValue,
@@ -509,7 +528,7 @@ struct SurveyView: View {
                     Text(question.question).ahCallout().lineLimit(2).foregroundStyle(.secondary)
                 }
                 Spacer()
-                if let ans = answer, ans.hasContent {
+                if let ans = answer, isValidAnswer(ans, for: question) {
                     Text(String(ans.textValue.prefix(30)) + (ans.textValue.count > 30 ? "..." : ""))
                         .ahCaption().foregroundStyle(.tertiary).lineLimit(1)
                         .frame(maxWidth: 150, alignment: .trailing)
@@ -660,7 +679,7 @@ struct SurveyView: View {
 
     func scheduleFollowups(question: QuestionTemplate, answer: Answer) {
         guard settings.isLLMConfigured else { return }
-        guard answer.hasContent else { followups = []; return }
+        guard isValidAnswer(answer, for: question) else { followups = []; return }
         followupTask?.cancel()
         followupTask = Task {
             try? await Task.sleep(for: .seconds(1.5))
@@ -735,12 +754,14 @@ struct SurveyView: View {
 
     func statusColor(for answer: Answer?) -> Color {
         guard let answer else { return Color.ahInk20 }
+        let question = cachedDisplayQuestions.first { $0.id == answer.questionId }
+        let valid = question.map { isValidAnswer(answer, for: $0) } ?? false
         switch answer.status {
-        case .answered: return Color.ahSuccess
+        case .answered: return valid ? Color.ahSuccess : Color.ahInk20
         case .ignored: return Color.ahInk40
         case .transferred: return Color.ahWarning
         case .unanswered:
-            return answer.hasContent ? Color.ahSuccess : Color.ahInk20
+            return valid ? Color.ahSuccess : Color.ahInk20
         }
     }
 
@@ -770,7 +791,15 @@ struct SurveyView: View {
     }
 
     func answeredCount(for departmentId: String) -> Int {
-        answerLookup.values.filter { $0.departmentId == departmentId && $0.hasContent }.count
+        baseQuestions(for: departmentId).reduce(into: 0) { count, question in
+            let answer = findAnswer(for: question.id, departmentId: departmentId)
+            if isValidAnswer(answer, for: question) { count += 1 }
+        }
+    }
+
+    func isValidAnswer(_ answer: Answer?, for question: QuestionTemplate) -> Bool {
+        guard let answer else { return false }
+        return AnswerValidator.evaluate(answer, for: question).isValid
     }
 
     func findAnswer(for questionId: String, departmentId: String) -> Answer? {

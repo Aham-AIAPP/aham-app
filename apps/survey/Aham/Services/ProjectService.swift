@@ -28,18 +28,29 @@ struct ProjectService {
         try allProjects().first { $0.id == id }
     }
 
-    /// 按 UUID 或客户名模糊定位 —— MCP 调用方通常只有客户名
+    /// 按 UUID 或唯一精确名称定位。包含匹配只用于 searchProjects，不能静默用于写入。
     func resolveProject(_ identifier: String) throws -> Project? {
         if let uuid = UUID(uuidString: identifier) {
             return try project(id: uuid)
         }
         let projects = try allProjects()
-        if let exact = projects.first(where: { $0.displayName == identifier }) {
-            return exact
+        let exact = projects.filter {
+            $0.displayName.localizedCaseInsensitiveCompare(identifier) == .orderedSame ||
+            $0.customerName.localizedCaseInsensitiveCompare(identifier) == .orderedSame
         }
-        return projects.first {
-            $0.displayName.localizedCaseInsensitiveContains(identifier) ||
-            $0.customerName.localizedCaseInsensitiveContains(identifier)
+        if exact.count > 1 {
+            throw ServiceError.ambiguous("存在多个同名项目，请改用 UUID", candidates: exact.map { $0.id.uuidString })
+        }
+        return exact.first
+    }
+
+    func searchProjects(_ query: String) throws -> [Project] {
+        let needle = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !needle.isEmpty else { return try allProjects() }
+        return try allProjects().filter {
+            $0.displayName.localizedCaseInsensitiveContains(needle) ||
+            $0.customerName.localizedCaseInsensitiveContains(needle) ||
+            $0.consultant.localizedCaseInsensitiveContains(needle)
         }
     }
 
@@ -61,7 +72,7 @@ struct ProjectService {
     }
 
     @discardableResult
-    func create(_ request: CreateRequest) throws -> Project {
+    func create(_ request: CreateRequest, saveChanges: Bool = true) throws -> Project {
         let name = request.customerName.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !name.isEmpty else { throw ServiceError.invalidInput("客户名称不能为空") }
 
@@ -79,19 +90,31 @@ struct ProjectService {
         project.existingSystems = request.existingSystems
         project.productInfo = request.productInfo
         project.surveyGoal = request.surveyGoal
-        project.selectedDepartmentIds = request.departmentIds
-            ?? Array(SurveyScope.mergedDepartmentIds(project.surveyScopes)).sorted()
+        let available = Set(pluginLoader.departments.map(\.id))
+        let requested = Set(request.departmentIds
+            ?? Array(SurveyScope.mergedDepartmentIds(project.surveyScopes)))
+        let missing = requested.subtracting(available).sorted()
+        if request.departmentIds != nil, !missing.isEmpty {
+            throw ServiceError.invalidInput("当前题库未安装部门：\(missing.joined(separator: ", "))")
+        }
+        let selected = requested.intersection(available).sorted()
+        guard !selected.isEmpty else {
+            throw ServiceError.invalidInput("当前安装的题库没有适用于所选调研范围的部门，请先调用 list_departments")
+        }
+        project.selectedDepartmentIds = selected
 
         context.insert(project)
         syncProgress(project)
-        try context.save()
+        project.revision = 1
+        if saveChanges { try context.save() }
         return project
     }
 
-    func update(_ project: Project, apply: (Project) -> Void) throws {
+    func update(_ project: Project, saveChanges: Bool = true, apply: (Project) -> Void) throws {
         apply(project)
         project.updatedAt = .now
-        try context.save()
+        project.revision += 1
+        if saveChanges { try context.save() }
     }
 
     func delete(_ project: Project) throws {
@@ -125,7 +148,14 @@ struct ProjectService {
         let answers = (try? context.fetch(
             FetchDescriptor<Answer>(predicate: #Predicate { $0.projectId == projectId })
         )) ?? []
-        let answered = answers.filter { selected.contains($0.departmentId) && $0.hasContent }.count
+        let questions = pluginLoader.questionsForProject(project)
+        let answered = answers.filter { answer in
+            guard selected.contains(answer.departmentId),
+                  let question = questions[answer.departmentId]?.first(where: { $0.id == answer.questionId }) else {
+                return false
+            }
+            return AnswerValidator.evaluate(answer, for: question).isValid
+        }.count
 
         project.totalQuestions = total
         project.answeredQuestions = answered
@@ -138,11 +168,59 @@ struct ProjectService {
 enum ServiceError: LocalizedError {
     case invalidInput(String)
     case notFound(String)
+    case forbidden(String)
+    case archived(String)
+    case revisionConflict(String)
+    case previewStale(String)
+    case idempotencyConflict(String)
+    case changeSetAlreadyUndone(String)
+    case ambiguous(String, candidates: [String])
 
     var errorDescription: String? {
         switch self {
         case .invalidInput(let msg): msg
         case .notFound(let what):    "未找到\(what)"
+        case .forbidden(let msg):    msg
+        case .archived(let msg),
+             .revisionConflict(let msg),
+             .previewStale(let msg),
+             .idempotencyConflict(let msg),
+             .changeSetAlreadyUndone(let msg): msg
+        case .ambiguous(let msg, _): msg
+        }
+    }
+}
+
+protocol MCPStructuredError: Error {
+    var payload: [String: Any] { get }
+}
+
+extension ServiceError: MCPStructuredError {
+    var payload: [String: Any] {
+        switch self {
+        case .invalidInput(let message):
+            return ["code": "INVALID_INPUT", "message": message, "retryable": false]
+        case .notFound(let target):
+            return ["code": "NOT_FOUND", "message": "未找到\(target)", "retryable": false]
+        case .forbidden(let message):
+            return ["code": "WRITE_FORBIDDEN", "message": message, "retryable": false]
+        case .archived(let message):
+            return ["code": "PROJECT_ARCHIVED", "message": message, "retryable": false]
+        case .revisionConflict(let message):
+            return ["code": "REVISION_CONFLICT", "message": message, "retryable": true]
+        case .previewStale(let message):
+            return ["code": "PREVIEW_STALE", "message": message, "retryable": true]
+        case .idempotencyConflict(let message):
+            return ["code": "IDEMPOTENCY_CONFLICT", "message": message, "retryable": false]
+        case .changeSetAlreadyUndone(let message):
+            return ["code": "CHANGE_SET_ALREADY_UNDONE", "message": message, "retryable": false]
+        case .ambiguous(let message, let candidates):
+            return [
+                "code": "PROJECT_AMBIGUOUS",
+                "message": message,
+                "retryable": false,
+                "details": ["candidateIds": candidates]
+            ]
         }
     }
 }

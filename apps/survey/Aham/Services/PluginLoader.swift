@@ -5,6 +5,7 @@ import Foundation
 final class PluginLoader {
     private(set) var departments: [DepartmentTemplate] = []
     private(set) var departmentQuestions: [String: DepartmentQuestions] = [:]
+    private(set) var catalogVersion: Int = 0
     private(set) var loadError: String?
 
     init() {
@@ -24,6 +25,7 @@ final class PluginLoader {
         do {
             let data = try Data(contentsOf: url)
             let manifest = try JSONDecoder().decode(QuestionManifest.self, from: data)
+            catalogVersion = manifest.version
             departments = manifest.departments
             for file in manifest.departmentFiles {
                 guard let fileURL = Bundle.main.url(forResource: file, withExtension: "json") else {
@@ -103,6 +105,9 @@ final class PluginLoader {
             let aFocus = focusSections.contains(a.section.rawValue)
             let bFocus = focusSections.contains(b.section.rawValue)
             if aFocus != bFocus { return aFocus }
+            let aSection = QuestionSection.allCases.firstIndex(of: a.section) ?? Int.max
+            let bSection = QuestionSection.allCases.firstIndex(of: b.section) ?? Int.max
+            if aSection != bSection { return aSection < bSection }
             return a.order < b.order
         }
     }

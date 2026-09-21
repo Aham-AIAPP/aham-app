@@ -46,6 +46,8 @@ struct ProjectDetailView: View {
         allAnswers.filter { $0.projectId == project.id }
     }
 
+    private var isArchived: Bool { project.status == .archived }
+
     // MARK: - Body
 
     var body: some View {
@@ -240,7 +242,9 @@ struct ProjectDetailView: View {
             AHCard {
                 AHSection("快速操作") {
                     HStack(spacing: AHSpacing.m) {
-                        quickAction("开始调研", "play.circle") { appStore.isSurveying = true }
+                        if !isArchived {
+                            quickAction("开始调研", "play.circle") { appStore.isSurveying = true }
+                        }
                         quickAction("导出报告", "square.and.arrow.up") { showExportPanel = true }
                     }
                 }
@@ -348,6 +352,7 @@ struct ProjectDetailView: View {
                 }
             }
         }
+        .disabled(isArchived)
     }
 
     // MARK: - Tab: 进度
@@ -386,7 +391,12 @@ struct ProjectDetailView: View {
                                 let filteredByDept = pluginLoader.questionsForProject(project)
                                 ForEach(pluginLoader.selectedDepartments(ids: project.selectedDepartmentIds)) { dept in
                                     let total = filteredByDept[dept.id]?.count ?? 0
-                                    let done = projectAnswers.filter { $0.departmentId == dept.id && $0.hasContent }.count
+                                    let questions = filteredByDept[dept.id] ?? []
+                                    let done = projectAnswers.filter { answer in
+                                        guard answer.departmentId == dept.id,
+                                              let question = questions.first(where: { $0.id == answer.questionId }) else { return false }
+                                        return AnswerValidator.evaluate(answer, for: question).isValid
+                                    }.count
                                     let pct = total > 0 ? Double(done) / Double(total) : 0
 
                                     Button {
@@ -408,6 +418,7 @@ struct ProjectDetailView: View {
                                         .contentShape(Rectangle())
                                     }
                                     .buttonStyle(.plain)
+                                    .disabled(isArchived)
                                 }
                             }
                         }

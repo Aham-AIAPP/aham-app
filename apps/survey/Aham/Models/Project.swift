@@ -116,6 +116,8 @@ final class Project {
     // 进度追踪
     var totalQuestions: Int
     var answeredQuestions: Int
+    /// 每次服务层写入递增，用于 MCP 预览/提交的乐观并发控制。
+    var revision: Int = 0
 
     init(
         name: String = "",
@@ -142,6 +144,7 @@ final class Project {
         self.selectedDepartmentIds = []
         self.totalQuestions = 0
         self.answeredQuestions = 0
+        self.revision = 0
     }
 
     var progress: Double = 0

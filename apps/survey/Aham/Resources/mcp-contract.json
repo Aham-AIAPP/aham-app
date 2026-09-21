@@ -1,0 +1,257 @@
+{
+  "version": 1,
+  "tools": [
+    {
+      "name": "get_capabilities",
+      "description": "连接 Aham Survey 后首先调用。返回 App、MCP 契约、题库版本、可用能力和本机连接状态，不返回任何 Token。",
+      "summary": "检查 App、MCP 和题库能力与版本",
+      "arguments": "无",
+      "isWrite": false,
+      "inputSchema": { "type": "object", "properties": {}, "additionalProperties": false }
+    },
+    {
+      "name": "list_departments",
+      "description": "列出当前 App 实际安装的部门题库、题目数量与支持的调研范围。创建项目时不要猜测部门 id。",
+      "summary": "读取实际可用部门、题库和调研范围",
+      "arguments": "无",
+      "isWrite": false,
+      "inputSchema": { "type": "object", "properties": {}, "additionalProperties": false }
+    },
+    {
+      "name": "list_projects",
+      "description": "列出调研项目、稳定 UUID、状态、修订号和完成进度。后续写入优先使用 UUID。",
+      "summary": "列出全部调研项目与完成进度",
+      "arguments": "status?",
+      "isWrite": false,
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "status": { "type": "string", "enum": ["draft", "inProgress", "completed", "archived"] }
+        },
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "search_projects",
+      "description": "按客户名或顾问搜索项目候选。名称不唯一时先用本工具取得 UUID，禁止猜测要写入的项目。",
+      "summary": "搜索项目候选并返回稳定 UUID",
+      "arguments": "query",
+      "isWrite": false,
+      "inputSchema": {
+        "type": "object",
+        "properties": { "query": { "type": "string", "minLength": 1 } },
+        "required": ["query"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_project",
+      "description": "读取单个项目的客户信息、部门、范围、修订号、进度和现场备忘。project 推荐传 UUID。",
+      "summary": "读取单个项目的完整摘要",
+      "arguments": "project",
+      "isWrite": false,
+      "inputSchema": {
+        "type": "object",
+        "properties": { "project": { "type": "string", "minLength": 1 } },
+        "required": ["project"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "list_questions",
+      "description": "读取某部门按真实题序排列的题目、题型、合法选项、required、当前答案和校验状态。写答案前必须先调用。",
+      "summary": "读取题目、合法选项、答案与触发规则",
+      "arguments": "project, department",
+      "isWrite": false,
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "project": { "type": "string", "minLength": 1 },
+          "department": { "type": "string", "minLength": 1 }
+        },
+        "required": ["project", "department"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "export_report",
+      "description": "按当前数据快照生成调研报告 Markdown。生成成功不代表客户确认或最终版。",
+      "summary": "生成带快照信息的 Markdown 调研报告",
+      "arguments": "project, departments?",
+      "isWrite": false,
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "project": { "type": "string", "minLength": 1 },
+          "departments": { "type": "array", "items": { "type": "string" }, "uniqueItems": true }
+        },
+        "required": ["project"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "create_project",
+      "description": "新建调研项目。未知客户事实保持空白。request_id 用于避免重试时重复创建。",
+      "summary": "幂等创建调研项目",
+      "arguments": "customer, request_id?, consultant?, industry?, scopes?, departments?, …",
+      "isWrite": true,
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "customer": { "type": "string", "minLength": 1 },
+          "request_id": { "type": "string", "minLength": 8 },
+          "consultant": { "type": "string" },
+          "industry": { "type": "string", "enum": ["general", "automotive", "electronics", "equipment", "food", "pharma", "materials", "textile", "metal"] },
+          "scopes": { "type": "array", "items": { "type": "string", "enum": ["erp", "mes", "wms", "plm", "qms", "aps", "full"] }, "uniqueItems": true },
+          "departments": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+          "companyScale": { "type": "string" },
+          "headcount": { "type": "string" },
+          "revenue": { "type": "string" },
+          "existingSystems": { "type": "string" },
+          "productInfo": { "type": "string" },
+          "surveyGoal": { "type": "string" }
+        },
+        "required": ["customer"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "preview_answer_import",
+      "description": "在不写数据的情况下校验访谈映射结果，返回题型、选项、冲突问题和绑定项目修订号的 preview_token。自动映射材料必须先调用。",
+      "summary": "预览并校验答案批次，不写数据",
+      "arguments": "project, answers[]",
+      "isWrite": false,
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "project": { "type": "string", "minLength": 1 },
+          "answers": { "$ref": "#/$defs/answers" }
+        },
+        "required": ["project", "answers"],
+        "additionalProperties": false,
+        "$defs": {
+          "answers": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 200,
+            "items": {
+              "type": "object",
+              "properties": {
+                "department": { "type": "string", "minLength": 1 },
+                "question": { "type": "string", "minLength": 1 },
+                "text": { "type": "string" },
+                "options": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+                "otherText": { "type": "string" },
+                "note": { "type": "string" },
+                "evidence": { "type": "string" }
+              },
+              "required": ["department", "question"],
+              "additionalProperties": false
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "commit_answer_import",
+      "description": "原子提交已经通过 preview_answer_import 的同一答案批次。必须提供 preview_token 和唯一 request_id；内容或项目修订变化时拒绝提交。",
+      "summary": "确认并幂等提交预览过的答案批次",
+      "arguments": "project, answers[], preview_token, request_id",
+      "isWrite": true,
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "project": { "type": "string", "minLength": 1 },
+          "answers": { "type": "array", "minItems": 1, "maxItems": 200, "items": { "type": "object" } },
+          "preview_token": { "type": "string", "minLength": 32 },
+          "request_id": { "type": "string", "minLength": 8 }
+        },
+        "required": ["project", "answers", "preview_token", "request_id"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "upsert_answers",
+      "description": "兼容工具：严格校验后批量写回答案、合法选项和顾问笔记。新工作流优先使用 preview_answer_import + commit_answer_import。",
+      "summary": "严格批量写回答案、选项与笔记",
+      "arguments": "project, answers[], request_id?",
+      "isWrite": true,
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "project": { "type": "string", "minLength": 1 },
+          "request_id": { "type": "string", "minLength": 8 },
+          "answers": { "type": "array", "minItems": 1, "maxItems": 200, "items": { "type": "object" } }
+        },
+        "required": ["project", "answers"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "import_transcript",
+      "description": "把有来源的外部转写追加到指定题目。转写本身不计为有效答案；request_id 防止重试重复追加。",
+      "summary": "幂等追加外部转写文本",
+      "arguments": "project, department, question, text, request_id?",
+      "isWrite": true,
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "project": { "type": "string", "minLength": 1 },
+          "department": { "type": "string", "minLength": 1 },
+          "question": { "type": "string", "minLength": 1 },
+          "text": { "type": "string", "minLength": 1 },
+          "request_id": { "type": "string", "minLength": 8 }
+        },
+        "required": ["project", "department", "question", "text"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "update_project",
+      "description": "修改项目白名单字段或状态。可传 expected_revision 防止覆盖并发修改；归档项目仅允许明确取消归档。",
+      "summary": "带修订控制地更新项目资料或状态",
+      "arguments": "project, fields, expected_revision?, request_id?",
+      "isWrite": true,
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "project": { "type": "string", "minLength": 1 },
+          "fields": { "type": "object", "minProperties": 1 },
+          "expected_revision": { "type": "integer", "minimum": 0 },
+          "request_id": { "type": "string", "minLength": 8 }
+        },
+        "required": ["project", "fields"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_change_log",
+      "description": "读取某项目由 MCP 产生的脱敏变更记录、幂等 request_id、工具和撤销状态。",
+      "summary": "读取 MCP 写入变更日志",
+      "arguments": "project",
+      "isWrite": false,
+      "inputSchema": {
+        "type": "object",
+        "properties": { "project": { "type": "string", "minLength": 1 } },
+        "required": ["project"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "undo_change_set",
+      "description": "撤销一次尚未撤销的答案批量写入。只支持答案变更集，不删除项目。",
+      "summary": "撤销答案批量写入",
+      "arguments": "change_set, request_id",
+      "isWrite": true,
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "change_set": { "type": "string", "format": "uuid" },
+          "request_id": { "type": "string", "minLength": 8 }
+        },
+        "required": ["change_set", "request_id"],
+        "additionalProperties": false
+      }
+    }
+  ]
+}

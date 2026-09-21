@@ -66,3 +66,6 @@ playground.xcworkspace
 
 # Log files
 *.log
+
+# 覆盖率二进制
+*.profraw

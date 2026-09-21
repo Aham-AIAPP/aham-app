@@ -1,237 +1,292 @@
 #!/usr/bin/env node
 /**
- * Aham Survey · MCP stdio 适配器
+ * Aham Survey · MCP stdio Adapter
  *
- * Claude Code 与 Codex 都以 stdio 接入 MCP，本文件把 stdio 上的 JSON-RPC
- * 转成对 Aham Survey.app 本地 HTTP 端点的调用：
+ * AI Client ── stdio MCP ──▶ Adapter ── authenticated localhost RPC ──▶ App
  *
- *     客户端 ──stdio(JSON-RPC)──▶ 本适配器 ──POST /rpc──▶ App(127.0.0.1)
+ * 推荐用法：
+ *   node aham-survey-mcp.mjs --config "/path/to/mcp-connection.json"
  *
- * 用法：
- *     node aham-survey-mcp.mjs --port 51823 --token <token>
- *
- * 零依赖，Node 18+。App 必须处于运行状态，否则工具调用会返回连接失败。
+ * 连接文件由 App 生成，权限为 0600。Token 不应出现在命令行、Skill 或日志中。
  */
 
-const args = process.argv.slice(2);
+import { readFile } from "node:fs/promises";
+
+const argv = process.argv.slice(2);
 function flag(name, fallback) {
-  const i = args.indexOf(`--${name}`);
-  return i >= 0 && args[i + 1] ? args[i + 1] : fallback;
+  const index = argv.indexOf(`--${name}`);
+  return index >= 0 && argv[index + 1] ? argv[index + 1] : fallback;
 }
 
-const PORT = flag("port", process.env.AHAM_MCP_PORT);
-const TOKEN = flag("token", process.env.AHAM_MCP_TOKEN);
+async function readJSON(path, label) {
+  try {
+    return JSON.parse(await readFile(path, "utf8"));
+  } catch (error) {
+    throw new Error(`无法读取${label}：${error.message}`);
+  }
+}
 
-if (!PORT || !TOKEN) {
+const configPath = flag("config", process.env.AHAM_MCP_CONFIG);
+const connection = configPath ? await readJSON(configPath, " Aham Survey 连接文件") : {};
+const port = flag("port", process.env.AHAM_MCP_PORT ?? connection.port);
+// 故意不支持 --token：命令行参数会暴露在进程列表中。
+const token = process.env.AHAM_MCP_TOKEN ?? connection.token;
+const endpointBase = connection.endpoint ?? (port ? `http://127.0.0.1:${port}` : null);
+
+if (!endpointBase || !token) {
   process.stderr.write(
-    "缺少参数：--port 与 --token。可在 Aham Survey 首页「复制配置」获取。\n"
+    "缺少 Aham Survey 连接配置。请从 App 首页复制不含 Token 的最新配置。\n"
   );
   process.exit(2);
 }
 
-const ENDPOINT = `http://127.0.0.1:${PORT}/rpc`;
+const endpoint = `${endpointBase.replace(/\/$/, "")}/rpc`;
+const contractURL = new URL("./mcp-contract.json", import.meta.url);
+const contract = JSON.parse(await readFile(contractURL, "utf8"));
+const tools = contract.tools.map(({ name, description, inputSchema }) => ({
+  name,
+  description,
+  inputSchema,
+}));
+const toolNames = new Set(tools.map((tool) => tool.name));
 
-/** 工具清单 —— 与 App 内 MCPTools.catalog 对应 */
-const TOOLS = [
+const supportedProtocolVersions = [
+  "2024-11-05",
+  "2025-03-26",
+  "2025-06-18",
+  "2025-11-25",
+];
+
+const prompts = [
   {
-    name: "list_projects",
-    description: "列出全部调研项目与完成进度。",
-    inputSchema: { type: "object", properties: {} },
+    name: "create-survey-project",
+    description: "根据已知客户资料创建结构化调研项目；未知事实保持为空。",
+    arguments: [{ name: "customer", description: "客户名称", required: true }],
   },
   {
-    name: "get_project",
-    description:
-      "读取单个项目的客户信息、部门、调研范围与现场备忘。project 可传 UUID 或客户名。",
-    inputSchema: {
-      type: "object",
-      properties: { project: { type: "string" } },
-      required: ["project"],
-    },
+    name: "map-interview-to-questions",
+    description: "把访谈证据映射到题目，先预览校验，再经用户确认提交。",
+    arguments: [
+      { name: "project", description: "项目 UUID", required: true },
+      { name: "department", description: "部门 id", required: true },
+    ],
   },
   {
-    name: "list_questions",
-    description:
-      "读取某部门的题目、当前答案与触发规则。写答案前先用它拿到 question id。",
-    inputSchema: {
-      type: "object",
-      properties: {
-        project: { type: "string" },
-        department: { type: "string", description: "部门 id，如 procurement" },
-      },
-      required: ["project", "department"],
-    },
+    name: "review-survey-gaps",
+    description: "检查必答题、无效答案、冲突和待确认内容。",
+    arguments: [{ name: "project", description: "项目 UUID", required: true }],
   },
   {
-    name: "export_report",
-    description: "生成调研报告 Markdown 文本。",
-    inputSchema: {
-      type: "object",
-      properties: {
-        project: { type: "string" },
-        departments: { type: "array", items: { type: "string" } },
-      },
-      required: ["project"],
-    },
-  },
-  {
-    name: "create_project",
-    description:
-      "新建调研项目。App 内已无新建入口，这是创建项目的唯一途径。scopes 取值：erp/mes/wms/plm/qms/aps/full；industry 取值：general/automotive/electronics/equipment/food/pharma/materials/textile/metal。",
-    inputSchema: {
-      type: "object",
-      properties: {
-        customer: { type: "string" },
-        consultant: { type: "string" },
-        industry: { type: "string" },
-        scopes: { type: "array", items: { type: "string" } },
-        departments: { type: "array", items: { type: "string" } },
-        companyScale: { type: "string" },
-        headcount: { type: "string" },
-        revenue: { type: "string" },
-        existingSystems: { type: "string" },
-        productInfo: { type: "string" },
-        surveyGoal: { type: "string" },
-      },
-      required: ["customer"],
-    },
-  },
-  {
-    name: "upsert_answers",
-    description:
-      "批量写回答案。每条需要 department 与 question（题号来自 list_questions），text / options / note 至少给一个。",
-    inputSchema: {
-      type: "object",
-      properties: {
-        project: { type: "string" },
-        answers: {
-          type: "array",
-          items: {
-            type: "object",
-            properties: {
-              department: { type: "string" },
-              question: { type: "string" },
-              text: { type: "string" },
-              options: { type: "array", items: { type: "string" } },
-              note: { type: "string" },
-            },
-            required: ["department", "question"],
-          },
-        },
-      },
-      required: ["project", "answers"],
-    },
-  },
-  {
-    name: "import_transcript",
-    description:
-      "把外部转写文本追加到指定题目的转写栏（App 自身不做录音转写）。",
-    inputSchema: {
-      type: "object",
-      properties: {
-        project: { type: "string" },
-        department: { type: "string" },
-        question: { type: "string" },
-        text: { type: "string" },
-      },
-      required: ["project", "department", "question", "text"],
-    },
-  },
-  {
-    name: "update_project",
-    description:
-      "修改客户信息、调研目标或项目状态。fields 可含 consultant / companyScale / headcount / revenue / existingSystems / productInfo / surveyGoal / status（draft·inProgress·completed·archived）。",
-    inputSchema: {
-      type: "object",
-      properties: {
-        project: { type: "string" },
-        fields: { type: "object" },
-      },
-      required: ["project", "fields"],
-    },
+    name: "prepare-survey-report",
+    description: "回读项目快照和缺口后生成调研报告。",
+    arguments: [{ name: "project", description: "项目 UUID", required: true }],
   },
 ];
 
-async function callApp(tool, toolArgs) {
+const promptInstructions = {
+  "create-survey-project": ({ customer = "目标客户" }) =>
+    `为「${customer}」创建 Aham Survey 调研项目。先调用 get_capabilities 和 list_departments；只使用用户已提供的客户事实，未知字段保持空白；创建后用 UUID 回读校验。`,
+  "map-interview-to-questions": ({ project = "项目 UUID", department = "部门 id" }) =>
+    `处理项目 ${project} 的 ${department} 访谈材料。先调用 list_questions，逐条保留证据并映射合法题号；单选/多选必须使用题库原文；调用 preview_answer_import 展示预览，获得用户确认后再用同一批内容调用 commit_answer_import。`,
+  "review-survey-gaps": ({ project = "项目 UUID" }) =>
+    `检查项目 ${project}。读取项目与各部门问题，只把题型校验通过的答案视为完成；按部门列出必答缺口、冲突、无效选项和待确认事实，不把建议写成客户回答。`,
+  "prepare-survey-report": ({ project = "项目 UUID" }) =>
+    `为项目 ${project} 准备报告。先回读项目修订号、进度和缺口，确认导出部门后调用 export_report；明确“生成成功”不等于客户确认或最终版。`,
+};
+
+async function callApp(tool, args) {
   let response;
   try {
-    response = await fetch(ENDPOINT, {
+    response = await fetch(endpoint, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${TOKEN}`,
+        Authorization: `Bearer ${token}`,
       },
-      body: JSON.stringify({ tool, args: toolArgs ?? {} }),
+      body: JSON.stringify({ tool, args: args ?? {} }),
+      signal: AbortSignal.timeout(30_000),
     });
-  } catch (err) {
-    throw new Error(
-      `连不上 Aham Survey（${ENDPOINT}）。请确认 App 正在运行、且首页显示 MCP 服务已启动。原始错误：${err.message}`
-    );
+  } catch (error) {
+    throw {
+      code: "APP_UNREACHABLE",
+      message: "连不上 Aham Survey。请确认 App 正在运行且 MCP 服务已启动。",
+      retryable: true,
+      details: { cause: error.message },
+    };
   }
-  if (response.status === 401) {
-    throw new Error("令牌无效。请在 Aham Survey 首页重新复制配置。");
+
+  let payload;
+  try {
+    payload = await response.json();
+  } catch {
+    throw {
+      code: "APP_RESPONSE_INVALID",
+      message: `Aham Survey 返回了无法解析的 HTTP ${response.status} 响应。`,
+      retryable: true,
+    };
   }
-  const payload = await response.json();
-  if (payload.ok === false) throw new Error(payload.error || "调用失败");
+
+  if (!response.ok || payload.ok === false) {
+    const structured = payload.error;
+    if (structured && typeof structured === "object") throw structured;
+    throw {
+      code: response.status === 401 ? "AUTH_TOKEN_INVALID" : "APP_CALL_FAILED",
+      message: typeof structured === "string" ? structured : `HTTP ${response.status}`,
+      retryable: response.status >= 500,
+    };
+  }
   return payload.data;
 }
 
-// MARK: - JSON-RPC over stdio
-
 function send(message) {
-  process.stdout.write(JSON.stringify(message) + "\n");
+  process.stdout.write(`${JSON.stringify(message)}\n`);
 }
 
 function reply(id, result) {
   send({ jsonrpc: "2.0", id, result });
 }
 
-function replyError(id, message) {
-  send({ jsonrpc: "2.0", id, error: { code: -32000, message } });
+function replyError(id, error, fallbackCode = -32000) {
+  const message = error?.message ?? String(error ?? "未知错误");
+  send({
+    jsonrpc: "2.0",
+    id,
+    error: {
+      code: fallbackCode,
+      message,
+      data: typeof error === "object" ? error : undefined,
+    },
+  });
+}
+
+function toolErrorResult(error) {
+  const payload = typeof error === "object"
+    ? error
+    : { code: "TOOL_CALL_FAILED", message: String(error), retryable: false };
+  return {
+    content: [{ type: "text", text: JSON.stringify(payload, null, 2) }],
+    structuredContent: payload,
+    isError: true,
+  };
 }
 
 async function handle(request) {
   const { id, method, params } = request;
 
-  switch (method) {
-    case "initialize":
-      reply(id, {
-        protocolVersion: "2024-11-05",
-        capabilities: { tools: {} },
-        serverInfo: { name: "aham-survey", version: "1.0.0" },
-      });
-      return;
-
-    case "notifications/initialized":
-      return; // 通知无需回应
-
-    case "tools/list":
-      reply(id, { tools: TOOLS });
-      return;
-
-    case "tools/call": {
-      const name = params?.name;
-      try {
-        const data = await callApp(name, params?.arguments);
+  try {
+    switch (method) {
+      case "initialize": {
+        const requested = params?.protocolVersion;
+        const protocolVersion = supportedProtocolVersions.includes(requested)
+          ? requested
+          : supportedProtocolVersions.at(-1);
         reply(id, {
-          content: [
-            { type: "text", text: JSON.stringify(data, null, 2) },
+          protocolVersion,
+          capabilities: { tools: {}, prompts: {}, resources: {} },
+          serverInfo: { name: "aham-survey", version: "1.1.0" },
+          instructions:
+            "先调用 get_capabilities。访谈自动映射必须 preview 后再 commit；未知事实保持为空。",
+        });
+        return;
+      }
+
+      case "notifications/initialized":
+      case "notifications/cancelled":
+        return;
+
+      case "tools/list":
+        reply(id, { tools });
+        return;
+
+      case "tools/call": {
+        const name = params?.name;
+        if (!toolNames.has(name)) {
+          reply(id, toolErrorResult({
+            code: "TOOL_NOT_FOUND",
+            message: `未知工具：${name ?? "<empty>"}`,
+            retryable: false,
+          }));
+          return;
+        }
+        try {
+          const data = await callApp(name, params?.arguments);
+          reply(id, {
+            content: [{ type: "text", text: JSON.stringify(data, null, 2) }],
+            structuredContent: { result: data },
+          });
+        } catch (error) {
+          reply(id, toolErrorResult(error));
+        }
+        return;
+      }
+
+      case "prompts/list":
+        reply(id, { prompts });
+        return;
+
+      case "prompts/get": {
+        const name = params?.name;
+        const build = promptInstructions[name];
+        if (!build) {
+          replyError(id, new Error(`未知 Prompt：${name}`), -32602);
+          return;
+        }
+        reply(id, {
+          description: prompts.find((prompt) => prompt.name === name)?.description,
+          messages: [{
+            role: "user",
+            content: { type: "text", text: build(params?.arguments ?? {}) },
+          }],
+        });
+        return;
+      }
+
+      case "resources/list":
+        reply(id, {
+          resources: [
+            {
+              uri: "aham://capabilities",
+              name: "Aham Survey capabilities",
+              description: "App、MCP 契约与功能版本",
+              mimeType: "application/json",
+            },
+            {
+              uri: "aham://departments",
+              name: "Aham Survey departments",
+              description: "当前实际安装的部门题库和调研范围",
+              mimeType: "application/json",
+            },
           ],
         });
-      } catch (err) {
+        return;
+
+      case "resources/read": {
+        const uri = params?.uri;
+        const tool = uri === "aham://capabilities"
+          ? "get_capabilities"
+          : uri === "aham://departments"
+            ? "list_departments"
+            : null;
+        if (!tool) {
+          replyError(id, new Error(`未知 Resource：${uri}`), -32602);
+          return;
+        }
+        const data = await callApp(tool, {});
         reply(id, {
-          content: [{ type: "text", text: `错误：${err.message}` }],
-          isError: true,
+          contents: [{ uri, mimeType: "application/json", text: JSON.stringify(data, null, 2) }],
         });
+        return;
       }
-      return;
+
+      case "ping":
+        reply(id, {});
+        return;
+
+      default:
+        if (id !== undefined) replyError(id, new Error(`未实现的方法：${method}`), -32601);
     }
-
-    case "ping":
-      reply(id, {});
-      return;
-
-    default:
-      if (id !== undefined) replyError(id, `未实现的方法：${method}`);
+  } catch (error) {
+    if (id !== undefined) replyError(id, error);
   }
 }
 
@@ -239,15 +294,15 @@ let buffer = "";
 process.stdin.setEncoding("utf8");
 process.stdin.on("data", (chunk) => {
   buffer += chunk;
-  let index;
-  while ((index = buffer.indexOf("\n")) >= 0) {
-    const line = buffer.slice(0, index).trim();
-    buffer = buffer.slice(index + 1);
+  let newline;
+  while ((newline = buffer.indexOf("\n")) >= 0) {
+    const line = buffer.slice(0, newline).trim();
+    buffer = buffer.slice(newline + 1);
     if (!line) continue;
     try {
-      handle(JSON.parse(line));
+      void handle(JSON.parse(line));
     } catch {
-      process.stderr.write(`无法解析的输入：${line}\n`);
+      process.stderr.write("收到无法解析的 MCP JSON-RPC 消息。\n");
     }
   }
 });

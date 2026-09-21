@@ -75,6 +75,12 @@ struct ProjectListView: View {
         } message: {
             Text("确定要删除「\(projectToDelete?.displayName ?? "")」吗？此操作不可撤销。")
         }
+        .onChange(of: filteredByStatus.map(\.id)) { _, visibleIds in
+            guard let selected = appStore.selectedProjectId,
+                  !visibleIds.contains(selected) else { return }
+            appStore.selectedProjectId = nil
+            appStore.isSurveying = false
+        }
     }
 
     // MARK: - Filtered Projects

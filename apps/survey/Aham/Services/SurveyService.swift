@@ -65,13 +65,55 @@ struct SurveyService {
         var questionId: String
         var text: String?
         var options: [String]?
+        var otherText: String? = nil
         var note: String?
         var transcript: String?
     }
 
+    struct ValidationIssue: Equatable {
+        let departmentId: String
+        let questionId: String
+        let code: String
+        let message: String
+
+        var payload: [String: Any] {
+            [
+                "department": departmentId,
+                "question": questionId,
+                "code": code,
+                "message": message
+            ]
+        }
+    }
+
+    struct AnswerValidationError: LocalizedError, MCPStructuredError {
+        let issues: [ValidationIssue]
+
+        var errorDescription: String? { "答案校验失败（\(issues.count) 项）" }
+        var payload: [String: Any] {
+            [
+                "code": "ANSWER_VALIDATION_FAILED",
+                "message": errorDescription ?? "答案校验失败",
+                "retryable": false,
+                "details": ["issues": issues.map(\.payload)]
+            ]
+        }
+    }
+
     /// 批量写回答案。返回实际写入的条数与被忽略的题号（题库里不存在的）。
     @discardableResult
-    func upsert(_ patches: [AnswerPatch], into project: Project) throws -> (written: Int, unknown: [String]) {
+    func upsert(
+        _ patches: [AnswerPatch],
+        into project: Project,
+        saveChanges: Bool = true
+    ) throws -> (written: Int, unknown: [String]) {
+        guard project.status != .archived else {
+            throw ServiceError.archived("项目已归档；请先明确取消归档再写入")
+        }
+
+        let issues = validate(patches, into: project)
+        guard issues.isEmpty else { throw AnswerValidationError(issues: issues) }
+
         var written = 0
         var unknown: [String] = []
 
@@ -88,17 +130,78 @@ struct SurveyService {
             )
             if let text = patch.text { record.textValue = text }
             if let options = patch.options { record.selectedOptions = options }
+            if let otherText = patch.otherText { record.otherText = otherText }
             if let note = patch.note { record.noteText = note }
             if let transcript = patch.transcript {
                 record.voiceTranscript += (record.voiceTranscript.isEmpty ? "" : "\n") + transcript
             }
-            if record.hasContent, record.status == .unanswered { record.status = .answered }
+            let question = questions(for: project, departmentId: patch.departmentId)
+                .first { $0.id == patch.questionId }
+            if let question {
+                record.status = AnswerValidator.evaluate(record, for: question).isValid ? .answered : .unanswered
+            }
             written += 1
         }
 
         project.updatedAt = .now
-        try context.save()
+        project.revision += 1
+        if saveChanges { try context.save() }
         return (written, unknown)
+    }
+
+    /// 在不修改 SwiftData 的情况下验证整批写入；调用方可据此实现 dry-run / preview。
+    func validate(_ patches: [AnswerPatch], into project: Project) -> [ValidationIssue] {
+        var issues: [ValidationIssue] = []
+        let existingAnswers = answers(for: project)
+
+        for patch in patches {
+            guard project.selectedDepartmentIds.contains(patch.departmentId) else {
+                issues.append(.init(
+                    departmentId: patch.departmentId,
+                    questionId: patch.questionId,
+                    code: "DEPARTMENT_NOT_SELECTED",
+                    message: "部门不在该项目调研范围中"
+                ))
+                continue
+            }
+            guard let question = questions(for: project, departmentId: patch.departmentId)
+                .first(where: { $0.id == patch.questionId }) else {
+                issues.append(.init(
+                    departmentId: patch.departmentId,
+                    questionId: patch.questionId,
+                    code: "QUESTION_NOT_FOUND",
+                    message: "题库中不存在该题号"
+                ))
+                continue
+            }
+
+            let existing = existingAnswers.first {
+                $0.departmentId == patch.departmentId && $0.questionId == patch.questionId
+            }
+            let text = patch.text ?? existing?.textValue ?? ""
+            let options = patch.options ?? existing?.selectedOptions ?? []
+            let otherText = patch.otherText ?? existing?.otherText ?? ""
+            let hasAnswerPayload = !options.isEmpty || !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            let changesAnswerPayload = patch.text != nil || patch.options != nil || patch.otherText != nil
+
+            if changesAnswerPayload, hasAnswerPayload {
+                let result = AnswerValidator.evaluate(
+                    text: text,
+                    selectedOptions: options,
+                    otherText: otherText,
+                    for: question
+                )
+                if !result.isValid {
+                    issues.append(.init(
+                        departmentId: patch.departmentId,
+                        questionId: patch.questionId,
+                        code: result.code ?? "ANSWER_INVALID",
+                        message: result.message ?? "答案不符合题型要求"
+                    ))
+                }
+            }
+        }
+        return issues
     }
 
     // MARK: - 备忘

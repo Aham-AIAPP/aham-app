@@ -54,7 +54,18 @@ Aham Survey 为此而做：它不止于「记下来」，而是把现场调研�
 
 [**↓ 下载最新版（.dmg）**](https://github.com/Aham-AIAPP/aham-survey/releases/latest)（仅 Apple Silicon）。拖入「应用程序」；首次打开右键 → 打开，或终端执行 `xattr -dr com.apple.quarantine "/Applications/Aham Survey.app"` 解除隔离。AI 能力在「设置」里填自己的 LLM API Key（仅存本机）。
 
-**接入 MCP**：打开 App，首页会显示服务状态与一条可直接复制的接入命令（Claude Code 与 Codex 各一份），粘贴即可。需要 Node 18+，适配器脚本随 App 分发。之后对 Claude 说「帮我给 XX 公司建一个 MES 调研项目」就能建项目。
+**接入 MCP**：打开 App，首页会显示服务状态与不含明文 Token 的接入配置。需要 Node 18+，适配器和机器可读契约随 App 分发。连接后会提供 15 个工具、4 个 Prompt 和 2 个 Resource，覆盖能力预检、建项目、读题、答案预览/确认、幂等写入、导出、变更日志和撤销。
+
+**安装 Agent Skill**：仓库内的 [`.agents/skills/aham-survey`](.agents/skills/aham-survey/SKILL.md) 是 Codex、Claude Code、VS Code 共用的业务工作流；安装器也能合并 Claude Desktop 的本机 MCP 配置，Cursor 不发现 Skill 时会生成 Rules 降级壳。安装脚本默认只预演，确认目标路径后再加 `--apply`：
+
+```sh
+node .agents/skills/aham-survey/scripts/install-client.mjs \
+  --client codex \
+  --adapter "/Applications/Aham Survey.app/Contents/Resources/aham-survey-mcp.mjs" \
+  --config "$HOME/Library/Application Support/Aham Survey/mcp-connection.json"
+```
+
+安装后可用同目录的 `doctor.mjs` 做脱敏只读检查。访谈自动映射必须先 preview、再经用户确认 commit；题号和选项由 App 返回，未知事实保持空白。
 
 从源码运行需 Xcode 打开 `Aham.xcodeproj`。当前仅 macOS；本仓为对外示例版，内部行业知识库（方法论 / 售前框架）已从代码与历史移除。
 

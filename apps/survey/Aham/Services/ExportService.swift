@@ -28,6 +28,7 @@ struct ExportService {
 
             func item(for question: QuestionTemplate, isFollowup: Bool) -> ExportSnapshot.ExportItem {
                 let answer = deptAnswers.first { $0.questionId == question.id }
+                let isValid = answer.map { AnswerValidator.evaluate($0, for: question).isValid } ?? false
                 return ExportSnapshot.ExportItem(
                     topic: question.topic,
                     question: question.question,
@@ -37,7 +38,7 @@ struct ExportService {
                     noteText: answer?.noteText ?? "",
                     polishedText: answer?.polishedText ?? "",
                     voiceTranscript: answer?.voiceTranscript ?? "",
-                    hasContent: answer?.hasContent ?? false
+                    hasContent: isValid
                 )
             }
 
@@ -92,7 +93,12 @@ struct ExportService {
         let answers = survey.answers(for: project)
         for deptId in project.selectedDepartmentIds {
             deptNames[deptId] = pluginLoader.departments.first { $0.id == deptId }?.name ?? deptId
-            deptCounts[deptId] = answers.filter { $0.departmentId == deptId && $0.hasContent }.count
+            let questions = survey.questions(for: project, departmentId: deptId)
+            deptCounts[deptId] = answers.filter { answer in
+                guard answer.departmentId == deptId,
+                      let question = questions.first(where: { $0.id == answer.questionId }) else { return false }
+                return AnswerValidator.evaluate(answer, for: question).isValid
+            }.count
         }
         return ExportPanelData(
             projectName: project.displayName,

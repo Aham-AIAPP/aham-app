@@ -11,6 +11,7 @@ struct MCPConsoleView: View {
 
     @State private var client: ClientKind = .claudeCode
     @State private var copiedHint: String?
+    @State private var showTokenResetConfirm = false
 
     enum ClientKind: Hashable { case claudeCode, codex }
 
@@ -29,6 +30,15 @@ struct MCPConsoleView: View {
             .padding(.vertical, AHSpacing.xxxl)
         }
         .background(Color.ahPaper)
+        .alert("重新生成 MCP Token？", isPresented: $showTokenResetConfirm) {
+            Button("取消", role: .cancel) {}
+            Button("重新生成", role: .destructive) {
+                mcpSettings.regenerateToken()
+                copiedHint = "Token 已更新，请重新复制配置"
+            }
+        } message: {
+            Text("现有 AI 客户端连接会立即失效，需要重新复制配置。")
+        }
     }
 
     // MARK: - Hero
@@ -73,6 +83,10 @@ struct MCPConsoleView: View {
                         .foregroundStyle(Color.ahInk60)
                         .textSelection(.enabled)
                 }
+
+                Text("Token ····\(mcpSettings.tokenFingerprint)")
+                    .ahMono(11)
+                    .foregroundStyle(Color.ahInk40)
 
                 if case .failed(let message) = server.state {
                     Text(message)
@@ -145,8 +159,7 @@ struct MCPConsoleView: View {
                     Button("复制配置") { copy(setupSnippet, hint: "配置已复制") }
                         .buttonStyle(.ahPrimary)
                     Button("重新生成 Token") {
-                        mcpSettings.regenerateToken()
-                        copiedHint = "Token 已更新，请重新复制配置"
+                        showTokenResetConfirm = true
                     }
                     .buttonStyle(.ahGhost)
                     if let copiedHint {
@@ -156,7 +169,7 @@ struct MCPConsoleView: View {
                     }
                 }
 
-                Text("需要 Node 18+。适配器随 App 分发，把上面的命令粘到终端或配置文件即可。")
+                Text("需要 Node 18+。Token 保存在本机受限连接文件中，不会出现在复制命令里。")
                     .ahCaption()
                     .foregroundStyle(Color.ahInk40)
             }

@@ -40,7 +40,12 @@ struct ContentView: View {
         .navigationSplitViewStyle(.balanced)
         .frame(minWidth: 900, minHeight: 620)
         .onChange(of: appStore.isSurveying) { _, surveying in
-            columnVisibility = surveying ? .detailOnly : .all
+            if surveying, currentProject?.status == .archived {
+                appStore.isSurveying = false
+                columnVisibility = .all
+            } else {
+                columnVisibility = surveying ? .detailOnly : .all
+            }
         }
         .onChange(of: appStore.selectedProjectId) { oldValue, newValue in
             if oldValue != newValue {
@@ -74,5 +79,5 @@ struct ContentView: View {
         .environment(PluginLoader())
         .environment(SettingsManager())
         .environment(MCPSettings())
-        .modelContainer(for: [Project.self, Answer.self, MemoItem.self, AdoptedFollowup.self], inMemory: true)
+        .modelContainer(for: [Project.self, Answer.self, MemoItem.self, AdoptedFollowup.self, MCPChangeSet.self], inMemory: true)
 }

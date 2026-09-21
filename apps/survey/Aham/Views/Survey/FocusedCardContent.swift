@@ -566,9 +566,10 @@ struct FocusedCardContent: View {
     }
 
     private func markAnswered() {
-        if answer.hasContent && answer.status == .unanswered {
+        let valid = AnswerValidator.evaluate(answer, for: question).isValid
+        if valid && answer.status == .unanswered {
             answer.status = .answered
-        } else if !answer.hasContent {
+        } else if !valid && answer.status == .answered {
             answer.status = .unanswered
         }
     }

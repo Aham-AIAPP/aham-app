@@ -7,6 +7,22 @@
 
 ## [Unreleased]
 
+### Added
+
+- 新增 MCP Contract v1、答案导入 preview/commit、幂等写入、修订控制、变更日志与答案撤销。
+- 新增可移植的 `aham-survey` Agent Skill、四客户端安装/诊断脚本与隔离端到端测试基础设施。
+
+### Changed
+
+- MCP Token 迁移至 Keychain，并通过权限受限的连接描述文件注入 Adapter；界面和命令行不再展示明文。
+- 答案进度改为按题型严格校验；归档项目默认只读，项目解析不再静默模糊命中。
+- 经 Debug/Release 编译验证，将最低部署版本由 macOS 26.4 调整为 macOS 15.0。
+
+### Fixed
+
+- 修复本机 HTTP 请求的 TCP 分包、Content-Length、Host/Origin、Bearer 精确校验和大小限制。
+- 修复题目排序、筛选后残留选中项及 App/MCP 进度不一致。
+
 ### 新增
 - **MCP 服务**：App 内置绑定 `127.0.0.1` 的本地服务 + 随包分发的 stdio 适配器 `aham-survey-mcp.mjs`，Claude Code 与 Codex 均可接入。8 个工具：`list_projects` / `get_project` / `list_questions` / `export_report` / `create_project` / `upsert_answers` / `import_transcript` / `update_project`。
 - **首页改为 MCP 控制台**：服务状态、接入命令（一键复制）、工具清单、示例指令。
