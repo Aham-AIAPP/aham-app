@@ -229,7 +229,7 @@ struct SurveyView: View {
         let completed  = deptDone == deptTotal && deptTotal > 0
 
         Button {
-            withAnimation(AHAnimation.quick) { selectedDepartmentId = dept.id }
+            selectedDepartmentId = dept.id
         } label: {
             HStack(spacing: AHSpacing.xs) {
                 Image(systemName: dept.sfSymbol)
@@ -238,7 +238,7 @@ struct SurveyView: View {
                     .foregroundStyle(isSelected ? Color.ahInk : Color.ahInk60)
                 Text(dept.name)
                     .ahCallout()
-                    .fontWeight(isSelected ? .semibold : .regular)
+                    .fontWeight(.medium)
                 Text("\(deptDone)/\(deptTotal)")
                     .ahMono(11)
                     .foregroundStyle(completed ? Color.ahSuccess : Color.ahInk40)
@@ -248,7 +248,7 @@ struct SurveyView: View {
             .padding(.vertical, AHSpacing.xs)
             .ahGlassCapsule(isEnabled: isSelected, prominent: isSelected)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.ahInline)
     }
 
     // MARK: - 顶部进度条
@@ -369,7 +369,7 @@ struct SurveyView: View {
         let isFocused = focusedQuestionIndex == globalIndex
 
         Button {
-            withAnimation(AHAnimation.quick) { focusedQuestionIndex = globalIndex }
+            focusedQuestionIndex = globalIndex
         } label: {
             HStack(spacing: AHSpacing.xs) {
                 if isFollowup {
@@ -397,7 +397,7 @@ struct SurveyView: View {
             )
             .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.ahInline)
         .id(question.id)
     }
 
@@ -528,7 +528,7 @@ struct SurveyView: View {
         let isFollowup = cachedFollowupIds.contains(question.id)
 
         Button {
-            withAnimation(AHAnimation.standard) { focusedQuestionIndex = index }
+            focusedQuestionIndex = index
         } label: {
             HStack(spacing: AHSpacing.s) {
                 if isFollowup {
@@ -570,7 +570,7 @@ struct SurveyView: View {
             .opacity(0.65)
             .saturation(0.5)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.ahInline)
     }
 
     // MARK: - 底部导航
@@ -580,7 +580,7 @@ struct SurveyView: View {
         HStack(spacing: AHSpacing.s) {
             Button {
                 if focusedQuestionIndex > 0 {
-                    withAnimation(AHAnimation.standard) { focusedQuestionIndex -= 1 }
+                    focusedQuestionIndex -= 1
                 }
             } label: {
                 Label("上一题", systemImage: "chevron.left")
@@ -597,14 +597,14 @@ struct SurveyView: View {
                     ForEach(Array(cachedDisplayQuestions.enumerated()), id: \.offset) { idx, q in
                         let answer = findAnswer(for: q.id, departmentId: selectedDepartmentId ?? "")
                         Button {
-                            withAnimation(AHAnimation.quick) { focusedQuestionIndex = idx }
+                            focusedQuestionIndex = idx
                         } label: {
                             Circle()
                                 .fill(idx == focusedQuestionIndex ? Color.ahAccent : statusColor(for: answer))
                                 .frame(width: idx == focusedQuestionIndex ? 8 : 6,
                                        height: idx == focusedQuestionIndex ? 8 : 6)
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(.ahInline)
                         .frame(minHeight: AHLayout.control)
                         .contentShape(Rectangle())
                         .help(q.question)
@@ -619,7 +619,7 @@ struct SurveyView: View {
 
             Button {
                 if focusedQuestionIndex < cachedDisplayQuestions.count - 1 {
-                    withAnimation(AHAnimation.standard) { focusedQuestionIndex += 1 }
+                    focusedQuestionIndex += 1
                 }
             } label: {
                 HStack(spacing: AHSpacing.xxs) {
@@ -747,7 +747,7 @@ struct SurveyView: View {
         followups.remove(at: index)
         rebuildDisplayQuestions()
         if let newIndex = cachedDisplayQuestions.firstIndex(where: { $0.id == fuId }) {
-            withAnimation(AHAnimation.standard) { focusedQuestionIndex = newIndex }
+            focusedQuestionIndex = newIndex
         }
     }
 
@@ -802,6 +802,8 @@ struct SurveyView: View {
         guard let deptId = selectedDepartmentId else {
             cachedDisplayQuestions = []; return
         }
+        let focusedID = cachedDisplayQuestions.indices.contains(focusedQuestionIndex)
+            ? cachedDisplayQuestions[focusedQuestionIndex].id : nil
         let base = baseQuestions(for: deptId)
         let deptFollowups = adoptedFollowups.filter { $0.departmentId == deptId }
         var result: [QuestionTemplate] = []
@@ -812,6 +814,11 @@ struct SurveyView: View {
             }
         }
         cachedDisplayQuestions = result
+        if let focusedID, let retained = result.firstIndex(where: { $0.id == focusedID }) {
+            focusedQuestionIndex = retained
+        } else {
+            focusedQuestionIndex = min(focusedQuestionIndex, max(0, result.count - 1))
+        }
     }
 
     func answeredCount(for departmentId: String) -> Int {

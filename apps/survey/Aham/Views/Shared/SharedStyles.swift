@@ -1,15 +1,13 @@
 import SwiftUI
 
-/// 项目内通用 ButtonStyle — 筛选 Chip（胶囊形，选中高亮）
-/// 用于 ProjectListView 等处
 struct PillButtonStyle: ButtonStyle {
     let selected: Bool
     func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .font(.system(size: 12, weight: selected ? .semibold : .regular))
+        AHInlineSurface(label: configuration.label
+            .font(.system(size: 12, weight: .medium))
             .padding(.horizontal, AHSpacing.s).padding(.vertical, AHSpacing.xxs)
-            .background(selected ? Color.ahSelected : Color.ahPaperAlt)
             .foregroundStyle(selected ? Color.ahInk : Color.ahInk60)
-            .clipShape(Capsule())
+            .background(selected ? Color.ahSelected : Color.ahPaperAlt, in: .capsule),
+            pressed: configuration.isPressed, selected: selected, radius: AHRadius.pill)
     }
 }

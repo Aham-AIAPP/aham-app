@@ -45,6 +45,69 @@ final class UIRegressionTests: XCTestCase {
         XCTAssertFalse(settings.isLLMConfigured)
     }
 
+    func testCardGroupsSiblingViewsWithOnePaddingAndStableWidth() {
+        let card = AHCard {
+            Color.clear.frame(height: 20)
+            Color.clear.frame(height: 40)
+        }.frame(width: 400)
+        let host = NSHostingView(rootView: card)
+        XCTAssertEqual(host.fittingSize.width, 400, accuracy: 1)
+        XCTAssertEqual(host.fittingSize.height, 20 + 40 + AHSpacing.m + 2 * AHSpacing.l, accuracy: 1)
+    }
+
+    func testSelectingSameRadioDoesNotChangeRevision() throws {
+        let f = try WriteIntegrityTests.Fixture()
+        _ = try f.commit(f.rows())
+        let answer = try f.answer(), store = AppStore(), revision = answer.revision
+        XCTAssertFalse(store.selectAnswerOption("__other__", multiple: false, answer: answer, project: f.project, service: f.survey))
+        XCTAssertEqual(answer.revision, revision)
+        XCTAssertEqual(answer.otherText, "供应商约 60 家")
+    }
+
+    func testOtherInputSurvivesToggleButIsNotReportedWhenUnselected() throws {
+        let f = try WriteIntegrityTests.Fixture()
+        _ = try f.commit(f.rows())
+        let answer = try f.answer(), store = AppStore()
+        XCTAssertTrue(store.selectAnswerOption("50-200家，活跃率60%-80%", multiple: false, answer: answer, project: f.project, service: f.survey))
+        XCTAssertTrue(answer.otherText.isEmpty)
+        XCTAssertEqual(answer.textValue, "50-200家，活跃率60%-80%")
+        XCTAssertTrue(store.selectAnswerOption("__other__", multiple: false, answer: answer, project: f.project, service: f.survey))
+        XCTAssertEqual(answer.otherText, "供应商约 60 家")
+        XCTAssertEqual(answer.textValue, "供应商约 60 家")
+    }
+
+    func testOtherInputSynchronizesTextAndRejectsStaleDraft() throws {
+        let f = try WriteIntegrityTests.Fixture()
+        _ = try f.commit(f.rows())
+        let answer = try f.answer(), store = AppStore()
+        XCTAssertTrue(store.saveAnswerText("供应商约 80 家", at: \Answer.otherText,
+                                          answer: answer, project: f.project, service: f.survey))
+        XCTAssertEqual(answer.textValue, "供应商约 80 家")
+        store.answerTextDrafts[answer.id] = .init(revision: answer.revision, fields: [\Answer.otherText: "本地待重试"])
+        _ = try f.commit(f.rows().map { row in var row = row; row["otherText"] = "外部新记录"; return row })
+        XCTAssertFalse(store.retryAnswerText(answer: answer, project: f.project, service: f.survey))
+        XCTAssertEqual(answer.otherText, "外部新记录")
+        XCTAssertEqual(store.answerTextDrafts[answer.id]?.fields[\Answer.otherText], "本地待重试")
+        let revision = answer.revision
+        XCTAssertFalse(store.selectAnswerOption("__other__", multiple: true, answer: answer, project: f.project, service: f.survey))
+        XCTAssertEqual(answer.revision, revision)
+    }
+
+    func testFailedInputCanBeRetriedWithoutLosingText() throws {
+        let f = try WriteIntegrityTests.Fixture()
+        _ = try f.commit(f.rows())
+        let answer = try f.answer(), store = AppStore()
+        try f.projects.update(f.project, fields: ["status": "archived"])
+        XCTAssertFalse(store.saveAnswerText("待保存笔记", at: \Answer.noteText,
+                                           answer: answer, project: f.project, service: f.survey))
+        XCTAssertEqual(store.answerTextDrafts[answer.id]?.fields[\Answer.noteText], "待保存笔记")
+        XCTAssertNotEqual(answer.noteText, "待保存笔记")
+        try f.projects.update(f.project, fields: ["status": "inProgress"])
+        XCTAssertTrue(store.retryAnswerText(answer: answer, project: f.project, service: f.survey))
+        XCTAssertEqual(answer.noteText, "待保存笔记")
+        XCTAssertNil(store.answerTextDrafts[answer.id])
+    }
+
     private func contrast(_ foreground: Color, _ background: Color) -> Double {
         func luminance(_ color: Color) -> Double {
             let c = NSColor(color).usingColorSpace(.sRGB)!

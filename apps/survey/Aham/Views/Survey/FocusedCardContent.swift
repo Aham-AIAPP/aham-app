@@ -38,6 +38,8 @@ struct FocusedCardContent: View {
 
     @State private var confirmClear = false
     @State private var clearRevision = 0
+    private enum InputField: Hashable { case answer, note, polished, other }
+    @FocusState private var focusedInput: InputField?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -94,16 +96,14 @@ struct FocusedCardContent: View {
                         Spacer()
                     }
                     TextEditor(text: answerBinding(\.noteText))
+                        .focused($focusedInput, equals: .note)
                         .accessibilityLabel("顾问记录")
                         .ahCallout()
                         .scrollContentBackground(.hidden)
                         .frame(minHeight: 100, idealHeight: 140, maxHeight: 240)
                         .padding(AHSpacing.xs)
                         .background(Color.ahPaperAlt, in: .rect(cornerRadius: AHRadius.sm))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: AHRadius.sm)
-                                .stroke(Color.ahBorder, lineWidth: 1)
-                        )
+                        .ahInputBorder(focused: focusedInput == .note)
 
 
                     // AI 润色区域
@@ -168,6 +168,7 @@ struct FocusedCardContent: View {
                         }
                 }) else { return }
                 appStore.answerTextDrafts[answer.id] = nil
+                appStore.otherOptionDrafts[answer.id] = nil
                 onClear()
             }
             Button("取消", role: .cancel) {}
@@ -311,15 +312,9 @@ struct FocusedCardContent: View {
 
                 // "其他" 文本输入
                 if isOtherSelected {
-                    TextField("请补充...", text: Binding(
-                        get: { answer.otherText },
-                        set: { newVal in
-                            if editAnswer({ record in
-                                record.otherText = newVal
-                                syncTextValue(record)
-                            }) { onAnswerChanged() }
-                        }
-                    ))
+                    TextField("请补充...", text: answerBinding(\.otherText))
+                    .accessibilityLabel("其他选项补充")
+                    .focused($focusedInput, equals: .other)
                     .textFieldStyle(.roundedBorder)
                     .ahCallout()
                     .padding(.leading, AHSpacing.xxxl)
@@ -331,16 +326,14 @@ struct FocusedCardContent: View {
                 Text("回答")
                     .ahCaption()
                 TextEditor(text: answerBinding(\.textValue))
+                    .focused($focusedInput, equals: .answer)
                     .accessibilityLabel("回答")
                     .ahCallout()
                     .scrollContentBackground(.hidden)
                     .frame(minHeight: 80, maxHeight: 160)
                     .padding(AHSpacing.xs)
                     .background(Color.ahPaperAlt, in: .rect(cornerRadius: AHRadius.sm))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: AHRadius.sm)
-                            .stroke(Color.ahBorder, lineWidth: 1)
-                    )
+                    .ahInputBorder(focused: focusedInput == .answer)
 
             }
         }
@@ -401,21 +394,11 @@ struct FocusedCardContent: View {
     }
 
     private func selectOption(_ option: String) {
-        if editAnswer({ record in
-            if isMultiChoice {
-                if record.selectedOptions.contains(option) {
-                    record.selectedOptions.removeAll { $0 == option }
-                } else { record.selectedOptions.append(option) }
-            } else { record.selectedOptions = [option] }
-            if !record.selectedOptions.contains("__other__") { record.otherText = "" }
-            syncTextValue(record)
-        }) { onAnswerChanged() }
-    }
-
-    private func syncTextValue(_ record: Answer) {
-        record.textValue = record.selectedOptions.map {
-            $0 == "__other__" ? (record.otherText.isEmpty ? "其他" : record.otherText) : $0
-        }.joined(separator: " | ")
+        if appStore.selectAnswerOption(option, multiple: isMultiChoice, answer: answer,
+                                       project: project, service: surveyService) {
+            onAnswerChanged()
+            if option == "__other__" && isOtherSelected { focusedInput = .other }
+        }
     }
 
     // MARK: - AI Polish Section
@@ -479,16 +462,14 @@ struct FocusedCardContent: View {
             }
             if !answer.polishedText.isEmpty {
                 TextEditor(text: answerBinding(\.polishedText))
+                    .focused($focusedInput, equals: .polished)
                     .accessibilityLabel("AI 润色结果")
                     .ahCaption()
                     .scrollContentBackground(.hidden)
                     .frame(minHeight: 60, idealHeight: 80, maxHeight: 140)
                     .padding(AHSpacing.xxs)
                     .background(Color.ahPaperAlt, in: .rect(cornerRadius: AHRadius.xs))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: AHRadius.xs)
-                            .stroke(Color.ahBorder, lineWidth: 1)
-                    )
+                    .ahInputBorder(focused: focusedInput == .polished, radius: AHRadius.xs)
             } else if isLLMConfigured {
                 Text("点击润色生成建议，原始记录仍会保留。")
                     .ahCaption()
@@ -522,7 +503,7 @@ struct FocusedCardContent: View {
                         .ahCaption()
                         .foregroundStyle(.tertiary)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.ahInline)
             }
 
             ForEach(Array(followups.enumerated()), id: \.offset) { idx, fq in
@@ -592,33 +573,19 @@ struct FocusedCardContent: View {
             .background(Color.ahPaperAlt, in: .capsule)
     }
 
-    @discardableResult
-    private func editAnswer(_ apply: (Answer) -> Void) -> Bool {
-        appStore.performWrite {
-            try SurveyService(context: modelContext, pluginLoader: pluginLoader)
-                .editAnswer(answer, in: project, apply: apply)
-        }
+    private var surveyService: SurveyService {
+        SurveyService(context: modelContext, pluginLoader: pluginLoader)
     }
 
     private func retryTextDraft() {
-        guard let draft = appStore.answerTextDrafts[answer.id] else { return }
-        if appStore.performWrite({
-            try SurveyService(context: modelContext, pluginLoader: pluginLoader)
-                .editAnswer(answer, in: project, expectedRevision: draft.revision) { record in
-                    for (key, value) in draft.fields { record[keyPath: key] = value }
-                }
-        }) {
-            appStore.answerTextDrafts[answer.id] = nil
-            onAnswerChanged()
-        }
+        if appStore.retryAnswerText(answer: answer, project: project, service: surveyService) { onAnswerChanged() }
     }
 
     private func answerBinding(_ keyPath: ReferenceWritableKeyPath<Answer, String>) -> Binding<String> {
         Binding(get: { appStore.answerTextDrafts[answer.id]?.fields[keyPath] ?? answer[keyPath: keyPath] }, set: { value in
-            var draft = appStore.answerTextDrafts[answer.id] ?? .init(revision: answer.revision)
-            draft.fields[keyPath] = value
-            appStore.answerTextDrafts[answer.id] = draft
-            retryTextDraft()
+            if appStore.saveAnswerText(value, at: keyPath, answer: answer, project: project, service: surveyService) {
+                if keyPath != \Answer.polishedText { onAnswerChanged() }
+            }
             if keyPath == \Answer.noteText { onNoteChanged() }
         })
     }

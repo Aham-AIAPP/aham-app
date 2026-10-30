@@ -60,7 +60,7 @@ extension SurveyView {
                 .padding(.vertical, AHSpacing.xxs)
                 .ahGlassBar()
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.ahInline)
 
             // 展开状态：四列网格
             if memoExpanded {
@@ -85,7 +85,7 @@ extension SurveyView {
                                     Image(systemName: "plus")
                                         .ahCaption()
                                 }
-                                .buttonStyle(.borderless)
+                                .buttonStyle(.ahInline)
                             }
                             .padding(.bottom, 2)
 
@@ -105,7 +105,7 @@ extension SurveyView {
                                                 .ahCaption()
                                                 .foregroundStyle(.tertiary)
                                         }
-                                        .buttonStyle(.plain)
+                                        .buttonStyle(.ahInline)
                                     }
                                 }
                             }
@@ -124,7 +124,7 @@ extension SurveyView {
                                         Image(systemName: "return")
                                             .ahCaption()
                                     }
-                                    .buttonStyle(.borderless)
+                                    .buttonStyle(.ahInline)
                                     .disabled(newMemoText.trimmingCharacters(in: .whitespaces).isEmpty)
                                 }
                                 .padding(AHSpacing.xxs)

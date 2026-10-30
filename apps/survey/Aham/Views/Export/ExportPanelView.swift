@@ -58,7 +58,7 @@ struct ExportPanelView: View {
                 Button { isPresented = false } label: {
                     Image(systemName: "xmark.circle.fill").foregroundStyle(.tertiary)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.ahInline)
                 .disabled(isGenerating)
             }
             .padding(AHSpacing.xl)

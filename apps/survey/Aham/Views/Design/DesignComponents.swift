@@ -28,7 +28,10 @@ struct AHCard<Content: View>: View {
     @ViewBuilder var content: () -> Content
 
     var body: some View {
-        content()
+        VStack(alignment: .leading, spacing: AHSpacing.m) {
+            content()
+        }
+            .frame(maxWidth: .infinity, alignment: .leading)
             .padding(padding)
             .background(
                 RoundedRectangle(cornerRadius: radius, style: .continuous)
@@ -227,7 +230,8 @@ struct AHSearchField: View {
                         .font(.system(size: 12))
                         .foregroundStyle(Color.ahInk40)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.ahInline)
+                .accessibilityLabel("清除搜索")
             }
         }
         .padding(.horizontal, AHSpacing.m)
@@ -250,20 +254,20 @@ struct AHSegmentedTab<T: Hashable>: View {
             ForEach(items, id: \.0) { item in
                 let selected = item.0 == selection
                 Button {
-                    withAnimation(AHAnimation.quick) { selection = item.0 }
+                    selection = item.0
                 } label: {
                     HStack(spacing: AHSpacing.xs) {
                         if let sym = item.2 {
                             Image(systemName: sym).font(.system(size: 11, weight: .medium))
                         }
-                        Text(item.1).font(.system(size: 13, weight: selected ? .semibold : .regular))
+                        Text(item.1).font(.system(size: 13, weight: .medium))
                     }
                     .foregroundStyle(selected ? Color.ahInk : Color.ahInk60)
                     .padding(.horizontal, AHSpacing.m)
                     .padding(.vertical, AHSpacing.xs)
                     .ahGlassCapsule(isEnabled: selected, prominent: selected)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(AHInlineButtonStyle(selected: selected, radius: AHRadius.pill))
                 .accessibilityValue(selected ? "已选中" : "")
             }
         }
@@ -348,6 +352,7 @@ private struct AHButtonSurface<Label: View>: View {
     }
     var body: some View {
         label
+            .transaction { $0.animation = nil }
             .font(.system(size: 14, weight: variant == .primary ? .medium : .regular))
             .foregroundStyle(foreground)
             .padding(.horizontal, variant == .ghost ? AHSpacing.s : AHSpacing.m)
@@ -360,6 +365,73 @@ private struct AHButtonSurface<Label: View>: View {
             .contentShape(Rectangle())
             .onHover { hovered = $0 }
             .animation(hovered || !enabled || reduceMotion ? nil : AHAnimation.quick, value: hovered)
+    }
+}
+
+/// Feedback for existing row/tab/icon geometry. Adds no padding, scale or shadow.
+struct AHInlineButtonStyle: ButtonStyle {
+    var selected = false
+    var radius: CGFloat = AHRadius.sm
+    func makeBody(configuration: Configuration) -> some View {
+        AHInlineSurface(label: configuration.label, pressed: configuration.isPressed,
+                        selected: selected, radius: radius)
+    }
+}
+
+struct AHInlineSurface<Label: View>: View {
+    let label: Label
+    let pressed: Bool
+    let selected: Bool
+    let radius: CGFloat
+    @State private var hovered = false
+    @Environment(\.isEnabled) private var enabled
+    @Environment(\.isFocused) private var focused
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    private var state: AHControlState { .resolve(enabled: enabled, pressed: pressed, hovered: hovered) }
+    private var fill: Color {
+        if state == .disabled { return .clear }
+        if state == .pressed { return .ahFillActive }
+        if selected { return .ahSelected }
+        return state == .hover ? .ahFillHover : .clear
+    }
+    var body: some View {
+        label
+            .transaction { $0.animation = nil }
+            .background(fill, in: .rect(cornerRadius: radius))
+            .overlay {
+                RoundedRectangle(cornerRadius: radius)
+                    .fill(Color.ahInk.opacity(state == .pressed ? 0.08 : state == .hover ? 0.04 : 0))
+                    .allowsHitTesting(false)
+            }
+            .overlay {
+                RoundedRectangle(cornerRadius: radius)
+                    .strokeBorder(focused && enabled ? Color.ahAccent : .clear, lineWidth: 2)
+            }
+            .contentShape(Rectangle())
+            .onHover { hovered = $0 }
+            .animation(hovered || !enabled || reduceMotion ? nil : AHAnimation.quick, value: hovered)
+    }
+}
+
+extension ButtonStyle where Self == AHInlineButtonStyle {
+    static var ahInline: AHInlineButtonStyle { .init() }
+}
+
+/// Input focus uses the same border for all editors; layout stays unchanged.
+struct AHInputBorder: ViewModifier {
+    let focused: Bool
+    var radius: CGFloat = AHRadius.sm
+    func body(content: Content) -> some View {
+        content.overlay {
+            RoundedRectangle(cornerRadius: radius)
+                .strokeBorder(focused ? Color.ahAccent : Color.ahInputBorder, lineWidth: focused ? 2 : 1)
+                .allowsHitTesting(false)
+        }
+    }
+}
+extension View {
+    func ahInputBorder(focused: Bool, radius: CGFloat = AHRadius.sm) -> some View {
+        modifier(AHInputBorder(focused: focused, radius: radius))
     }
 }
 

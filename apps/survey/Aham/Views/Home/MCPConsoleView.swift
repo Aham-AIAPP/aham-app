@@ -11,9 +11,12 @@ struct MCPConsoleView: View {
 
     @State private var client: ClientKind = .claudeCode
     @State private var copiedHint: String?
+    @State private var copiedExample: String?
     @State private var showTokenResetConfirm = false
 
-    enum ClientKind: Hashable { case claudeCode, codex }
+    enum ClientKind: String, Hashable {
+        case claudeCode = "Claude Code", codex = "Codex"
+    }
 
     var body: some View {
         ScrollView {
@@ -30,14 +33,15 @@ struct MCPConsoleView: View {
             .padding(.vertical, AHSpacing.xxxl)
         }
         .background(Color.ahPaper)
+        .onChange(of: client) { _, _ in copiedHint = nil; copiedExample = nil }
         .alert("重新生成 MCP Token？", isPresented: $showTokenResetConfirm) {
             Button("取消", role: .cancel) {}
             Button("重新生成", role: .destructive) {
                 mcpSettings.regenerateToken()
-                copiedHint = "Token 已更新，请重新复制配置"
+                copiedHint = mcpSettings.lastPersistenceError == nil ? "Token 已更新，请重连 AI 客户端" : nil
             }
         } message: {
-            Text("现有 AI 客户端连接会立即失效，需要重新复制配置。")
+            Text("现有 AI 客户端连接会失效。配置路径不变，重新连接客户端以读取新 Token。")
         }
     }
 
@@ -51,7 +55,7 @@ struct MCPConsoleView: View {
 
             Text("Aham Survey").ahTitle()
             Text("调研数据的本地终端 · 项目与问卷由 MCP 驱动")
-                .ahTitle3()
+                .ahBody()
                 .foregroundStyle(Color.ahInk60)
         }
     }
@@ -156,19 +160,24 @@ struct MCPConsoleView: View {
                 codeBlock(setupSnippet)
 
                 HStack(spacing: AHSpacing.s) {
-                    Button("复制配置") { copy(setupSnippet, hint: "配置已复制") }
+                    Button("复制配置") { copy(setupSnippet) }
                         .buttonStyle(.ahPrimary)
+                        .disabled(adapterPath == nil)
                     Button("重新生成 Token") {
                         showTokenResetConfirm = true
                     }
                     .buttonStyle(.ahGhost)
-                    if let copiedHint {
-                        Text(copiedHint)
-                            .ahCaption()
-                            .foregroundStyle(Color.ahSuccess)
-                    }
+                    Spacer(minLength: 0)
+                    Text(copiedHint ?? "")
+                        .ahMeta().foregroundStyle(Color.ahInk60)
+                        .frame(width: 180, alignment: .trailing)
+                        .lineLimit(2)
+                        .accessibilityHidden(copiedHint == nil)
                 }
 
+                if let error = mcpSettings.lastPersistenceError {
+                    Text(error).ahCallout().foregroundStyle(Color.ahDanger)
+                }
                 Text("需要 Node 18+。Token 保存在本机受限连接文件中，不会出现在复制命令里。")
                     .ahCaption()
                     .foregroundStyle(Color.ahInk40)
@@ -194,7 +203,7 @@ struct MCPConsoleView: View {
     @ViewBuilder
     private var toolsCard: some View {
         AHCard {
-            AHSection("Claude 能做什么") {
+            AHSection("\(client.rawValue) 能做什么") {
                 EmptyView()
             }
 
@@ -245,7 +254,7 @@ struct MCPConsoleView: View {
             }
 
             VStack(alignment: .leading, spacing: AHSpacing.s) {
-                Text("接好之后，直接这样跟 Claude 说：")
+                Text("接好之后，可以这样向 \(client.rawValue) 描述任务：")
                     .ahCaption()
                     .foregroundStyle(Color.ahInk60)
 
@@ -260,14 +269,16 @@ struct MCPConsoleView: View {
                             .textSelection(.enabled)
                         Spacer(minLength: 0)
                         Button {
-                            copy(example, hint: "已复制")
+                            copy(example, example: example)
                         } label: {
-                            Image(systemName: "doc.on.doc")
+                            Image(systemName: copiedExample == example ? "checkmark" : "doc.on.doc")
+                                .frame(width: AHLayout.control, height: AHLayout.control)
                                 .ahCaption()
                                 .foregroundStyle(Color.ahInk40)
                         }
-                        .buttonStyle(.plain)
-                        .help("复制这句话")
+                        .buttonStyle(.ahInline)
+                        .help(copiedExample == example ? "已复制" : "复制这句话")
+                        .accessibilityLabel(copiedExample == example ? "这句话已复制" : "复制这句话")
                     }
                 }
             }
@@ -286,12 +297,16 @@ struct MCPConsoleView: View {
             .fixedSize(horizontal: false, vertical: true)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(AHSpacing.m)
-            .background(Color.ahPaperAlt, in: .rect(cornerRadius: AHRadius.md))
+            .background(Color.ahPaper, in: .rect(cornerRadius: AHRadius.md))
     }
 
-    private func copy(_ text: String, hint: String) {
+    private func copy(_ text: String, example: String? = nil) {
         NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(text, forType: .string)
-        copiedHint = hint
+        let success = NSPasteboard.general.setString(text, forType: .string)
+        if let example {
+            copiedExample = success ? example : nil
+        } else {
+            copiedHint = success ? "配置已复制" : "无法写入剪贴板，请重试"
+        }
     }
 }

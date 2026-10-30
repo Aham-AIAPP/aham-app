@@ -68,13 +68,18 @@ struct ProjectDetailView: View {
             .background(Color.ahPaper)
         }
         .navigationTitle(project.displayName)
-        .onAppear { syncProgress(); customerNameDraft = project.customerName }
+        .onAppear {
+            syncProgress()
+            customerNameDraft = appStore.customerNameDrafts[project.id]?.value ?? project.customerName
+            customerNameRevision = appStore.customerNameDrafts[project.id]?.revision ?? project.revision
+        }
+        .onDisappear { saveCustomerName() }
         .onChange(of: editingCustomerName) { _, editing in
-            if editing { customerNameRevision = project.revision }
+            if editing { customerNameRevision = appStore.customerNameDrafts[project.id]?.revision ?? project.revision }
             else { saveCustomerName() }
         }
         .onChange(of: project.customerName) { _, name in
-            if !editingCustomerName { customerNameDraft = name }
+            if !editingCustomerName && appStore.customerNameDrafts[project.id] == nil { customerNameDraft = name }
         }
         .toolbar { toolbarContent }
     }
@@ -275,7 +280,7 @@ struct ProjectDetailView: View {
                     .fill(Color.ahPaper)
             )
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.ahInline)
     }
 
     // MARK: - Tab: 客户信息
@@ -293,6 +298,19 @@ struct ProjectDetailView: View {
                                 .onSubmit { saveCustomerName() }
                                 .textFieldStyle(.roundedBorder)
                                 .ahCallout()
+                        }
+                        if appStore.customerNameDrafts[project.id] != nil {
+                            VStack(alignment: .leading, spacing: AHSpacing.xs) {
+                                Text("客户名称未保存，输入已保留。若外部已有更新，请先复制输入再放弃草稿。").ahCaption().foregroundStyle(Color.ahDanger)
+                                HStack {
+                                    Button("重试保存") { saveCustomerName() }.buttonStyle(.ahSecondary)
+                                    Button("放弃未保存名称") {
+                                        appStore.customerNameDrafts[project.id] = nil
+                                        customerNameDraft = project.customerName
+                                        customerNameRevision = project.revision
+                                    }.buttonStyle(.ahGhost)
+                                }
+                            }
                         }
                         AHLabeledRow(label: "组织形态") {
                             Picker("", selection: Binding(
@@ -432,7 +450,7 @@ struct ProjectDetailView: View {
                                         .padding(.vertical, AHSpacing.xs)
                                         .contentShape(Rectangle())
                                     }
-                                    .buttonStyle(.plain)
+                                    .buttonStyle(.ahInline)
                                     .disabled(isArchived)
                                 }
                             }
@@ -522,12 +540,21 @@ struct ProjectDetailView: View {
     }
 
     private func saveCustomerName() {
-        guard customerNameDraft != project.customerName else { return }
+        guard project.modelContext != nil else { return }
+        guard customerNameDraft != project.customerName else {
+            appStore.customerNameDrafts[project.id] = nil
+            customerNameRevision = project.revision
+            return
+        }
         if appStore.performWrite({
             try ProjectService(context: modelContext, pluginLoader: pluginLoader)
                 .update(project, fields: ["customerName": customerNameDraft], expectedRevision: customerNameRevision)
-        }) { customerNameRevision = project.revision }
-        else { customerNameDraft = project.customerName }
+        }) {
+            customerNameRevision = project.revision
+            appStore.customerNameDrafts[project.id] = nil
+        } else {
+            appStore.customerNameDrafts[project.id] = (customerNameDraft, customerNameRevision)
+        }
     }
 
     @discardableResult

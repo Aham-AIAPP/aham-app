@@ -27,7 +27,7 @@ struct ProjectListView: View {
                         .ahCallout()
                         .foregroundStyle(Color.ahInk60)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.ahInline)
                 .help("设置 (⌘,)")
             }
             .padding(.horizontal, AHSpacing.m).padding(.vertical, AHSpacing.s)
@@ -61,6 +61,15 @@ struct ProjectListView: View {
                         Label("暂无调研项目", systemImage: "doc.text.magnifyingglass")
                     } description: {
                         Text("项目由 Claude / Codex 通过 MCP 创建，右侧有接入说明")
+                    }
+                } else if filteredByStatus.isEmpty {
+                    ContentUnavailableView {
+                        Label("没有匹配的项目", systemImage: "magnifyingglass")
+                    } description: {
+                        Text("试试其他关键词或项目状态")
+                    } actions: {
+                        Button("清除筛选") { searchText = ""; filterStatus = "all" }
+                            .buttonStyle(.ahSecondary)
                     }
                 }
             }
@@ -110,6 +119,7 @@ struct ProjectListView: View {
     private func statusChip(_ name: String, id: String) -> some View {
         Button(name) { filterStatus = id }
             .buttonStyle(PillButtonStyle(selected: filterStatus == id))
+            .accessibilityValue(filterStatus == id ? "已选中" : "未选中")
     }
 
     // MARK: - Context Menu
@@ -168,10 +178,11 @@ struct ProjectListView: View {
     }
 
     private func deleteProject(_ project: Project) {
-        if appStore.selectedProjectId == project.id {
+        let deletedID = project.id
+        guard appStore.performWrite({ try ProjectService(context: modelContext, pluginLoader: pluginLoader).delete(project) }) else { return }
+        if appStore.selectedProjectId == deletedID {
             appStore.selectedProjectId = nil
             appStore.isSurveying = false
         }
-        appStore.performWrite { try ProjectService(context: modelContext, pluginLoader: pluginLoader).delete(project) }
     }
 }
