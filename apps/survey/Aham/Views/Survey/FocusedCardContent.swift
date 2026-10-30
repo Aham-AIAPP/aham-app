@@ -36,8 +36,21 @@ struct FocusedCardContent: View {
     var parentQuestionText: String? = nil
     var isFollowupQuestion: Bool = false
 
+    @State private var confirmClear = false
+    @State private var clearRevision = 0
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
+            if appStore.answerTextDrafts[answer.id] != nil {
+                VStack(alignment: .leading, spacing: AHSpacing.s) {
+                    Text("这条输入尚未保存，已保留在当前会话。请重试；如内容已被外部更新，可复制输入后放弃草稿查看最新值。")
+                        .ahCallout().foregroundStyle(Color.ahDanger)
+                    HStack {
+                        Button("重试保存") { retryTextDraft() }.buttonStyle(.ahSecondary)
+                        Button("放弃未保存输入") { appStore.answerTextDrafts[answer.id] = nil }.buttonStyle(.ahGhost)
+                    }
+                }.padding(AHSpacing.l)
+            }
             // 问题序号 + 头部
             headerSection
 
@@ -81,6 +94,7 @@ struct FocusedCardContent: View {
                         Spacer()
                     }
                     TextEditor(text: answerBinding(\.noteText))
+                        .accessibilityLabel("顾问记录")
                         .ahCallout()
                         .scrollContentBackground(.hidden)
                         .frame(minHeight: 100, idealHeight: 140, maxHeight: 240)
@@ -127,7 +141,7 @@ struct FocusedCardContent: View {
             // 快捷键提示
             HStack(spacing: AHSpacing.s) {
                 Spacer()
-                Text("⌘↑↓ 切题  ·  Tab 跳记录  ·  Enter 润色")
+                Text("⌘↑↓ 切题  ·  Tab 移动焦点  ·  ⌘⇧P 润色")
                     .ahCaption()
             }
             .foregroundStyle(.quaternary)
@@ -143,6 +157,23 @@ struct FocusedCardContent: View {
         }
         .padding(.horizontal, AHSpacing.m)
         .padding(.vertical, AHSpacing.xxs)
+        .confirmationDialog("清除当前题的答案、笔记和来源证据？", isPresented: $confirmClear) {
+            Button("清除当前题", role: .destructive) {
+                guard appStore.performWrite({
+                    try SurveyService(context: modelContext, pluginLoader: pluginLoader)
+                        .editAnswer(answer, in: project, expectedRevision: clearRevision) {
+                            $0.selectedOptions = []; $0.textValue = ""; $0.otherText = ""
+                            $0.noteText = ""; $0.polishedText = ""; $0.voiceTranscript = ""
+                            $0.evidence = ""; $0.status = .unanswered
+                        }
+                }) else { return }
+                appStore.answerTextDrafts[answer.id] = nil
+                onClear()
+            }
+            Button("取消", role: .cancel) {}
+        } message: {
+            Text("此操作无法撤销。其他题目不受影响；如 MCP 已更新本题，将阻止清除。")
+        }
     }
 
     // MARK: - Header
@@ -211,17 +242,8 @@ struct FocusedCardContent: View {
     private var actionButtons: some View {
         HStack(spacing: AHSpacing.xs) {
             Button(role: .destructive) {
-                editAnswer { record in
-                    record.selectedOptions = []
-                    record.textValue = ""
-                    record.otherText = ""
-                    record.noteText = ""
-                    record.polishedText = ""
-                    record.voiceTranscript = ""
-                    record.evidence = ""
-                    record.status = .unanswered
-                }
-                onClear()
+                clearRevision = answer.revision
+                confirmClear = true
             } label: {
                 Label("清除", systemImage: "trash")
             }
@@ -309,6 +331,7 @@ struct FocusedCardContent: View {
                 Text("回答")
                     .ahCaption()
                 TextEditor(text: answerBinding(\.textValue))
+                    .accessibilityLabel("回答")
                     .ahCallout()
                     .scrollContentBackground(.hidden)
                     .frame(minHeight: 80, maxHeight: 160)
@@ -329,44 +352,52 @@ struct FocusedCardContent: View {
             ? answer.selectedOptions.contains(option)
             : answer.selectedOptions.first == option
 
+        Button { selectOption(option) } label: {
         HStack(spacing: AHSpacing.s) {
             Image(systemName: isMultiChoice
                   ? (isSelected ? "checkmark.square.fill" : "square")
                   : (isSelected ? "largecircle.fill.circle" : "circle"))
-                .foregroundStyle(isSelected ? Color.ahAccent : .secondary)
+                .foregroundStyle(isSelected ? Color.ahInk : .ahInk60)
                 .ahCallout()
             Text(option)
                 .ahCallout()
-                .foregroundStyle(isSelected ? .primary : .secondary)
+                .foregroundStyle(Color.ahInk)
         }
         .padding(.vertical, AHSpacing.xxs)
         .padding(.horizontal, AHSpacing.xs)
         .background(isSelected ? Color.ahSelected : .clear, in: .rect(cornerRadius: AHRadius.xs))
         .contentShape(Rectangle())
-        .onTapGesture {
-            selectOption(option)
+        .frame(maxWidth: .infinity, minHeight: AHLayout.control, alignment: .leading)
         }
+        .buttonStyle(.ahGhost)
+        .accessibilityLabel(option)
+        .accessibilityValue(isSelected ? "已选中" : "未选中")
+
     }
 
     @ViewBuilder
     private var otherOptionRow: some View {
+        Button { selectOption("__other__") } label: {
         HStack(spacing: AHSpacing.s) {
             Image(systemName: isMultiChoice
                   ? (isOtherSelected ? "checkmark.square.fill" : "square")
                   : (isOtherSelected ? "largecircle.fill.circle" : "circle"))
-                .foregroundStyle(isOtherSelected ? Color.ahAccent : .secondary)
+                .foregroundStyle(isOtherSelected ? Color.ahInk : .ahInk60)
                 .ahCallout()
             Text("其他")
                 .ahCallout()
-                .foregroundStyle(isOtherSelected ? .primary : .secondary)
+                .foregroundStyle(Color.ahInk)
         }
         .padding(.vertical, AHSpacing.xxs)
         .padding(.horizontal, AHSpacing.xs)
         .background(isOtherSelected ? Color.ahSelected : .clear, in: .rect(cornerRadius: AHRadius.xs))
         .contentShape(Rectangle())
-        .onTapGesture {
-            selectOption("__other__")
+        .frame(maxWidth: .infinity, minHeight: AHLayout.control, alignment: .leading)
         }
+        .buttonStyle(.ahGhost)
+        .accessibilityLabel("其他")
+        .accessibilityValue(isOtherSelected ? "已选中" : "未选中")
+
     }
 
     private func selectOption(_ option: String) {
@@ -414,7 +445,7 @@ struct FocusedCardContent: View {
                     Text("失败: \(msg)")
                         .ahCaption()
                         .foregroundStyle(Color.ahDanger)
-                        .lineLimit(1)
+                        .help(msg)
                 case .ready:
                     Text("已生成")
                         .ahCaption()
@@ -425,15 +456,15 @@ struct FocusedCardContent: View {
 
                 // 润色改为手动触发后，按钮在生成中之外的所有状态都要在
                 // —— 否则答案改完就再也无法重新润色
-                if polishStatus != .pending {
+                Group {
                     Button {
                         onManualPolish()
                     } label: {
                         Text(polishStatus == .idle ? "润色 ⌘⇧P" : "重新润色")
                     }
-                    .buttonStyle(.borderless)
+                    .buttonStyle(.ahSecondary)
                     .keyboardShortcut("p", modifiers: [.command, .shift])
-                    .disabled(!isLLMConfigured)
+                    .disabled(!isLLMConfigured || polishStatus == .pending || (!answer.hasContent && answer.noteText.isEmpty && answer.voiceTranscript.isEmpty))
                     .help(isLLMConfigured ? "用 AI 整理这条记录（⌘⇧P）" : "请先在设置中配置 API Key")
                 }
             }
@@ -445,8 +476,10 @@ struct FocusedCardContent: View {
                     .padding(AHSpacing.xs)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .background(Color.ahPaperAlt, in: .rect(cornerRadius: AHRadius.xs))
-            } else if !answer.polishedText.isEmpty {
+            }
+            if !answer.polishedText.isEmpty {
                 TextEditor(text: answerBinding(\.polishedText))
+                    .accessibilityLabel("AI 润色结果")
                     .ahCaption()
                     .scrollContentBackground(.hidden)
                     .frame(minHeight: 60, idealHeight: 80, maxHeight: 140)
@@ -457,7 +490,7 @@ struct FocusedCardContent: View {
                             .stroke(Color.ahBorder, lineWidth: 1)
                     )
             } else if isLLMConfigured {
-                Text("记录或转录后自动生成")
+                Text("点击润色生成建议，原始记录仍会保留。")
                     .ahCaption()
                     .padding(AHSpacing.xxs)
             }
@@ -567,13 +600,26 @@ struct FocusedCardContent: View {
         }
     }
 
-    private func answerBinding(_ keyPath: ReferenceWritableKeyPath<Answer, String>) -> Binding<String> {
-        Binding(get: { answer[keyPath: keyPath] }, set: { value in
-            if editAnswer({ $0[keyPath: keyPath] = value }) {
-                if keyPath == \Answer.textValue { onAnswerChanged() }
-                if keyPath == \Answer.noteText { onNoteChanged() }
-            }
-        })
+    private func retryTextDraft() {
+        guard let draft = appStore.answerTextDrafts[answer.id] else { return }
+        if appStore.performWrite({
+            try SurveyService(context: modelContext, pluginLoader: pluginLoader)
+                .editAnswer(answer, in: project, expectedRevision: draft.revision) { record in
+                    for (key, value) in draft.fields { record[keyPath: key] = value }
+                }
+        }) {
+            appStore.answerTextDrafts[answer.id] = nil
+            onAnswerChanged()
+        }
     }
 
+    private func answerBinding(_ keyPath: ReferenceWritableKeyPath<Answer, String>) -> Binding<String> {
+        Binding(get: { appStore.answerTextDrafts[answer.id]?.fields[keyPath] ?? answer[keyPath: keyPath] }, set: { value in
+            var draft = appStore.answerTextDrafts[answer.id] ?? .init(revision: answer.revision)
+            draft.fields[keyPath] = value
+            appStore.answerTextDrafts[answer.id] = draft
+            retryTextDraft()
+            if keyPath == \Answer.noteText { onNoteChanged() }
+        })
+    }
 }

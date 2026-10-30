@@ -131,23 +131,20 @@ struct ExportPanelView: View {
                 .padding(AHSpacing.xl)
             }
 
+            .disabled(isGenerating)
+
             Divider()
 
             HStack {
                 Spacer()
                 Button("取消") { isPresented = false }
+                    .buttonStyle(.ahSecondary)
                     .keyboardShortcut(.cancelAction)
                     .disabled(isGenerating)
                 Button { confirmExport() } label: {
-                    if isGenerating {
-                        HStack(spacing: 6) {
-                            ProgressView().controlSize(.small)
-                            Text("正在生成...")
-                        }
-                        .frame(minWidth: 100)
-                    } else {
-                        Label("确认导出", systemImage: "square.and.arrow.up")
-                    }
+                    Text(isGenerating ? "正在生成…" : "确认导出")
+                        .frame(width: AHLayout.editorHeight)
+
                 }
                 .buttonStyle(.ahPrimary)
                 .disabled(selectedDepts.isEmpty || isGenerating)
@@ -155,12 +152,14 @@ struct ExportPanelView: View {
             }
             .padding(AHSpacing.xl)
         }
-        .frame(width: 420, height: 540)
+        .frame(width: 480, height: 600)
+        .interactiveDismissDisabled(isGenerating)
     }
 
     // MARK: - Actions
 
     private func confirmExport() {
+        guard !isGenerating, !selectedDepts.isEmpty else { return }
         let config = ExportConfig(
             format: format,
             addFrontmatter: addFrontmatter,
@@ -174,6 +173,7 @@ struct ExportPanelView: View {
         generateError = nil
         Task {
             if let (content, fileName) = await onGenerate(config) {
+                isGenerating = false
                 isPresented = false
                 onExport(content, fileName)
             } else {

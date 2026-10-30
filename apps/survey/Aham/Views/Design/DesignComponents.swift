@@ -1,6 +1,6 @@
 import SwiftUI
 
-// MARK: - Design Components —— 对齐 aham-ui v5.1 铁规
+// MARK: - Design Components —— 对齐 aham-ui 10.1.0 原生适配
 //
 // Aham App 共用组件库。新视图应由下列原子拼装。
 //
@@ -264,6 +264,7 @@ struct AHSegmentedTab<T: Hashable>: View {
                     .ahGlassCapsule(isEnabled: selected, prominent: selected)
                 }
                 .buttonStyle(.plain)
+                .accessibilityValue(selected ? "已选中" : "")
             }
         }
         .padding(AHSpacing.xxs)
@@ -311,58 +312,72 @@ struct AHStatCard: View {
 
 // MARK: - Button Styles
 
-/// 主按钮 —— accent 实底 / 白字（铁规：一组一个 primary，蓝只在主操作）。
+/// 按钮共用状态机；主按钮使用中性 action/on 配对色，蓝色仅表示键盘焦点。
+enum AHButtonVariant: CaseIterable { case primary, secondary, ghost }
+
+/// One state resolver keeps disabled > pressed > hover precedence across variants.
+enum AHControlState: Equatable {
+    case idle, hover, pressed, disabled
+    static func resolve(enabled: Bool, pressed: Bool, hovered: Bool) -> Self {
+        if !enabled { return .disabled }
+        if pressed { return .pressed }
+        return hovered ? .hover : .idle
+    }
+}
+
+private struct AHButtonSurface<Label: View>: View {
+    let label: Label
+    let variant: AHButtonVariant
+    let pressed: Bool
+    var large = false
+    @Environment(\.isEnabled) private var enabled
+    @Environment(\.isFocused) private var focused
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var hovered = false
+    private var state: AHControlState { .resolve(enabled: enabled, pressed: pressed, hovered: hovered) }
+    private var foreground: Color {
+        state == .disabled ? .ahInk60 : (variant == .primary ? .ahOnAccent : .ahInk)
+    }
+    private var background: Color {
+        if state == .disabled { return .ahButton }
+        switch variant {
+        case .primary: return state == .pressed ? .ahActionPress : state == .hover ? .ahActionHover : .ahAction
+        case .secondary: return state == .pressed ? .ahButtonPress : state == .hover ? .ahButtonHover : .ahButton
+        case .ghost: return state == .pressed ? .ahFillActive : state == .hover ? .ahFillHover : .clear
+        }
+    }
+    var body: some View {
+        label
+            .font(.system(size: 14, weight: variant == .primary ? .medium : .regular))
+            .foregroundStyle(foreground)
+            .padding(.horizontal, variant == .ghost ? AHSpacing.s : AHSpacing.m)
+            .frame(minHeight: large ? AHLayout.largeControl : AHLayout.control)
+            .background(background, in: .rect(cornerRadius: AHRadius.sm))
+            .overlay {
+                RoundedRectangle(cornerRadius: AHRadius.sm)
+                    .strokeBorder(focused && enabled ? Color.ahAccent : .clear, lineWidth: 2)
+            }
+            .contentShape(Rectangle())
+            .onHover { hovered = $0 }
+            .animation(hovered || !enabled || reduceMotion ? nil : AHAnimation.quick, value: hovered)
+    }
+}
+
 struct AHPrimaryButtonStyle: ButtonStyle {
-    var large: Bool = false
-    @Environment(\.isEnabled) private var isEnabled
+    var large = false
     func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .font(.system(size: large ? 15 : 14, weight: .semibold))
-            .foregroundStyle(Color.ahOnAccent)
-            .padding(.horizontal, large ? AHSpacing.xl : AHSpacing.l)
-            .padding(.vertical, large ? 10 : 7)
-            .background(
-                RoundedRectangle(cornerRadius: AHRadius.md, style: .continuous)
-                    .fill(configuration.isPressed ? Color.ahAccentPress : Color.ahAccent)
-            )
-            .opacity(isEnabled ? 1 : 0.4)
+        AHButtonSurface(label: configuration.label, variant: .primary, pressed: configuration.isPressed, large: large)
     }
 }
-
-/// 次按钮 —— tier2 底 + 细 tier3 描边 + 主文字。
 struct AHSecondaryButtonStyle: ButtonStyle {
-    var large: Bool = false
-    @Environment(\.isEnabled) private var isEnabled
+    var large = false
     func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .font(.system(size: large ? 15 : 14, weight: .medium))
-            .foregroundStyle(Color.ahInk)
-            .padding(.horizontal, large ? AHSpacing.xl : AHSpacing.l)
-            .padding(.vertical, large ? 9 : 6)
-            .background(
-                RoundedRectangle(cornerRadius: AHRadius.md, style: .continuous)
-                    .fill(configuration.isPressed ? Color.ahSelected : Color.ahPaperAlt)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: AHRadius.md, style: .continuous)
-                    .strokeBorder(Color.ahBorder, lineWidth: 1)
-            )
-            .opacity(isEnabled ? 1 : 0.4)
+        AHButtonSurface(label: configuration.label, variant: .secondary, pressed: configuration.isPressed, large: large)
     }
 }
-
-/// Ghost 按钮 —— 仅 hover/press 有中性填充底。
 struct AHGhostButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .font(.system(size: 13, weight: .regular))
-            .foregroundStyle(Color.ahInk60)
-            .padding(.horizontal, AHSpacing.s)
-            .padding(.vertical, AHSpacing.xs)
-            .background(
-                RoundedRectangle(cornerRadius: AHRadius.sm, style: .continuous)
-                    .fill(configuration.isPressed ? Color.ahFillActive : Color.clear)
-            )
+        AHButtonSurface(label: configuration.label, variant: .ghost, pressed: configuration.isPressed)
     }
 }
 

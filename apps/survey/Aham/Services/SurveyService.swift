@@ -223,7 +223,7 @@ struct SurveyService {
             throw ServiceError.invalidInput("答案不属于当前项目题库")
         }
         if let expectedRevision, answer.revision != expectedRevision {
-            throw ServiceError.revisionConflict("答案已被修改，请重新生成 AI 结果")
+            throw ServiceError.revisionConflict("答案已被修改，请查看最新内容后重试")
         }
         apply(answer)
         refreshStatus(answer, for: question)

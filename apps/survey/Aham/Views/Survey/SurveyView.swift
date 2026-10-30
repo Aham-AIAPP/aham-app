@@ -271,7 +271,7 @@ struct SurveyView: View {
             ProgressView(value: progress)
                 .tint(progress >= 1 ? Color.ahSuccess : Color.ahAccent)
 
-            Text("第 \(focusedQuestionIndex + 1) / \(total) 题")
+            Text(total == 0 ? "暂无题目" : "第 \(focusedQuestionIndex + 1) / \(total) 题")
                 .ahCaption()
                 .monospacedDigit()
                 .foregroundStyle(.secondary)
@@ -605,6 +605,11 @@ struct SurveyView: View {
                                        height: idx == focusedQuestionIndex ? 8 : 6)
                         }
                         .buttonStyle(.plain)
+                        .frame(minHeight: AHLayout.control)
+                        .contentShape(Rectangle())
+                        .help(q.question)
+                        .accessibilityLabel("第 \(idx + 1) 题：\(q.question)")
+                        .accessibilityValue(idx == focusedQuestionIndex ? "当前题目" : "")
                     }
                 }
             }
@@ -642,7 +647,7 @@ struct SurveyView: View {
     }
 
     func scheduleAIPolish(question: QuestionTemplate, answer: Answer) {
-        guard settings.isLLMConfigured else { return }
+        guard settings.isLLMConfigured, polishStatus != .pending else { return }
         guard answer.hasContent || !answer.noteText.isEmpty || !answer.voiceTranscript.isEmpty else { return }
 
         polishTask?.cancel()
@@ -652,7 +657,7 @@ struct SurveyView: View {
         let expectedRevision = answer.revision
 
         polishTask = Task { @MainActor in
-            guard !Task.isCancelled else { polishStatus = .idle; return }
+            guard !Task.isCancelled else { return }
             if let result = await enhancer.polishNote(
                 project: project, department: deptId,
                 question: question.question, answer: answer.textValue,
@@ -680,6 +685,7 @@ struct SurveyView: View {
                 }
                 polishStatus = .ready
             } else {
+                guard !Task.isCancelled else { return }
                 polishStatus = .error(enhancer.lastError ?? "未知错误")
             }
         }
@@ -693,8 +699,11 @@ struct SurveyView: View {
 
     func scheduleFollowups(question: QuestionTemplate, answer: Answer) {
         guard settings.isLLMConfigured else { return }
-        guard isValidAnswer(answer, for: question) else { followups = []; return }
         followupTask?.cancel()
+        isLoadingFollowups = false
+        followups = []
+        guard isValidAnswer(answer, for: question) else { return }
+        let expectedRevision = answer.revision
         followupTask = Task {
             try? await Task.sleep(for: .seconds(1.5))
             guard !Task.isCancelled else { return }
@@ -709,6 +718,7 @@ struct SurveyView: View {
             )
             guard !Task.isCancelled else { return }
             isLoadingFollowups = false
+            guard answer.revision == expectedRevision else { return }
             if !results.isEmpty { followups = results }
         }
     }

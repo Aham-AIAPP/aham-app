@@ -20,6 +20,7 @@ private struct GeneralSettingsTab: View {
     @Environment(SettingsManager.self) private var settings
     @State private var testingConnection = false
     @State private var connectionResult: Bool?
+    @State private var connectionTask: Task<Void, Never>?
 
     var body: some View {
         @Bindable var s = settings
@@ -28,23 +29,24 @@ private struct GeneralSettingsTab: View {
             Section("AI 大模型服务") {
                 TextField("API 端点", text: $s.llmConfig.endpoint)
                     .textFieldStyle(.roundedBorder)
+                    .disabled(testingConnection)
 
                 SecureField("API Key", text: $s.llmConfig.apiKey)
                     .textFieldStyle(.roundedBorder)
+                    .disabled(testingConnection)
 
                 TextField("模型名称", text: $s.llmConfig.model)
                     .textFieldStyle(.roundedBorder)
+                    .disabled(testingConnection)
 
                 HStack {
                     Button {
                         testConnection()
                     } label: {
-                        if testingConnection {
-                            ProgressView().controlSize(.small)
-                        } else {
-                            Text("测试连接")
-                        }
+                        Text(testingConnection ? "正在测试…" : "测试连接")
+                            .frame(width: AHLayout.editorHeight)
                     }
+                    .buttonStyle(.ahSecondary)
                     .disabled(testingConnection || !settings.isLLMConfigured)
 
                     if let result = connectionResult {
@@ -59,12 +61,17 @@ private struct GeneralSettingsTab: View {
         }
         .formStyle(.grouped)
         .onAppear { connectionResult = nil; testingConnection = false }
+        .onDisappear { connectionTask?.cancel(); testingConnection = false }
+        .onChange(of: settings.llmConfig) { _, _ in connectionResult = nil }
     }
 
     private func testConnection() {
+        guard !testingConnection else { return }
         testingConnection = true; connectionResult = nil
-        Task {
+        let submitted = settings.llmConfig
+        connectionTask = Task {
             let result = await settings.testLLMConnection()
+            guard !Task.isCancelled, settings.llmConfig == submitted else { return }
             connectionResult = result; testingConnection = false
         }
     }

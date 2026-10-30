@@ -10,7 +10,7 @@ extension SurveyView {
             // 面板标题
             HStack {
                 Text("智能提示")
-                    .ahCallout()
+                    .ahCaption()
                     .fontWeight(.semibold)
                 Spacer()
             }
@@ -26,6 +26,23 @@ extension SurveyView {
                     if focusedQuestionIndex < cachedDisplayQuestions.count {
                         let question = cachedDisplayQuestions[focusedQuestionIndex]
 
+                        if let record = findAnswer(for: question.id, departmentId: selectedDepartmentId ?? "") {
+                            DisclosureGroup("来源证据与转写") {
+                                Text(record.evidence.isEmpty ? "尚未关联来源证据。可通过 MCP 导入访谈原文或定位。" : record.evidence)
+                                    .ahBody().textSelection(.enabled)
+                                if !record.voiceTranscript.isEmpty {
+                                    DisclosureGroup("原始转写") {
+                                        Text(record.voiceTranscript).ahBody().textSelection(.enabled)
+                                            .frame(maxWidth: .infinity, alignment: .leading)
+                                    }.ahCaption()
+                                }
+                                AHStatus(text: isValidAnswer(record, for: question) ? "已满足题型要求" : "待补充答案",
+                                         color: isValidAnswer(record, for: question) ? .ahSuccess : .ahInk40)
+                                Text("证据保留原文，仍需业务核对。").ahMeta()
+                            }.ahCaption().padding(AHSpacing.s)
+                            AHDivider()
+                        }
+
                         if let hints = question.hints, !hints.isEmpty {
                             VStack(alignment: .leading, spacing: AHSpacing.xs) {
                                 HStack(spacing: AHSpacing.xxs) {
@@ -33,7 +50,7 @@ extension SurveyView {
                                         .ahCaption()
                                         .foregroundStyle(Color.ahWarning)
                                     Text("调研提示")
-                                        .ahCallout()
+                                        .ahCaption()
                                         .fontWeight(.medium)
                                 }
                                 ForEach(hints, id: \.self) { hint in
@@ -67,7 +84,7 @@ extension SurveyView {
                                             .ahCaption()
                                             .foregroundStyle(Color.ahAccent)
                                         Text("智能分析")
-                                            .ahCallout()
+                                            .ahCaption()
                                             .fontWeight(.medium)
                                     }
                                     ForEach(results) { result in
@@ -94,7 +111,7 @@ extension SurveyView {
                                 .ahCaption()
                                 .foregroundStyle(Color.ahSuccess)
                             Text("部门进度")
-                                .ahCallout()
+                                .ahCaption()
                                 .fontWeight(.medium)
                         }
                         ForEach(pluginLoader.selectedDepartments(ids: project.selectedDepartmentIds)) { dept in
@@ -126,7 +143,7 @@ extension SurveyView {
                 }
                 .padding(AHSpacing.s)
             }
-            .background(.background.secondary)
+            .background(Color.ahPaper)
         }
     }
 }

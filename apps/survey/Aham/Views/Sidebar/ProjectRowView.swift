@@ -18,6 +18,7 @@ struct ProjectRowView: View {
                 HStack(spacing: AHSpacing.xs) {
                     AHStatusDot(color: statusColor)
                     Text(project.status.label)
+                        .fixedSize(horizontal: true, vertical: false)
                         .ahCaption()
                         .foregroundStyle(Color.ahInk60)
                     if !project.consultant.isEmpty {
@@ -28,7 +29,9 @@ struct ProjectRowView: View {
                     Text(project.surveyDate, format: .dateTime.month().day())
                         .ahCaption()
                 }
+                .lineLimit(1)
             }
+            .help("\(project.displayName) · \(project.status.label) · \(project.consultant)")
 
             Spacer()
 

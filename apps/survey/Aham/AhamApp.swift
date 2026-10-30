@@ -14,6 +14,11 @@ struct AhamApp: App {
         // 显式建容器：MCP 服务要在视图之外访问 SwiftData
         // 端到端测试可用环境变量启动完全隔离的内存库，绝不触碰用户项目。
         let isStoredInMemoryOnly = ProcessInfo.processInfo.environment["AHAM_TEST_IN_MEMORY"] == "1"
+        // Fixture-only appearance selection; does not change macOS or user defaults.
+        if isStoredInMemoryOnly,
+           let mode = ProcessInfo.processInfo.environment["AHAM_TEST_APPEARANCE"] {
+            NSApplication.shared.appearance = NSAppearance(named: mode == "dark" ? .darkAqua : .aqua)
+        }
         let configuration = ModelConfiguration(isStoredInMemoryOnly: isStoredInMemoryOnly)
         let container = try! ModelContainer(
             for: Project.self, Answer.self, MemoItem.self, AdoptedFollowup.self, MCPChangeSet.self,

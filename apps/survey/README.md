@@ -2,7 +2,7 @@
 
 [![Release](https://img.shields.io/github/v/release/Aham-AIAPP/aham-survey?color=336EE8)](https://github.com/Aham-AIAPP/aham-survey/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-336EE8.svg)](LICENSE)
-[![Design](https://img.shields.io/badge/Design-Aham%20UI%20v6.1-336EE8.svg)](https://github.com/Aham-AIAPP/aham-ui)
+[![Design](https://img.shields.io/badge/Design-Aham%20UI%20v10.1-336EE8.svg)](https://github.com/Aham-AIAPP/aham-ui)
 [![Type](https://img.shields.io/badge/type-macOS%20App-336EE8.svg)](#)
 [![联系我](https://img.shields.io/badge/%E8%81%94%E7%B3%BB%E6%88%91-%E5%BE%AE%E4%BF%A1-336EE8.svg?logo=wechat&logoColor=white)](assets/wechat-qr.png)
 
@@ -21,7 +21,7 @@ Aham Survey 为此而做：它不止于「记下来」，而是把现场调研�
 - **专业** — 围绕真实售前 / 实施调研流程设计：项目、部门问卷、聚焦式问答。
 - **结构化** — 调研不是散记，而是按项目 / 部门 / 章节组织的成果，结束即可导出。
 - **本地优先** — 数据存本机（SwiftData），MCP 服务只绑 `127.0.0.1`，AI 用你自行配置的 LLM Key。
-- **一致** — 与系列共用 Aham UI v6.1 设计语言，亮 / 暗双色。
+- **一致** — 与系列共用 Aham UI v10.1 设计语言，亮 / 暗双色。
 
 > 简言之：把现场对话做成能交付的结构化调研结果，而不是停在零散笔记。
 
@@ -37,7 +37,7 @@ Aham Survey 为此而做：它不止于「记下来」，而是把现场调研�
 
 ## 预览
 
-> 同一套 Aham UI v6.1 设计语言 · 亮 / 暗双色。
+> 同一套 Aham UI v10.1 设计语言 · 亮 / 暗双色。
 
 <table>
 <tr>

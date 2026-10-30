@@ -36,6 +36,10 @@ final class SettingsManager {
     private static let storageKey = "aham_settings"
 
     init() {
+        if ProcessInfo.processInfo.environment["AHAM_TEST_IN_MEMORY"] == "1" {
+            llmConfig = .default
+            return
+        }
         if let data = UserDefaults.standard.data(forKey: Self.storageKey),
            let stored = try? JSONDecoder().decode(StoredSettings.self, from: data) {
             self.llmConfig = stored.llm
@@ -47,6 +51,7 @@ final class SettingsManager {
     // MARK: - 持久化
 
     private func save() {
+        guard ProcessInfo.processInfo.environment["AHAM_TEST_IN_MEMORY"] != "1" else { return }
         _pendingSave?.cancel()
         let item = DispatchWorkItem { [weak self] in
             guard let self else { return }

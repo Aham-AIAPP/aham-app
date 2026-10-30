@@ -1,20 +1,9 @@
 import SwiftUI
 import AppKit
 
-// MARK: - Design Tokens
-//
-// Aham App 全局设计系统 token —— 对齐 aham-ui 设计规范 v5.1。
-// 机读事实源：aham-ui/tokens.json。所有视图必须使用这些 token，禁止硬编码。
-//
-// aham-ui 铁规（强约束）：
-//   · 三层表面（亮）：#FFFFFF 内容 / #F3F3F3 面板·侧栏·卡片 / #E7E7E7 线·选中。无暖调。
-//   · 文字四级：#262626 / #6E6E6E / #9B9B9B / #C4C4C4（对齐 Apple label 递减）。
-//   · 蓝 #336EE8 是 garnish 不是 fill：只用于 logo / 主操作 / 发送 / 选中指示。
-//   · 层次靠三层背景层差，不靠材质/模糊/阴影。静置/hover 无阴影，仅浮层有。
-//   · 状态 = 6px 点 + 文字，绝不 pill/徽章/色块/红黄绿灯。
-//   · 单一无衬线（Inter，缺失回退 system）；数字 mono（JetBrains，回退 SF Mono）。
-//
-// 改视觉改 token，不改 View。
+// MARK: - AhamUI 10.1.0 native tokens
+// Source: aham-ui/tokens.json (78bba0c). Native controls retain macOS semantics.
+// Neutral primary actions, paired light/dark colors, stable control geometry.
 
 // MARK: - HEX → Color 辅助
 
@@ -46,58 +35,39 @@ extension Color {
 // MARK: - 颜色
 
 extension Color {
-    // ─── 文字四级（亮 #262626/6E6E6E/9B9B9B/C4C4C4 · 暗 F5F5F5/A8A8A8/767676/4A4A4A）───
-    /// 主文字 —— 正文/标题
-    static let ahInk    = ahDynamic("#262626", dark: "#F5F5F5")
-    /// 次要文字 —— 说明、副标题、元数据
-    static let ahInk60  = ahDynamic("#6E6E6E", dark: "#A8A8A8")
-    /// 三级文字 —— 占位/装饰（非正文）
-    static let ahInk40  = ahDynamic("#9B9B9B", dark: "#767676")
-    /// 四级 —— 最弱分隔/禁用，不承载正文
-    static let ahInk20  = ahDynamic("#C4C4C4", dark: "#4A4A4A")
-    /// accent 上的前景（恒白）
-    static let ahOnAccent = Color.white
-
-    // ─── 三层表面（亮 #FFFFFF/F3F3F3/E7E7E7 · 暗 #1C1C1C/2A2A2A/3A3A3A）───
-    /// tier1 内容底色（窗口/内容区/输入框）
-    static let ahPaper    = ahDynamic("#FFFFFF", dark: "#1C1C1C")
-    /// tier2 面板/侧栏/卡片底色（靠层差区分，代替边框+阴影）
-    static let ahPaperAlt = ahDynamic("#F3F3F3", dark: "#2A2A2A")
-    /// 工具条/分隔条底色 —— 同 tier2
-    static let ahPaperBar = ahDynamic("#F3F3F3", dark: "#2A2A2A")
-
-    // ─── 描边与分隔（tier3 #E7E7E7 / 暗 #3A3A3A）───
-    /// 边框/分隔线（颜色统一 tier3）
-    static let ahBorder  = ahDynamic("#E7E7E7", dark: "#3A3A3A")
-    /// 分隔线（同 tier3）
-    static let ahDivider = ahDynamic("#E7E7E7", dark: "#3A3A3A")
-    /// 选中态填充 —— 扁平灰 tier3（非蓝！铁规）
-    static let ahSelected = ahDynamic("#E7E7E7", dark: "#3A3A3A")
-
-    // ─── 中性交互填充（无色相，纯黑做底）───
-    static let ahFillHover  = ahInk(0.04)
-    static let ahFillActive = ahInk(0.08)
-
-    // ─── Accent（单蓝，唯一色相 · garnish only）───
-    /// 主强调 #336EE8（暗 #5C8BED）
-    static let ahAccent       = ahDynamic("#336EE8", dark: "#5C8BED")
-    /// hover #5C8BED（暗 #7BA3F0）
-    static let ahAccentHover  = ahDynamic("#5C8BED", dark: "#7BA3F0")
-    /// press #164EC3（暗 #336EE8）
-    static let ahAccentPress  = ahDynamic("#164EC3", dark: "#336EE8")
-    /// 极浅蓝底（tint-surface，几乎不用）
-    static let ahAccentBG     = ahDynamic("#EDF0F7", dark: "#23304A")
-    /// 极浅蓝描边（tint-border，几乎不用）
-    static let ahAccentBorder = ahDynamic("#C8D3EA", dark: "#3A4C6E")
-
-    // ─── 语义色（极弱，仅真风险；禁红黄绿灯）───
-    static let ahSuccess   = ahDynamic("#5A7A60", dark: "#8FB096")
-    static let ahSuccessBG = ahDynamic("#F0F2F0", dark: "#222A24")
-    static let ahWarning   = ahDynamic("#8A7333", dark: "#C2A855")
-    static let ahWarningBG = ahDynamic("#F4F1E9", dark: "#2C2820")
-    static let ahDanger    = ahDynamic("#9E3D31", dark: "#D08070")
-    static let ahDangerBG  = ahDynamic("#F4ECEA", dark: "#2E2220")
-    static let ahInfo      = ahAccent
+    static let ahInk = ahDynamic("#151515", dark: "#F5F5F3")
+    static let ahInk60 = ahDynamic("#666664", dark: "#A6A6A3")
+    static let ahInk40 = ahDynamic("#888886", dark: "#7B7B79")
+    static let ahInk20 = ahDynamic("#E5E5E4", dark: "#2E2E2C")
+    static let ahOnAccent = ahDynamic("#FFFFFF", dark: "#151515")
+    static let ahPaper = ahDynamic("#FFFFFF", dark: "#151515")
+    static let ahPaperAlt = ahDynamic("#F3F3F3", dark: "#20201F")
+    static let ahPaperBar = ahDynamic("#EDECEB", dark: "#0B0B0B")
+    static let ahCanvas = ahDynamic("#EDECEB", dark: "#0B0B0B")
+    static let ahBorder = ahDynamic("#E5E5E4", dark: "#2E2E2C")
+    static let ahInputBorder = ahDynamic("#8C8B89", dark: "#6E6E6B")
+    static let ahDivider = ahDynamic("#E5E5E4", dark: "#2E2E2C")
+    static let ahSelected = ahDynamic("#EBEBEA", dark: "#2C2C2A")
+    static let ahFillHover = ahDynamic("#F3F3F3", dark: "#20201F")
+    static let ahFillActive = ahDynamic("#E3E2E1", dark: "#383836")
+    static let ahAccent = ahDynamic("#336EE8", dark: "#6C97F0")
+    static let ahAccentHover = ahDynamic("#336EE8", dark: "#6C97F0")
+    static let ahAccentPress = ahDynamic("#336EE8", dark: "#6C97F0")
+    static let ahAccentBG = ahDynamic("#EDF1FA", dark: "#1F2A40")
+    static let ahAccentBorder = ahDynamic("#E5E5E4", dark: "#2E2E2C")
+    static let ahAction = ahDynamic("#252524", dark: "#E3E2E0")
+    static let ahActionHover = ahDynamic("#383836", dark: "#F5F5F3")
+    static let ahActionPress = ahDynamic("#151515", dark: "#CECDCA")
+    static let ahButton = ahDynamic("#F3F3F2", dark: "#252524")
+    static let ahButtonHover = ahDynamic("#EBEBEA", dark: "#2E2E2C")
+    static let ahButtonPress = ahDynamic("#E3E2E1", dark: "#383836")
+    static let ahSuccess = ahDynamic("#1F7A4D", dark: "#6DBE8F")
+    static let ahSuccessBG = ahDynamic("#EAF4EE", dark: "#1C2A22")
+    static let ahWarning = ahDynamic("#A15C07", dark: "#E0A84A")
+    static let ahWarningBG = ahDynamic("#FBF2E4", dark: "#2E2617")
+    static let ahDanger = ahDynamic("#B42318", dark: "#F08A7E")
+    static let ahDangerBG = ahDynamic("#FBEBE9", dark: "#33201D")
+    static let ahInfo = ahDynamic("#336EE8", dark: "#7EA4F2")
 }
 
 // MARK: - 间距 (Spacing)
@@ -158,11 +128,11 @@ private extension View {
 }
 
 extension View {
-    /// 视图主标题（24 / semibold）—— ↔ Apple Title 2 / aham-ui heading
+    /// 视图主标题（20 / semibold）—— ↔ Apple Title 2 / aham-ui heading
     func ahTitle() -> some View {
-        self.font(.system(size: 24, weight: .semibold))
+        self.font(.system(size: 20, weight: .semibold))
             .tracking(-0.2)
-            .ahLine(24, 1.25)
+            .ahLine(20, 1.3)
     }
     /// 区块标题（20 / semibold）—— ↔ subheading
     func ahTitle2() -> some View {
@@ -199,7 +169,7 @@ extension View {
     /// 极小信息（12 / regular / 三级灰）—— ↔ caption
     func ahCaption() -> some View {
         self.font(.system(size: 12, weight: .regular))
-            .foregroundStyle(Color.ahInk40)
+            .foregroundStyle(Color.ahInk60)
     }
     /// Mono 数字/代码（跟随所在样式字号）
     func ahMono(_ size: CGFloat = 14, weight: Font.Weight = .regular) -> some View {
@@ -242,12 +212,21 @@ enum AHIconBox {
 // MARK: - 动效 —— 克制：服务反馈不表演。统一缓动 cubic-bezier(.2,0,0,1)，禁弹跳/循环/>.3s。
 
 enum AHAnimation {
-    /// fast .12s —— hover / 快速反馈
-    static let quick = Animation.timingCurve(0.2, 0, 0, 1, duration: 0.12)
-    /// base .18s —— tab 切换 / 面板进出
-    static let standard = Animation.timingCurve(0.2, 0, 0, 1, duration: 0.18)
-    /// slow .28s —— 展开折叠
-    static let expand = Animation.timingCurve(0.2, 0, 0, 1, duration: 0.28)
+    /// Keyboard actions and Reduce Motion never move geometry.
+    static func motion(_ duration: Double) -> Animation? {
+        guard !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion,
+              NSApp.currentEvent?.type != .keyDown else { return nil }
+        return .timingCurve(0.2, 0, 0, 1, duration: duration)
+    }
+    static var quick: Animation? { motion(0.12) }
+    static var standard: Animation? { motion(0.15) }
+    static var expand: Animation? { motion(0.20) }
+}
+
+enum AHLayout {
+    static let control: CGFloat = 32
+    static let largeControl: CGFloat = 40
+    static let editorHeight: CGFloat = 120
 }
 
 // MARK: - 扁平饰面（替代旧 Liquid Glass）
