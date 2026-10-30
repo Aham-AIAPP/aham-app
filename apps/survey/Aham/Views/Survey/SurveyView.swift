@@ -35,6 +35,7 @@ import SwiftData
 
 struct SurveyView: View {
     @Bindable var project: Project
+    @Environment(AppStore.self) var appStore
     @Environment(PluginLoader.self) var pluginLoader
     @Environment(\.modelContext) var modelContext
     @Query var allAnswers: [Answer]
@@ -63,7 +64,13 @@ struct SurveyView: View {
     @State var cachedDisplayQuestions: [QuestionTemplate] = []
     @State var cachedFollowupIds: Set<String> = []
 
-    // MARK: - 业务方法（V2 原样保留）
+    var surveyService: SurveyService { SurveyService(context: modelContext, pluginLoader: pluginLoader) }
+
+    func progressQuestions(for department: String) -> [QuestionTemplate] {
+        surveyService.questions(for: project, departmentId: department)
+    }
+
+    // MARK: - 业务方法
 
     func baseQuestions(for deptId: String) -> [QuestionTemplate] {
         pluginLoader.questions(for: deptId, scopes: project.surveyScopes)
@@ -140,7 +147,14 @@ struct SurveyView: View {
             ensureAnswersExist()
             rebuildDisplayQuestions()
         }
-        .onChange(of: allAnswers.count) { rebuildAnswerLookup() }
+        .onChange(of: allAnswers.count) {
+            rebuildAnswerLookup()
+            ensureAnswersExist()
+        }
+        .onChange(of: project.revision) { _, _ in
+            rebuildAnswerLookup()
+            rebuildDisplayQuestions()
+        }
         .onChange(of: focusedQuestionIndex) { _, _ in resetAIState() }
         .disabled(project.status == .archived)
         .overlay {
@@ -210,7 +224,7 @@ struct SurveyView: View {
     @ViewBuilder
     private func departmentTabButton(for dept: DepartmentTemplate) -> some View {
         let isSelected = selectedDepartmentId == dept.id
-        let deptTotal  = baseQuestions(for: dept.id).count
+        let deptTotal  = progressQuestions(for: dept.id).count
         let deptDone   = answeredCount(for: dept.id)
         let completed  = deptDone == deptTotal && deptTotal > 0
 
@@ -460,12 +474,20 @@ struct SurveyView: View {
                 departments: pluginLoader.selectedDepartments(ids: project.selectedDepartmentIds),
                 selectedDepartmentId: selectedDepartmentId ?? "",
                 onIgnoreToggle: {
-                    answer.status = answer.status == .ignored ? .unanswered : .ignored
+                    appStore.performWrite {
+                        try surveyService.editAnswer(answer, in: project) {
+                            $0.status = $0.status == .ignored ? .unanswered : .ignored
+                        }
+                    }
                 },
                 onTransfer: { deptId in
-                    answer.status = .transferred
                     if let dept = pluginLoader.departments.first(where: { $0.id == deptId }) {
-                        answer.noteText += "\n[转移至: \(dept.name)]"
+                        appStore.performWrite {
+                            try surveyService.editAnswer(answer, in: project) {
+                                $0.status = .transferred
+                                $0.noteText += "\n[转移至: \(dept.name)]"
+                            }
+                        }
                     }
                 },
                 onClear: { resetAIState() },
@@ -627,6 +649,7 @@ struct SurveyView: View {
         polishStatus = .pending
         let enhancer  = getEnhancer()
         let deptId    = selectedDepartmentId ?? ""
+        let expectedRevision = answer.revision
 
         polishTask = Task { @MainActor in
             guard !Task.isCancelled else { polishStatus = .idle; return }
@@ -636,7 +659,11 @@ struct SurveyView: View {
                 note: answer.noteText
             ) {
                 guard !Task.isCancelled else { return }
-                answer.polishedText = result.polished
+                guard appStore.performWrite({
+                    try surveyService.editAnswer(answer, in: project, expectedRevision: expectedRevision) {
+                        $0.polishedText = result.polished
+                    }
+                }) else { polishStatus = .error("答案已变化或无法保存，请重试"); return }
                 for (key, items) in result.extracts {
                     let category: MemoCategory? = switch key {
                     case "forms": .forms
@@ -661,20 +688,7 @@ struct SurveyView: View {
     /// 把 AI 提取的条目并入备忘：完全重复跳过，更详细的版本替换旧条目，每类上限 20 条。
     /// 规则与改为持久化之前的实现保持一致。
     private func mergeExtractedMemo(_ item: String, into category: MemoCategory) {
-        let existing = memoItems[category] ?? []
-        let isDuplicate = existing.contains {
-            $0.text.localizedCaseInsensitiveCompare(item) == .orderedSame ||
-            $0.text.localizedCaseInsensitiveContains(item) ||
-            item.localizedCaseInsensitiveContains($0.text)
-        }
-        if !isDuplicate {
-            guard existing.count < 20 else { return }
-            modelContext.insert(MemoItem(projectId: project.id, category: category, text: item))
-        } else if let older = existing.first(where: {
-            item.localizedCaseInsensitiveContains($0.text) && item.count > $0.text.count
-        }) {
-            older.text = item
-        }
+        appStore.performWrite { try surveyService.addMemo(item, category: category, to: project, merge: true) }
     }
 
     func scheduleFollowups(question: QuestionTemplate, answer: Answer) {
@@ -716,10 +730,10 @@ struct SurveyView: View {
             hint: fq.reason,
             order: parentQuestion.order
         )
-        modelContext.insert(adopted)
-        let answer = Answer(projectId: project.id, departmentId: deptId, questionId: fuId)
-        modelContext.insert(answer)
-        answerLookup["\(deptId)::\(fuId)"] = answer
+        guard appStore.performWrite({
+            let answer = try surveyService.adoptFollowup(adopted, into: project)
+            answerLookup["\(deptId)::\(fuId)"] = answer
+        }) else { return }
         followups.remove(at: index)
         rebuildDisplayQuestions()
         if let newIndex = cachedDisplayQuestions.firstIndex(where: { $0.id == fuId }) {
@@ -791,7 +805,7 @@ struct SurveyView: View {
     }
 
     func answeredCount(for departmentId: String) -> Int {
-        baseQuestions(for: departmentId).reduce(into: 0) { count, question in
+        progressQuestions(for: departmentId).reduce(into: 0) { count, question in
             let answer = findAnswer(for: question.id, departmentId: departmentId)
             if isValidAnswer(answer, for: question) { count += 1 }
         }
@@ -807,23 +821,15 @@ struct SurveyView: View {
     }
 
     private func ensureAnswersExist() {
-        for deptId in project.selectedDepartmentIds {
-            for question in baseQuestions(for: deptId) {
-                let key = "\(deptId)::\(question.id)"
-                if answerLookup[key] == nil {
-                    let answer = Answer(projectId: project.id, departmentId: deptId, questionId: question.id)
-                    modelContext.insert(answer)
-                    answerLookup[key] = answer
-                }
-            }
+        guard project.status != .archived else { return }
+        if appStore.performWrite({ try surveyService.prepareAnswers(for: project) }) {
+            answerLookup = Dictionary(uniqueKeysWithValues: surveyService.answers(for: project).map {
+                ("\($0.departmentId)::\($0.questionId)", $0)
+            })
         }
     }
 
     private func updateProjectProgress() {
-        let total = project.selectedDepartmentIds.reduce(0) { $0 + baseQuestions(for: $1).count }
-        let answered = project.selectedDepartmentIds.reduce(0) { $0 + answeredCount(for: $1) }
-        project.totalQuestions = total
-        project.answeredQuestions = answered
-        project.progress = total > 0 ? Double(answered) / Double(total) : 0
+        ProjectService(context: modelContext, pluginLoader: pluginLoader).syncProgress(project)
     }
 }

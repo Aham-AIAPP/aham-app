@@ -38,7 +38,10 @@ struct ExportService {
                     noteText: answer?.noteText ?? "",
                     polishedText: answer?.polishedText ?? "",
                     voiceTranscript: answer?.voiceTranscript ?? "",
-                    hasContent: isValid
+                    hasContent: isValid,
+                    questionId: question.id, required: question.required,
+                    status: answer?.status.rawValue ?? AnswerStatus.unanswered.rawValue,
+                    otherText: answer?.otherText ?? "", evidence: answer?.evidence ?? ""
                 )
             }
 
@@ -61,6 +64,8 @@ struct ExportService {
              texts: memos.filter { $0.category == category.rawValue }.map(\.text))
         }
 
+        let allItems = deptSections.values.flatMap { $0.flatMap(\.items) }
+        let answered = allItems.filter(\.hasContent).count
         return ExportSnapshot(
             displayName: project.displayName,
             customerName: project.customerName,
@@ -73,13 +78,13 @@ struct ExportService {
             revenue: project.revenue,
             existingSystems: project.existingSystems,
             surveyGoal: project.surveyGoal,
-            totalQuestions: project.totalQuestions,
-            answeredQuestions: project.answeredQuestions,
-            progress: project.progress,
+            totalQuestions: allItems.count,
+            answeredQuestions: answered,
+            progress: allItems.isEmpty ? 0 : Double(answered) / Double(allItems.count),
             selectedDepartmentIds: project.selectedDepartmentIds,
             departmentNames: deptNames,
             departmentSections: deptSections,
-            memoItems: memoGroups
+            memoItems: memoGroups, productInfo: project.productInfo, revision: project.revision
         )
     }
 

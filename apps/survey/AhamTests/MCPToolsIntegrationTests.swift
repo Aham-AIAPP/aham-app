@@ -19,7 +19,10 @@ final class MCPToolsIntegrationTests: XCTestCase {
         let projectId = try XCTUnwrap(create["id"] as? String)
 
         let replay = try dictionary(tools.call("create_project", args: [
-            "customer": "此名称不应再创建",
+            "customer": "MCP 集成测试",
+            "consultant": "XCTest",
+            "industry": "equipment",
+            "scopes": ["erp"],
             "departments": ["procurement"],
             "request_id": "create-integration-001"
         ]))

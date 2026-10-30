@@ -118,8 +118,7 @@ struct ProjectListView: View {
     private func projectContextMenu(_ project: Project) -> some View {
         if project.status == .draft {
             Button {
-                project.status = .inProgress
-                project.updatedAt = .now
+                updateStatus(project, to: .inProgress)
             } label: {
                 Label("开始调研", systemImage: "play")
             }
@@ -127,8 +126,7 @@ struct ProjectListView: View {
 
         if project.status == .inProgress {
             Button {
-                project.status = .completed
-                project.updatedAt = .now
+                updateStatus(project, to: .completed)
             } label: {
                 Label("标记完成", systemImage: "checkmark.circle")
             }
@@ -136,8 +134,7 @@ struct ProjectListView: View {
 
         if project.status != .archived {
             Button {
-                project.status = .archived
-                project.updatedAt = .now
+                updateStatus(project, to: .archived)
             } label: {
                 Label("归档", systemImage: "archivebox")
             }
@@ -145,8 +142,7 @@ struct ProjectListView: View {
 
         if project.status == .archived {
             Button {
-                project.status = .completed
-                project.updatedAt = .now
+                updateStatus(project, to: .inProgress)
             } label: {
                 Label("取消归档", systemImage: "arrow.uturn.backward")
             }
@@ -164,11 +160,18 @@ struct ProjectListView: View {
 
     // MARK: - Actions
 
+    private func updateStatus(_ project: Project, to status: ProjectStatus) {
+        appStore.performWrite {
+            try ProjectService(context: modelContext, pluginLoader: pluginLoader)
+                .update(project, fields: ["status": status.rawValue])
+        }
+    }
+
     private func deleteProject(_ project: Project) {
         if appStore.selectedProjectId == project.id {
             appStore.selectedProjectId = nil
             appStore.isSurveying = false
         }
-        try? ProjectService(context: modelContext, pluginLoader: pluginLoader).delete(project)
+        appStore.performWrite { try ProjectService(context: modelContext, pluginLoader: pluginLoader).delete(project) }
     }
 }

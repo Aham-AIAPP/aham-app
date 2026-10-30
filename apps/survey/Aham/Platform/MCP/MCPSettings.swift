@@ -12,12 +12,25 @@ final class MCPSettings {
     private static let keychainService = "com.lichengbao.Aham.mcp"
     private static let keychainAccount = "local-access-token"
 
+    private let isEphemeral = ProcessInfo.processInfo.environment["AHAM_TEST_IN_MEMORY"] == "1"
+
     private(set) var port: UInt16
     private var token: String
     private(set) var lastPersistenceError: String?
     let connectionConfigURL: URL
 
     init() {
+        // 隔离测试不能读取正式 Keychain、覆写连接文件或占用正式 MCP 端口。
+        if isEphemeral {
+            port = UInt16.random(in: 49_152...65_000)
+            token = Self.makeToken()
+            connectionConfigURL = FileManager.default.temporaryDirectory
+                .appendingPathComponent("AhamSurveyTests-" + UUID().uuidString, isDirectory: true)
+                .appendingPathComponent("mcp-connection.json")
+            persistTokenAndDescriptor()
+            print("AHAM_TEST_CONFIG_PATH=\(connectionConfigURL.path)")
+            return
+        }
         let stored = UserDefaults.standard.data(forKey: Self.storageKey)
             .flatMap { try? JSONDecoder().decode(Stored.self, from: $0) }
 
@@ -75,13 +88,14 @@ final class MCPSettings {
     }
 
     private func savePortOnly() {
+        guard !isEphemeral else { return }
         guard let data = try? JSONEncoder().encode(Stored(port: port, token: nil)) else { return }
         UserDefaults.standard.set(data, forKey: Self.storageKey)
     }
 
     private func persistTokenAndDescriptor() {
         do {
-            try Self.saveTokenToKeychain(token)
+            if !isEphemeral { try Self.saveTokenToKeychain(token) }
             try writeConnectionDescriptor()
             lastPersistenceError = nil
         } catch {

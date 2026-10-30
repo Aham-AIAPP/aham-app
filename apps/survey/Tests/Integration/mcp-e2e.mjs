@@ -101,7 +101,9 @@ try {
     request_id: `e2e-create-${Date.now()}`,
   };
   const created = await call("create_project", createArgs);
-  const replayed = await call("create_project", { ...createArgs, customer: "不应重复创建" });
+  const replayed = await call("create_project", createArgs);
+  const conflictingCreate = await call("create_project", { ...createArgs, customer: "不应重复创建" }, true);
+  assert(conflictingCreate.structuredContent?.code === "IDEMPOTENCY_CONFLICT", "不同创建内容复用了 request_id");
   assert(created.id === replayed.id, "create_project 幂等失败");
   pass("create-idempotency", created.id);
 
@@ -118,6 +120,7 @@ try {
   const row = target.type === "single_choice"
     ? { department: department.id, question: target.id, options: [target.options[0]], note: "E2E 明确测试答案" }
     : { department: department.id, question: target.id, text: "E2E 明确测试答案" };
+  row.evidence = "E2E 来源原文 00:12";
   const invalid = target.type === "single_choice"
     ? await call("preview_answer_import", {
         project: created.id,
@@ -145,6 +148,9 @@ try {
   assert(changes.some((item) => item.id === committed.changeSet), "变更日志缺少提交记录");
   const report = await call("export_report", { project: created.id });
   assert(report.markdown.includes(createArgs.customer), "导出报告缺少客户名");
+  assert(afterQuestions.find((item) => item.id === target.id)?.evidence === row.evidence, "来源证据未回读");
+  assert(report.markdown.includes(row.evidence), "来源证据未进入报告");
+  assert(report.markdown.includes("待确认与调研缺口"), "报告缺少调研缺口");
   pass("readback-log-export", `report revision ${report.revision}`);
 
   const undone = await call("undo_change_set", {
@@ -155,6 +161,29 @@ try {
   const undoneQuestions = await call("list_questions", { project: created.id, department: department.id });
   assert(undoneQuestions.find((item) => item.id === target.id)?.answered === false, "撤销后答案仍有效");
   pass("undo-readback", `revision ${undone.revision}`);
+
+  const otherRow = { department: department.id, question: target.id, options: ["__other__"], otherText: "E2E 其他说明", evidence: "E2E 保存证据" };
+  const otherPreview = await call("preview_answer_import", { project: created.id, answers: [otherRow] });
+  const otherCommit = await call("commit_answer_import", { project: created.id, answers: [otherRow],
+    preview_token: otherPreview.preview_token, request_id: `e2e-other-${Date.now()}` });
+  const transcriptQuestion = questions.find((item) => item.id !== target.id);
+  await call("import_transcript", { project: created.id, department: department.id,
+    question: transcriptQuestion.id, text: "E2E 未答题转写", request_id: `e2e-transcript-${Date.now()}` });
+  const fullReport = await call("export_report", { project: created.id });
+  assert(fullReport.markdown.includes("E2E 其他说明"), "报告遗漏其他说明");
+  assert(fullReport.markdown.includes("E2E 未答题转写"), "报告遗漏未答题转写");
+  pass("report-preserves-partial-evidence", fullReport.revision);
+
+  await call("upsert_answers", { project: created.id, answers: [{ department: department.id, question: target.id, note: "E2E 后续修改" }] });
+  const conflict = await call("undo_change_set", { change_set: otherCommit.changeSet, request_id: `e2e-conflict-${Date.now()}` }, true);
+  assert(conflict.structuredContent?.code === "UNDO_CONFLICT", "撤销未保护后续修改");
+  const preserved = await call("list_questions", { project: created.id, department: department.id });
+  assert(preserved.find((item) => item.id === target.id)?.note === "E2E 后续修改", "冲突撤销覆盖了后续内容");
+  pass("undo-conflict-protection", conflict.structuredContent.code);
+
+  const completion = await call("update_project", { project: created.id, fields: { status: "completed" } }, true);
+  assert(completion.structuredContent?.code === "INVALID_INPUT", "必答题缺失仍标记完成");
+  pass("required-completion-validation", completion.structuredContent.code);
 
   const current = await call("get_project", { project: created.id });
   await call("update_project", {

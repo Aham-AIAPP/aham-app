@@ -1,11 +1,15 @@
 import SwiftUI
+import SwiftData
 
 /// 聚焦问题卡片的内容视图
-/// 使用 @Bindable 直接绑定 Answer，避免自定义 Binding 导致 TextEditor 卡顿
+/// 输入经服务层保存；草稿和已完成答案共享归档、修订与进度规则。
 struct FocusedCardContent: View {
     let question: QuestionTemplate
     let index: Int
-    @Bindable var answer: Answer
+    let answer: Answer
+    @Environment(AppStore.self) private var appStore
+    @Environment(PluginLoader.self) private var pluginLoader
+    @Environment(\.modelContext) private var modelContext
     let project: Project
     let departments: [DepartmentTemplate]
     let selectedDepartmentId: String
@@ -76,7 +80,7 @@ struct FocusedCardContent: View {
                             .foregroundStyle(.secondary)
                         Spacer()
                     }
-                    TextEditor(text: $answer.noteText)
+                    TextEditor(text: answerBinding(\.noteText))
                         .ahCallout()
                         .scrollContentBackground(.hidden)
                         .frame(minHeight: 100, idealHeight: 140, maxHeight: 240)
@@ -86,9 +90,7 @@ struct FocusedCardContent: View {
                             RoundedRectangle(cornerRadius: AHRadius.sm)
                                 .stroke(Color.ahBorder, lineWidth: 1)
                         )
-                        .onChange(of: answer.noteText) {
-                            onNoteChanged()
-                        }
+
 
                     // AI 润色区域
                     aiPolishSection
@@ -209,13 +211,16 @@ struct FocusedCardContent: View {
     private var actionButtons: some View {
         HStack(spacing: AHSpacing.xs) {
             Button(role: .destructive) {
-                answer.selectedOptions = []
-                answer.textValue = ""
-                answer.otherText = ""
-                answer.noteText = ""
-                answer.polishedText = ""
-                answer.voiceTranscript = ""
-                answer.status = .unanswered
+                editAnswer { record in
+                    record.selectedOptions = []
+                    record.textValue = ""
+                    record.otherText = ""
+                    record.noteText = ""
+                    record.polishedText = ""
+                    record.voiceTranscript = ""
+                    record.evidence = ""
+                    record.status = .unanswered
+                }
                 onClear()
             } label: {
                 Label("清除", systemImage: "trash")
@@ -287,8 +292,10 @@ struct FocusedCardContent: View {
                     TextField("请补充...", text: Binding(
                         get: { answer.otherText },
                         set: { newVal in
-                            answer.otherText = newVal
-                            syncTextValue()
+                            if editAnswer({ record in
+                                record.otherText = newVal
+                                syncTextValue(record)
+                            }) { onAnswerChanged() }
                         }
                     ))
                     .textFieldStyle(.roundedBorder)
@@ -301,7 +308,7 @@ struct FocusedCardContent: View {
             VStack(alignment: .leading, spacing: AHSpacing.xxs) {
                 Text("回答")
                     .ahCaption()
-                TextEditor(text: $answer.textValue)
+                TextEditor(text: answerBinding(\.textValue))
                     .ahCallout()
                     .scrollContentBackground(.hidden)
                     .frame(minHeight: 80, maxHeight: 160)
@@ -311,10 +318,7 @@ struct FocusedCardContent: View {
                         RoundedRectangle(cornerRadius: AHRadius.sm)
                             .stroke(Color.ahBorder, lineWidth: 1)
                     )
-                    .onChange(of: answer.textValue) {
-                        markAnswered()
-                        onAnswerChanged()
-                    }
+
             }
         }
     }
@@ -366,31 +370,21 @@ struct FocusedCardContent: View {
     }
 
     private func selectOption(_ option: String) {
-        if isMultiChoice {
-            if answer.selectedOptions.contains(option) {
-                answer.selectedOptions.removeAll { $0 == option }
-            } else {
-                answer.selectedOptions.append(option)
-            }
-        } else {
-            // 单选：如果选了"其他"，清掉之前的选项
-            if option == "__other__" {
-                answer.selectedOptions = ["__other__"]
-            } else {
-                answer.selectedOptions = [option]
-                answer.otherText = ""
-            }
-        }
-        syncTextValue()
-        markAnswered()
-        onAnswerChanged()
+        if editAnswer({ record in
+            if isMultiChoice {
+                if record.selectedOptions.contains(option) {
+                    record.selectedOptions.removeAll { $0 == option }
+                } else { record.selectedOptions.append(option) }
+            } else { record.selectedOptions = [option] }
+            if !record.selectedOptions.contains("__other__") { record.otherText = "" }
+            syncTextValue(record)
+        }) { onAnswerChanged() }
     }
 
-    private func syncTextValue() {
-        let display = answer.selectedOptions.map { opt in
-            opt == "__other__" ? (answer.otherText.isEmpty ? "其他" : answer.otherText) : opt
-        }
-        answer.textValue = display.joined(separator: " | ")
+    private func syncTextValue(_ record: Answer) {
+        record.textValue = record.selectedOptions.map {
+            $0 == "__other__" ? (record.otherText.isEmpty ? "其他" : record.otherText) : $0
+        }.joined(separator: " | ")
     }
 
     // MARK: - AI Polish Section
@@ -452,7 +446,7 @@ struct FocusedCardContent: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .background(Color.ahPaperAlt, in: .rect(cornerRadius: AHRadius.xs))
             } else if !answer.polishedText.isEmpty {
-                TextEditor(text: $answer.polishedText)
+                TextEditor(text: answerBinding(\.polishedText))
                     .ahCaption()
                     .scrollContentBackground(.hidden)
                     .frame(minHeight: 60, idealHeight: 80, maxHeight: 140)
@@ -565,13 +559,21 @@ struct FocusedCardContent: View {
             .background(Color.ahPaperAlt, in: .capsule)
     }
 
-    private func markAnswered() {
-        let valid = AnswerValidator.evaluate(answer, for: question).isValid
-        if valid && answer.status == .unanswered {
-            answer.status = .answered
-        } else if !valid && answer.status == .answered {
-            answer.status = .unanswered
+    @discardableResult
+    private func editAnswer(_ apply: (Answer) -> Void) -> Bool {
+        appStore.performWrite {
+            try SurveyService(context: modelContext, pluginLoader: pluginLoader)
+                .editAnswer(answer, in: project, apply: apply)
         }
+    }
+
+    private func answerBinding(_ keyPath: ReferenceWritableKeyPath<Answer, String>) -> Binding<String> {
+        Binding(get: { answer[keyPath: keyPath] }, set: { value in
+            if editAnswer({ $0[keyPath: keyPath] = value }) {
+                if keyPath == \Answer.textValue { onAnswerChanged() }
+                if keyPath == \Answer.noteText { onNoteChanged() }
+            }
+        })
     }
 
 }

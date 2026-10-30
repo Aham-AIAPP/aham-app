@@ -13,6 +13,8 @@ final class MCPChangeSet {
     var afterJSON: Data
     var resultJSON: Data
     var undoneAt: Date?
+    /// 旧记录为空；不能将其当作任意新请求的幂等结果。
+    var requestFingerprint: String = ""
 
     init(
         requestId: String,

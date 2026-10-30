@@ -42,7 +42,7 @@ extension SurveyView {
                     Spacer()
 
                     // 总进度
-                    let totalAll = project.selectedDepartmentIds.reduce(0) { $0 + baseQuestions(for: $1).count }
+                    let totalAll = project.selectedDepartmentIds.reduce(0) { $0 + progressQuestions(for: $1).count }
                     let answeredAll = project.selectedDepartmentIds.reduce(0) { $0 + answeredCount(for: $1) }
                     let pct = totalAll > 0 ? Int(Double(answeredAll) / Double(totalAll) * 100) : 0
                     Text("\(pct)%")
@@ -99,7 +99,7 @@ extension SurveyView {
                                             .lineLimit(1)
                                         Spacer()
                                         Button {
-                                            modelContext.delete(item)
+                                            appStore.performWrite { try surveyService.deleteMemo(item, from: project) }
                                         } label: {
                                             Image(systemName: "xmark")
                                                 .ahCaption()
@@ -152,9 +152,8 @@ extension SurveyView {
     private func addMemoItem(to category: MemoCategory) {
         let trimmed = newMemoText.trimmingCharacters(in: .whitespaces)
         guard !trimmed.isEmpty else { return }
-        newMemoText = ""
-
-        guard (memoItems[category] ?? []).count < 20 else { return }
-        modelContext.insert(MemoItem(projectId: project.id, category: category, text: trimmed))
+        if appStore.performWrite({ try surveyService.addMemo(trimmed, category: category, to: project) }) {
+            newMemoText = ""
+        }
     }
 }

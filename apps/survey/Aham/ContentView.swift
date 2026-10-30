@@ -3,6 +3,7 @@ import SwiftData
 
 struct ContentView: View {
     @Environment(AppStore.self) private var appStore
+    @Environment(PluginLoader.self) private var pluginLoader
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \Project.updatedAt, order: .reverse) private var allProjects: [Project]
 
@@ -37,6 +38,12 @@ struct ContentView: View {
                 surveyDetail
             }
         }
+        .alert("无法保存修改", isPresented: Binding(
+            get: { appStore.writeError != nil },
+            set: { if !$0 { appStore.writeError = nil } }
+        )) {
+            Button("知道了", role: .cancel) { appStore.writeError = nil }
+        } message: { Text(appStore.writeError ?? "") }
         .navigationSplitViewStyle(.balanced)
         .frame(minWidth: 900, minHeight: 620)
         .onChange(of: appStore.isSurveying) { _, surveying in
@@ -44,6 +51,12 @@ struct ContentView: View {
                 appStore.isSurveying = false
                 columnVisibility = .all
             } else {
+                if surveying, let project = currentProject, project.status == .draft {
+                    guard appStore.performWrite({
+                        try ProjectService(context: modelContext, pluginLoader: pluginLoader)
+                            .update(project, fields: ["status": ProjectStatus.inProgress.rawValue])
+                    }) else { appStore.isSurveying = false; return }
+                }
                 columnVisibility = surveying ? .detailOnly : .all
             }
         }

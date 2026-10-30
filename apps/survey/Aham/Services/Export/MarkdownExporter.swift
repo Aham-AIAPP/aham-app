@@ -249,6 +249,9 @@ struct ExportSnapshot {
     var departmentSections: [String: [ExportSectionData]]  // deptId → sections
     var memoItems: [(category: String, texts: [String])] = []  // 现场备忘，四类有序
 
+    var productInfo: String = ""
+    var revision: Int = 0
+
     struct ExportSectionData {
         var label: String
         var items: [ExportItem]
@@ -264,6 +267,23 @@ struct ExportSnapshot {
         var polishedText: String
         var voiceTranscript: String
         var hasContent: Bool
+        var questionId: String = ""
+        var required: Bool = false
+        var status: String = "unanswered"
+        var otherText: String = ""
+        var evidence: String = ""
+
+        func hasReportMaterial(_ config: ExportConfig) -> Bool {
+            hasContent || !selectedOptions.isEmpty || !textValue.isEmpty || !otherText.isEmpty || !evidence.isEmpty ||
+            (config.includeNotes && !noteText.isEmpty) || (config.includeVoice && !voiceTranscript.isEmpty) ||
+            (config.includeAIPolish && !polishedText.isEmpty)
+        }
+
+        var completionLabel: String {
+            if status == "ignored" { return "已忽略，未完成" }
+            if status == "transferred" { return "已转移，未完成" }
+            return hasContent ? "有效答案" : "待确认：尚未形成有效答案"
+        }
     }
 
     var answeredDeptIds: [String] {
@@ -295,7 +315,7 @@ extension MarkdownExporter {
             md += "\n---\n\n## \(name)\n\n"
 
             for section in sections {
-                let visibleItems = section.items.filter(\.hasContent)
+                let visibleItems = section.items.filter { $0.hasReportMaterial(config) }
                 if visibleItems.isEmpty { continue }
 
                 md += "### \(section.label)\n\n"
@@ -315,11 +335,27 @@ extension MarkdownExporter {
             }
         }
 
+        md += "\n---\n\n## 待确认与调研缺口\n\n"
+        let exportedItems = deptIds.flatMap { snapshot.departmentSections[$0]?.flatMap(\.items) ?? [] }
+        for deptId in deptIds {
+            let gaps = (snapshot.departmentSections[deptId]?.flatMap(\.items) ?? []).filter { !$0.hasContent }
+            guard !gaps.isEmpty else { continue }
+            md += "### \(snapshot.departmentNames[deptId] ?? deptId)\n\n"
+            for item in gaps {
+                let requirement = item.required ? "必答" : "选答"
+                md += "- \(item.questionId) [\(requirement)] \(item.question) — \(item.completionLabel)\n"
+            }
+            md += "\n"
+        }
+        if exportedItems.allSatisfy(\.hasContent) { md += "所选部门暂无未完成题目。\n\n" }
+        let answered = exportedItems.filter(\.hasContent).count
+        let progress = exportedItems.isEmpty ? 0 : Int(Double(answered) / Double(exportedItems.count) * 100)
         md += "\n---\n\n## 调研统计\n\n"
-        md += "- 总问题数: \(snapshot.totalQuestions)\n"
-        md += "- 已回答: \(snapshot.answeredQuestions)\n"
-        md += "- 完成率: \(Int(snapshot.progress * 100))%\n"
-        md += "- 调研部门: \(snapshot.selectedDepartmentIds.count) 个\n"
+        md += "- 总问题数: \(exportedItems.count)（含已采纳追问）\n"
+        md += "- 已回答: \(answered)\n"
+        md += "- 完成率: \(progress)%\n"
+        md += "- 调研部门: \(deptIds.count) 个\n"
+        md += "- 项目修订号: \(snapshot.revision)\n"
         md += "- 导出时间: \(Date.now.formatted(.dateTime.year().month().day().hour().minute()))\n"
 
         return md
@@ -378,6 +414,7 @@ extension MarkdownExporter {
         if !s.revenue.isEmpty      { md += "| 营收 | \(s.revenue) |\n" }
         if !s.existingSystems.isEmpty { md += "| 已有系统 | \(s.existingSystems) |\n" }
         md += "\n"
+        if !s.productInfo.isEmpty { md += "**产品与工艺**\n\n\(s.productInfo)\n\n" }
         if !s.surveyGoal.isEmpty { md += "> **调研目标**: \(s.surveyGoal)\n\n" }
         return md
     }
@@ -386,11 +423,22 @@ extension MarkdownExporter {
         let prefix = item.isFollowup ? "追问 · " : ""
         var md = "**\(prefix)\(item.topic)** — \(item.question)\n\n"
 
-        if !item.selectedOptions.isEmpty {
-            for opt in item.selectedOptions { md += "- [x] \(opt)\n" }
+        md += "*\(item.completionLabel)*\n\n"
+        let displayOptions = item.selectedOptions.map {
+            $0 == "__other__" ? "其他：\(item.otherText.isEmpty ? "待补充" : item.otherText)" : $0
+        }
+        if !displayOptions.isEmpty {
+            for option in displayOptions { md += "- \(option)\n" }
             md += "\n"
-        } else if !item.textValue.isEmpty {
+        }
+        if !item.otherText.isEmpty, !item.selectedOptions.contains("__other__") {
+            md += "*补充说明:* \(item.otherText)\n\n"
+        }
+        if !item.textValue.isEmpty {
             md += "> \(item.textValue.replacingOccurrences(of: "\n", with: "\n> "))\n\n"
+        }
+        if !item.evidence.isEmpty {
+            md += "*来源证据:* \(item.evidence.replacingOccurrences(of: "\n", with: "\n> "))\n\n"
         }
 
         if config.includeAIPolish  && !item.polishedText.isEmpty    { md += "*AI 润色:* \(item.polishedText)\n\n" }

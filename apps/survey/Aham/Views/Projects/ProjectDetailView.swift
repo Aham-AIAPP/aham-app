@@ -34,6 +34,9 @@ struct ProjectDetailView: View {
 
 
     @State private var showExportPanel = false
+    @State private var customerNameDraft = ""
+    @State private var customerNameRevision = 0
+    @FocusState private var editingCustomerName: Bool
 
     // V3 新增：tab 选择
     @State private var activeTab: DetailTab = .overview
@@ -65,7 +68,14 @@ struct ProjectDetailView: View {
             .background(Color.ahPaper)
         }
         .navigationTitle(project.displayName)
-        .onAppear { syncProgress() }
+        .onAppear { syncProgress(); customerNameDraft = project.customerName }
+        .onChange(of: editingCustomerName) { _, editing in
+            if editing { customerNameRevision = project.revision }
+            else { saveCustomerName() }
+        }
+        .onChange(of: project.customerName) { _, name in
+            if !editingCustomerName { customerNameDraft = name }
+        }
         .toolbar { toolbarContent }
     }
 
@@ -124,9 +134,9 @@ struct ProjectDetailView: View {
         HStack(spacing: AHSpacing.s) {
             if project.status == .draft {
                 Button {
-                    project.status = .inProgress
-                    project.updatedAt = .now
-                    appStore.isSurveying = true
+                    if updateFields(["status": ProjectStatus.inProgress.rawValue]) {
+                        appStore.isSurveying = true
+                    }
                 } label: {
                     Label("开始调研", systemImage: "play.fill")
                 }
@@ -143,7 +153,7 @@ struct ProjectDetailView: View {
                 .buttonStyle(.ahPrimary)
             }
 
-            if project.answeredQuestions > 0 {
+            if !project.selectedDepartmentIds.isEmpty {
                 Button {
                     showExportPanel = true
                 } label: {
@@ -278,14 +288,16 @@ struct ProjectDetailView: View {
                 AHSection("基本信息") {
                     VStack(spacing: AHSpacing.m) {
                         AHLabeledRow(label: "客户名称") {
-                            TextField("客户名称", text: $project.customerName)
+                            TextField("客户名称", text: $customerNameDraft)
+                                .focused($editingCustomerName)
+                                .onSubmit { saveCustomerName() }
                                 .textFieldStyle(.roundedBorder)
                                 .ahCallout()
                         }
                         AHLabeledRow(label: "组织形态") {
                             Picker("", selection: Binding(
                                 get: { OrgScale(rawValue: project.companyScale) ?? .unset },
-                                set: { project.companyScale = $0.rawValue }
+                                set: { updateFields(["companyScale": $0.rawValue]) }
                             )) {
                                 ForEach(OrgScale.allCases, id: \.self) { s in
                                     Text(s.label).tag(s)
@@ -296,7 +308,7 @@ struct ProjectDetailView: View {
                         AHLabeledRow(label: "员工规模") {
                             Picker("", selection: Binding(
                                 get: { StaffScale(rawValue: project.headcount) ?? .unset },
-                                set: { project.headcount = $0.rawValue }
+                                set: { updateFields(["headcount": $0.rawValue]) }
                             )) {
                                 ForEach(StaffScale.allCases, id: \.self) { s in
                                     Text(s.label).tag(s)
@@ -307,7 +319,7 @@ struct ProjectDetailView: View {
                         AHLabeledRow(label: "年营收") {
                             Picker("", selection: Binding(
                                 get: { RevenueScale(rawValue: project.revenue) ?? .unset },
-                                set: { project.revenue = $0.rawValue }
+                                set: { updateFields(["revenue": $0.rawValue]) }
                             )) {
                                 ForEach(RevenueScale.allCases, id: \.self) { s in
                                     Text(s.label).tag(s)
@@ -316,7 +328,7 @@ struct ProjectDetailView: View {
                             .labelsHidden()
                         }
                         AHLabeledRow(label: "现有系统") {
-                            TextField("如：用友 U8、SAP B1 等", text: $project.existingSystems)
+                            TextField("如：用友 U8、SAP B1 等", text: projectBinding(\.existingSystems, field: "existingSystems"))
                                 .textFieldStyle(.roundedBorder)
                                 .ahCallout()
                         }
@@ -330,7 +342,7 @@ struct ProjectDetailView: View {
                     EmptyView()
                 }
 
-                TextEditor(text: $project.productInfo)
+                TextEditor(text: projectBinding(\.productInfo, field: "productInfo"))
                     .ahCallout()
                     .scrollContentBackground(.hidden)
                     .frame(minHeight: 80, maxHeight: 160)
@@ -388,7 +400,10 @@ struct ProjectDetailView: View {
                     AHCard {
                         AHSection("各部门详情") {
                             VStack(spacing: AHSpacing.s) {
-                                let filteredByDept = pluginLoader.questionsForProject(project)
+                                let survey = SurveyService(context: modelContext, pluginLoader: pluginLoader)
+                                let filteredByDept = Dictionary(uniqueKeysWithValues: project.selectedDepartmentIds.map {
+                                    ($0, survey.questions(for: project, departmentId: $0))
+                                })
                                 ForEach(pluginLoader.selectedDepartments(ids: project.selectedDepartmentIds)) { dept in
                                     let total = filteredByDept[dept.id]?.count ?? 0
                                     let questions = filteredByDept[dept.id] ?? []
@@ -436,8 +451,7 @@ struct ProjectDetailView: View {
             Menu {
                 ForEach(ProjectStatus.allCases, id: \.self) { status in
                     Button {
-                        project.status = status
-                        project.updatedAt = .now
+                        updateFields(["status": status.rawValue])
                     } label: {
                         Label(status.label, systemImage: status.icon)
                     }
@@ -505,6 +519,26 @@ struct ProjectDetailView: View {
             guard response == .OK, let url = panel.url else { return }
             try? data.write(to: url, options: .atomic)
         }
+    }
+
+    private func saveCustomerName() {
+        guard customerNameDraft != project.customerName else { return }
+        if appStore.performWrite({
+            try ProjectService(context: modelContext, pluginLoader: pluginLoader)
+                .update(project, fields: ["customerName": customerNameDraft], expectedRevision: customerNameRevision)
+        }) { customerNameRevision = project.revision }
+        else { customerNameDraft = project.customerName }
+    }
+
+    @discardableResult
+    private func updateFields(_ fields: [String: String]) -> Bool {
+        appStore.performWrite {
+            try ProjectService(context: modelContext, pluginLoader: pluginLoader).update(project, fields: fields)
+        }
+    }
+
+    private func projectBinding(_ keyPath: ReferenceWritableKeyPath<Project, String>, field: String) -> Binding<String> {
+        Binding(get: { project[keyPath: keyPath] }, set: { updateFields([field: $0]) })
     }
 
     private func syncProgress() {

@@ -68,6 +68,7 @@ struct SurveyService {
         var otherText: String? = nil
         var note: String?
         var transcript: String?
+        var evidence: String? = nil
     }
 
     struct ValidationIssue: Equatable {
@@ -132,20 +133,19 @@ struct SurveyService {
             if let options = patch.options { record.selectedOptions = options }
             if let otherText = patch.otherText { record.otherText = otherText }
             if let note = patch.note { record.noteText = note }
+            if let evidence = patch.evidence { record.evidence = evidence }
             if let transcript = patch.transcript {
                 record.voiceTranscript += (record.voiceTranscript.isEmpty ? "" : "\n") + transcript
             }
             let question = questions(for: project, departmentId: patch.departmentId)
                 .first { $0.id == patch.questionId }
-            if let question {
-                record.status = AnswerValidator.evaluate(record, for: question).isValid ? .answered : .unanswered
-            }
+            if let question { refreshStatus(record, for: question) }
+            record.revision += 1
             written += 1
         }
 
-        project.updatedAt = .now
-        project.revision += 1
-        if saveChanges { try context.save() }
+        try ProjectService(context: context, pluginLoader: pluginLoader)
+            .didMutate(project, saveChanges: saveChanges)
         return (written, unknown)
     }
 
@@ -154,7 +154,13 @@ struct SurveyService {
         var issues: [ValidationIssue] = []
         let existingAnswers = answers(for: project)
 
+        var seen = Set<String>()
         for patch in patches {
+            guard seen.insert("\(patch.departmentId)::\(patch.questionId)").inserted else {
+                issues.append(.init(departmentId: patch.departmentId, questionId: patch.questionId,
+                                    code: "QUESTION_DUPLICATED", message: "同一批次不能重复写入同一道题"))
+                continue
+            }
             guard project.selectedDepartmentIds.contains(patch.departmentId) else {
                 issues.append(.init(
                     departmentId: patch.departmentId,
@@ -202,6 +208,86 @@ struct SurveyService {
             }
         }
         return issues
+    }
+
+    /// UI 输入可以暂时不完整，但必须遵循相同的归档保护、题型状态及修订规则。
+    func editAnswer(_ answer: Answer, in project: Project, expectedRevision: Int? = nil,
+                    apply: (Answer) -> Void) throws {
+        let projects = ProjectService(context: context, pluginLoader: pluginLoader)
+        try projects.requireWritable(project)
+        guard answer.projectId == project.id,
+              answers(for: project).contains(where: { $0.id == answer.id }),
+              project.selectedDepartmentIds.contains(answer.departmentId),
+              let question = questions(for: project, departmentId: answer.departmentId)
+                .first(where: { $0.id == answer.questionId }) else {
+            throw ServiceError.invalidInput("答案不属于当前项目题库")
+        }
+        if let expectedRevision, answer.revision != expectedRevision {
+            throw ServiceError.revisionConflict("答案已被修改，请重新生成 AI 结果")
+        }
+        apply(answer)
+        refreshStatus(answer, for: question)
+        answer.revision += 1
+        try projects.didMutate(project)
+    }
+
+    private func refreshStatus(_ answer: Answer, for question: QuestionTemplate) {
+        // 笔记/证据修改不应解除用户明确设置的忽略或转移状态。
+        guard answer.status != .ignored, answer.status != .transferred else { return }
+        answer.status = AnswerValidator.evaluate(answer, for: question).isValid ? .answered : .unanswered
+    }
+
+    /// 仅为界面准备空记录，不改变业务修订；所有后续内容写入均走 editAnswer/upsert。
+    func prepareAnswers(for project: Project) throws {
+        try ProjectService(context: context, pluginLoader: pluginLoader).requireWritable(project)
+        for department in project.selectedDepartmentIds {
+            for question in questions(for: project, departmentId: department) {
+                _ = answer(for: project, departmentId: department, questionId: question.id)
+            }
+        }
+        do { try context.save() } catch { context.rollback(); throw error }
+    }
+
+    @discardableResult
+    func adoptFollowup(_ followup: AdoptedFollowup, into project: Project) throws -> Answer {
+        let projects = ProjectService(context: context, pluginLoader: pluginLoader)
+        try projects.requireWritable(project)
+        guard followup.projectId == project.id,
+              !adoptedFollowups(for: project).contains(where: { $0.id == followup.id }),
+              project.selectedDepartmentIds.contains(followup.departmentId),
+              pluginLoader.questions(for: followup.departmentId).contains(where: { $0.id == followup.parentQuestionId }) else {
+            throw ServiceError.invalidInput("追问必须关联当前项目的基础题")
+        }
+        context.insert(followup)
+        let record = answer(for: project, departmentId: followup.departmentId, questionId: followup.id)
+        try projects.didMutate(project)
+        return record
+    }
+
+    func addMemo(_ text: String, category: MemoCategory, to project: Project, merge: Bool = false) throws {
+        let projects = ProjectService(context: context, pluginLoader: pluginLoader)
+        try projects.requireWritable(project)
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        let existing = memoItems(for: project).filter { $0.category == category.rawValue }
+        if merge, let older = existing.first(where: {
+            $0.text.localizedCaseInsensitiveContains(trimmed) || trimmed.localizedCaseInsensitiveContains($0.text)
+        }) {
+            guard trimmed.count > older.text.count else { return }
+            older.text = trimmed
+        } else {
+            guard existing.count < 20 else { throw ServiceError.invalidInput("该类备忘已达到 20 条上限") }
+            context.insert(MemoItem(projectId: project.id, category: category, text: trimmed))
+        }
+        try projects.didMutate(project)
+    }
+
+    func deleteMemo(_ memo: MemoItem, from project: Project) throws {
+        let projects = ProjectService(context: context, pluginLoader: pluginLoader)
+        try projects.requireWritable(project)
+        guard memo.projectId == project.id else { throw ServiceError.invalidInput("备忘不属于当前项目") }
+        context.delete(memo)
+        try projects.didMutate(project)
     }
 
     // MARK: - 备忘

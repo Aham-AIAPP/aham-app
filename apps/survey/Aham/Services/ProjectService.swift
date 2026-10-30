@@ -106,15 +106,88 @@ struct ProjectService {
         context.insert(project)
         syncProgress(project)
         project.revision = 1
-        if saveChanges { try context.save() }
+        if saveChanges {
+            do { try context.save() } catch { context.rollback(); throw error }
+        }
         return project
     }
 
-    func update(_ project: Project, saveChanges: Bool = true, apply: (Project) -> Void) throws {
-        apply(project)
+    static let editableFields: Set<String> = [
+        "customerName", "consultant", "companyScale", "headcount", "revenue",
+        "existingSystems", "productInfo", "surveyGoal", "status"
+    ]
+
+    func requireWritable(_ project: Project) throws {
+        guard project.status != .archived else {
+            throw ServiceError.archived("项目已归档；请先取消归档再修改")
+        }
+    }
+
+    /// 所有界面和 MCP 项目修改共用规则；校验发生在修改模型之前。
+    func update(_ project: Project, fields: [String: String], expectedRevision: Int? = nil,
+                saveChanges: Bool = true) throws {
+        guard !fields.isEmpty, Set(fields.keys).isSubset(of: Self.editableFields) else {
+            throw ServiceError.invalidInput("包含不允许更新的项目字段")
+        }
+        if let expectedRevision, expectedRevision != project.revision {
+            throw ServiceError.revisionConflict("项目已被修改，请回读后重试")
+        }
+        let targetStatus = fields["status"].flatMap(ProjectStatus.init(rawValue:))
+        if fields["status"] != nil, targetStatus == nil {
+            throw ServiceError.invalidInput("未知项目状态")
+        }
+        if project.status == .archived {
+            guard fields.count == 1, targetStatus == .inProgress || targetStatus == .completed else {
+                throw ServiceError.archived("归档项目只允许明确恢复为进行中或已完成")
+            }
+        }
+        if targetStatus == .completed { try ensureRequiredQuestionsAnswered(project) }
+        if let name = fields["customerName"], name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            throw ServiceError.invalidInput("客户名称不能为空")
+        }
+        if let value = fields["customerName"] { project.customerName = value; project.name = value }
+        if let value = fields["consultant"] { project.consultant = value }
+        if let value = fields["companyScale"] { project.companyScale = value }
+        if let value = fields["headcount"] { project.headcount = value }
+        if let value = fields["revenue"] { project.revenue = value }
+        if let value = fields["existingSystems"] { project.existingSystems = value }
+        if let value = fields["productInfo"] { project.productInfo = value }
+        if let value = fields["surveyGoal"] { project.surveyGoal = value }
+        if let targetStatus { project.status = targetStatus }
+        try didMutate(project, saveChanges: saveChanges)
+    }
+
+    /// 一次业务修改对应一次项目修订；进度包含基础题与已采纳追问。
+    func didMutate(_ project: Project, saveChanges: Bool = true) throws {
         project.updatedAt = .now
         project.revision += 1
-        if saveChanges { try context.save() }
+        syncProgress(project)
+        if project.status == .completed, !missingRequiredQuestions(project).isEmpty {
+            project.status = .inProgress
+        }
+        if saveChanges {
+            do { try context.save() } catch { context.rollback(); throw error }
+        }
+    }
+
+    func missingRequiredQuestions(_ project: Project) -> [String] {
+        let survey = SurveyService(context: context, pluginLoader: pluginLoader)
+        let answers = survey.answers(for: project)
+        return project.selectedDepartmentIds.flatMap { department in
+            survey.questions(for: project, departmentId: department).filter { question in
+                question.required && !answers.contains {
+                    $0.departmentId == department && $0.questionId == question.id &&
+                    AnswerValidator.evaluate($0, for: question).isValid
+                }
+            }.map(\.id)
+        }
+    }
+
+    func ensureRequiredQuestionsAnswered(_ project: Project) throws {
+        let missing = missingRequiredQuestions(project)
+        guard missing.isEmpty else {
+            throw ServiceError.invalidInput("仍有 \(missing.count) 道必答题未形成有效答案：\(missing.prefix(8).joined(separator: ", "))")
+        }
     }
 
     func delete(_ project: Project) throws {
@@ -134,8 +207,11 @@ struct ProjectService {
         ) {
             context.delete(followup)
         }
+        for change in try context.fetch(FetchDescriptor<MCPChangeSet>(
+            predicate: #Predicate { $0.projectId == projectId }
+        )) { context.delete(change) }
         context.delete(project)
-        try context.save()
+        do { try context.save() } catch { context.rollback(); throw error }
     }
 
     // MARK: - 进度
@@ -143,12 +219,15 @@ struct ProjectService {
     /// 重算题目总数与已答数
     func syncProgress(_ project: Project) {
         let selected = Set(project.selectedDepartmentIds)
-        let total = pluginLoader.questionsForProject(project).values.reduce(0) { $0 + $1.count }
+        let survey = SurveyService(context: context, pluginLoader: pluginLoader)
+        let questions = Dictionary(uniqueKeysWithValues: project.selectedDepartmentIds.map {
+            ($0, survey.questions(for: project, departmentId: $0))
+        })
+        let total = questions.values.reduce(0) { $0 + $1.count }
         let projectId = project.id
         let answers = (try? context.fetch(
             FetchDescriptor<Answer>(predicate: #Predicate { $0.projectId == projectId })
         )) ?? []
-        let questions = pluginLoader.questionsForProject(project)
         let answered = answers.filter { answer in
             guard selected.contains(answer.departmentId),
                   let question = questions[answer.departmentId]?.first(where: { $0.id == answer.questionId }) else {
@@ -174,6 +253,7 @@ enum ServiceError: LocalizedError {
     case previewStale(String)
     case idempotencyConflict(String)
     case changeSetAlreadyUndone(String)
+    case undoConflict(String)
     case ambiguous(String, candidates: [String])
 
     var errorDescription: String? {
@@ -185,7 +265,8 @@ enum ServiceError: LocalizedError {
              .revisionConflict(let msg),
              .previewStale(let msg),
              .idempotencyConflict(let msg),
-             .changeSetAlreadyUndone(let msg): msg
+             .changeSetAlreadyUndone(let msg),
+             .undoConflict(let msg): msg
         case .ambiguous(let msg, _): msg
         }
     }
@@ -212,6 +293,8 @@ extension ServiceError: MCPStructuredError {
             return ["code": "PREVIEW_STALE", "message": message, "retryable": true]
         case .idempotencyConflict(let message):
             return ["code": "IDEMPOTENCY_CONFLICT", "message": message, "retryable": false]
+        case .undoConflict(let message):
+            return ["code": "UNDO_CONFLICT", "message": message, "retryable": false]
         case .changeSetAlreadyUndone(let message):
             return ["code": "CHANGE_SET_ALREADY_UNDONE", "message": message, "retryable": false]
         case .ambiguous(let message, let candidates):

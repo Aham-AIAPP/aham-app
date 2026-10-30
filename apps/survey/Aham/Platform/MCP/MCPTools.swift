@@ -36,6 +36,11 @@ struct MCPTools {
     // MARK: - 分发
 
     func call(_ tool: String, args: [String: Any]) throws -> Any {
+        do { return try dispatch(tool, args: args) }
+        catch { context.rollback(); throw error }
+    }
+
+    private func dispatch(_ tool: String, args: [String: Any]) throws -> Any {
         switch tool {
         case "get_capabilities":      return getCapabilities()
         case "list_departments":      return listDepartments()
@@ -110,6 +115,7 @@ struct MCPTools {
 
     private func listProjects(_ args: [String: Any] = [:]) throws -> Any {
         var all = try projects.allProjects()
+        all.forEach { projects.syncProgress($0) }
         if let rawStatus = args["status"] as? String {
             guard let status = ProjectStatus(rawValue: rawStatus) else {
                 throw ServiceError.invalidInput("未知项目状态：\(rawStatus)")
@@ -210,6 +216,12 @@ struct MCPTools {
                 payload["text"] = answer.textValue
                 payload["options_selected"] = answer.selectedOptions
                 payload["note"] = answer.noteText
+                payload["otherText"] = answer.otherText
+                payload["evidence"] = answer.evidence
+                payload["transcript"] = answer.voiceTranscript
+                payload["polished"] = answer.polishedText
+                payload["status"] = answer.status.rawValue
+                payload["answerRevision"] = answer.revision
             }
             if let triggers = question.triggers, !triggers.isEmpty {
                 payload["triggers"] = triggers.map { ["type": $0.type, "content": $0.content] }
@@ -236,8 +248,8 @@ struct MCPTools {
     // MARK: - 写
 
     private func createProject(_ args: [String: Any]) throws -> Any {
-        let requestId = optionalRequestId(args)
-        if let requestId, let replay = try replayResult(requestId: requestId, tool: "create_project") {
+        let requestId = try optionalRequestId(args)
+        if let requestId, let replay = try replayResult(requestId: requestId, tool: "create_project", args: args) {
             return replay
         }
         guard let customer = args["customer"] as? String else {
@@ -275,7 +287,7 @@ struct MCPTools {
                 requestId: requestId,
                 project: project,
                 tool: "create_project",
-                result: result
+                result: result, args: args
             )
         }
         return result
@@ -305,7 +317,7 @@ struct MCPTools {
 
     private func commitAnswerImport(_ args: [String: Any]) throws -> Any {
         let requestId = try requiredRequestId(args)
-        if let replay = try replayResult(requestId: requestId, tool: "commit_answer_import") {
+        if let replay = try replayResult(requestId: requestId, tool: "commit_answer_import", args: args) {
             return replay
         }
         let project = try resolve(args)
@@ -338,13 +350,13 @@ struct MCPTools {
             "total": project.totalQuestions,
             "revision": project.revision
         ]
-        try persist(change: change, result: result)
+        try persist(change: change, result: result, args: args)
         return result
     }
 
     private func upsertAnswers(_ args: [String: Any]) throws -> Any {
-        let requestId = optionalRequestId(args)
-        if let requestId, let replay = try replayResult(requestId: requestId, tool: "upsert_answers") {
+        let requestId = try optionalRequestId(args)
+        if let requestId, let replay = try replayResult(requestId: requestId, tool: "upsert_answers", args: args) {
             return replay
         }
         let project = try resolve(args)
@@ -368,14 +380,14 @@ struct MCPTools {
                 beforeJSON: try jsonData(before),
                 afterJSON: try jsonData(answerSnapshot(project: project, patches: patches))
             )
-            try persist(change: change, result: payload)
+            try persist(change: change, result: payload, args: args)
         }
         return payload
     }
 
     private func importTranscript(_ args: [String: Any]) throws -> Any {
-        let requestId = optionalRequestId(args)
-        if let requestId, let replay = try replayResult(requestId: requestId, tool: "import_transcript") {
+        let requestId = try optionalRequestId(args)
+        if let requestId, let replay = try replayResult(requestId: requestId, tool: "import_transcript", args: args) {
             return replay
         }
         let project = try resolve(args)
@@ -406,54 +418,29 @@ struct MCPTools {
                 beforeJSON: try jsonData(before),
                 afterJSON: try jsonData(answerSnapshot(project: project, patches: patches))
             )
-            try persist(change: change, result: payload)
+            try persist(change: change, result: payload, args: args)
         }
         return payload
     }
 
     private func updateProject(_ args: [String: Any]) throws -> Any {
-        let requestId = optionalRequestId(args)
-        if let requestId, let replay = try replayResult(requestId: requestId, tool: "update_project") {
+        let requestId = try optionalRequestId(args)
+        if let requestId, let replay = try replayResult(requestId: requestId, tool: "update_project", args: args) {
             return replay
         }
         let project = try resolve(args)
         guard let fields = args["fields"] as? [String: Any], !fields.isEmpty else {
             throw ServiceError.invalidInput("缺少 fields")
         }
-        let allowed = Set(["consultant", "companyScale", "headcount", "revenue", "existingSystems", "productInfo", "surveyGoal", "status"])
-        let unknown = Set(fields.keys).subtracting(allowed)
-        guard unknown.isEmpty else {
-            throw ServiceError.invalidInput("不允许更新字段：\(unknown.sorted().joined(separator: ", "))")
+        guard fields.values.allSatisfy({ $0 is String }) else {
+            throw ServiceError.invalidInput("项目字段值必须为字符串")
         }
-        if let expected = args["expected_revision"] as? Int, expected != project.revision {
-            throw ServiceError.revisionConflict("项目当前修订号为 \(project.revision)，不是 \(expected)")
+        if args["expected_revision"] != nil, args["expected_revision"] as? Int == nil {
+            throw ServiceError.invalidInput("expected_revision 必须为整数")
         }
-        if project.status == .archived {
-            guard fields.count == 1, fields["status"] as? String == ProjectStatus.completed.rawValue else {
-                throw ServiceError.archived("归档项目只允许通过 status=completed 明确取消归档")
-            }
-        }
-        if let rawStatus = fields["status"] as? String {
-            guard let targetStatus = ProjectStatus(rawValue: rawStatus) else {
-                throw ServiceError.invalidInput("未知项目状态：\(rawStatus)")
-            }
-            if targetStatus == .completed {
-                try ensureRequiredQuestionsAnswered(project)
-            }
-        }
-        try projects.update(project, saveChanges: requestId == nil) { target in
-            if let value = fields["consultant"] as? String { target.consultant = value }
-            if let value = fields["companyScale"] as? String { target.companyScale = value }
-            if let value = fields["headcount"] as? String { target.headcount = value }
-            if let value = fields["revenue"] as? String { target.revenue = value }
-            if let value = fields["existingSystems"] as? String { target.existingSystems = value }
-            if let value = fields["productInfo"] as? String { target.productInfo = value }
-            if let value = fields["surveyGoal"] as? String { target.surveyGoal = value }
-            if let value = fields["status"] as? String,
-               let status = ProjectStatus(rawValue: value) {
-                target.status = status
-            }
-        }
+        try projects.update(project, fields: fields.compactMapValues { $0 as? String },
+                            expectedRevision: args["expected_revision"] as? Int,
+                            saveChanges: requestId == nil)
         let result: [String: Any] = [
             "id": project.id.uuidString,
             "updated": Array(fields.keys).sorted(),
@@ -465,7 +452,7 @@ struct MCPTools {
                 requestId: requestId,
                 project: project,
                 tool: "update_project",
-                result: result
+                result: result, args: args
             )
         }
         return result
@@ -490,7 +477,7 @@ struct MCPTools {
 
     private func undoChangeSet(_ args: [String: Any]) throws -> Any {
         let requestId = try requiredRequestId(args)
-        if let replay = try replayResult(requestId: requestId, tool: "undo_change_set") {
+        if let replay = try replayResult(requestId: requestId, tool: "undo_change_set", args: args) {
             return replay
         }
         guard let rawId = args["change_set"] as? String,
@@ -508,12 +495,23 @@ struct MCPTools {
         guard project.status != .archived else {
             throw ServiceError.archived("归档项目不能撤销写入，请先取消归档")
         }
+        guard let after = try jsonObject(source.afterJSON) as? [[String: Any]], !after.isEmpty,
+              after.allSatisfy({ $0["answerRevision"] is Int }) else {
+            throw ServiceError.undoConflict("旧变更记录缺少答案修订号，无法安全撤销")
+        }
+        let targets = try after.map { row -> SurveyService.AnswerPatch in
+            guard let department = row["department"] as? String, let question = row["question"] as? String else {
+                throw ServiceError.undoConflict("变更记录不完整")
+            }
+            return .init(departmentId: department, questionId: question, text: nil, options: nil, note: nil, transcript: nil)
+        }
+        guard try jsonData(answerSnapshot(project: project, patches: targets)) == jsonData(after) else {
+            throw ServiceError.undoConflict("目标答案在此批次之后已被修改；为保护后续内容，未执行撤销")
+        }
         let snapshot = try jsonObject(source.beforeJSON) as? [[String: Any]] ?? []
         try restoreAnswerSnapshot(snapshot, project: project, saveChanges: false)
         source.undoneAt = .now
-        project.revision += 1
-        project.updatedAt = .now
-        projects.syncProgress(project)
+        try projects.didMutate(project, saveChanges: false)
 
         let undo = MCPChangeSet(
             requestId: requestId,
@@ -527,7 +525,7 @@ struct MCPTools {
             "answered": project.answeredQuestions,
             "total": project.totalQuestions
         ]
-        try persist(change: undo, result: result)
+        try persist(change: undo, result: result, args: args)
         return result
     }
 
@@ -547,9 +545,16 @@ struct MCPTools {
                   let questionId = row["question"] as? String, !questionId.isEmpty else {
                 throw ServiceError.invalidInput("answers[\(index)] 缺少 department 或 question")
             }
-            let hasWritableField = ["text", "options", "otherText", "note"].contains { row.keys.contains($0) }
+            let hasWritableField = ["text", "options", "otherText", "note", "evidence"].contains { row.keys.contains($0) }
             guard hasWritableField else {
-                throw ServiceError.invalidInput("answers[\(index)] 至少需要 text、options、otherText 或 note 之一")
+                throw ServiceError.invalidInput("answers[\(index)] 至少需要 text、options、otherText、note 或 evidence 之一")
+            }
+            let allowed = Set(["department", "question", "text", "options", "otherText", "note", "evidence"])
+            guard Set(row.keys).isSubset(of: allowed) else {
+                throw ServiceError.invalidInput("answers[\(index)] 包含未知字段")
+            }
+            for field in ["text", "otherText", "note", "evidence"] where row[field] != nil {
+                guard row[field] is String else { throw ServiceError.invalidInput("\(field) 必须是字符串") }
             }
             if row.keys.contains("options"), row["options"] as? [String] == nil {
                 throw ServiceError.invalidInput("answers[\(index)].options 必须是字符串数组")
@@ -561,7 +566,8 @@ struct MCPTools {
                 options: row["options"] as? [String],
                 otherText: row["otherText"] as? String,
                 note: row["note"] as? String,
-                transcript: nil
+                transcript: nil,
+                evidence: row["evidence"] as? String
             )
         }
     }
@@ -604,6 +610,9 @@ struct MCPTools {
                 "department": answer.departmentId,
                 "question": answer.questionId,
                 "existed": true,
+                "id": answer.id.uuidString,
+                "answerRevision": answer.revision,
+                "evidence": answer.evidence,
                 "options": answer.selectedOptions,
                 "text": answer.textValue,
                 "otherText": answer.otherText,
@@ -634,6 +643,8 @@ struct MCPTools {
             answer.selectedOptions = row["options"] as? [String] ?? []
             answer.textValue = row["text"] as? String ?? ""
             answer.otherText = row["otherText"] as? String ?? ""
+            answer.evidence = row["evidence"] as? String ?? ""
+            answer.revision += 1
             answer.noteText = row["note"] as? String ?? ""
             answer.polishedText = row["polished"] as? String ?? ""
             answer.voiceTranscript = row["transcript"] as? String ?? ""
@@ -642,30 +653,16 @@ struct MCPTools {
         if saveChanges { try context.save() }
     }
 
-    private func ensureRequiredQuestionsAnswered(_ project: Project) throws {
-        let answers = survey.answers(for: project)
-        var missing: [String] = []
-        for department in project.selectedDepartmentIds {
-            for question in survey.questions(for: project, departmentId: department) where question.required {
-                let answer = answers.first { $0.departmentId == department && $0.questionId == question.id }
-                if answer.map({ AnswerValidator.evaluate($0, for: question).isValid }) != true {
-                    missing.append(question.id)
-                }
-            }
+    private func optionalRequestId(_ args: [String: Any]) throws -> String? {
+        guard let raw = args["request_id"] else { return nil }
+        guard let value = raw as? String, value.trimmingCharacters(in: .whitespacesAndNewlines).count >= 8 else {
+            throw ServiceError.invalidInput("request_id 必须为至少 8 个字符的字符串")
         }
-        guard missing.isEmpty else {
-            throw ServiceError.invalidInput("仍有 \(missing.count) 道必答题未形成有效答案：\(missing.prefix(8).joined(separator: ", "))")
-        }
-    }
-
-    private func optionalRequestId(_ args: [String: Any]) -> String? {
-        guard let value = args["request_id"] as? String else { return nil }
-        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
-        return trimmed.isEmpty ? nil : trimmed
+        return value.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     private func requiredRequestId(_ args: [String: Any]) throws -> String {
-        guard let value = optionalRequestId(args), value.count >= 8 else {
+        guard let value = try optionalRequestId(args), value.count >= 8 else {
             throw ServiceError.invalidInput("缺少至少 8 个字符的 request_id")
         }
         return value
@@ -675,10 +672,14 @@ struct MCPTools {
         try context.fetch(FetchDescriptor<MCPChangeSet>())
     }
 
-    private func replayResult(requestId: String, tool: String) throws -> Any? {
+    private func replayResult(requestId: String, tool: String, args: [String: Any]) throws -> Any? {
         guard let existing = try allChangeSets().first(where: { $0.requestId == requestId }) else { return nil }
         guard existing.tool == tool else {
             throw ServiceError.idempotencyConflict("request_id 已被工具 \(existing.tool) 使用")
+        }
+        guard !existing.requestFingerprint.isEmpty,
+              existing.requestFingerprint == (try requestFingerprint(args)) else {
+            throw ServiceError.idempotencyConflict("request_id 对应的请求内容不同，或旧记录无法验证；请为新操作使用新的 request_id")
         }
         return try jsonObject(existing.resultJSON)
     }
@@ -687,14 +688,21 @@ struct MCPTools {
         requestId: String,
         project: Project,
         tool: String,
-        result: Any
+        result: Any, args: [String: Any]
     ) throws {
         let change = MCPChangeSet(requestId: requestId, projectId: project.id, tool: tool)
-        try persist(change: change, result: result)
+        try persist(change: change, result: result, args: args)
     }
 
-    private func persist(change: MCPChangeSet, result: Any) throws {
+    private func requestFingerprint(_ args: [String: Any]) throws -> String {
+        var payload = args
+        payload.removeValue(forKey: "request_id")
+        return SHA256.hash(data: try jsonData(payload)).map { String(format: "%02x", $0) }.joined()
+    }
+
+    private func persist(change: MCPChangeSet, result: Any, args: [String: Any]) throws {
         do {
+            change.requestFingerprint = try requestFingerprint(args)
             change.resultJSON = try jsonData(result)
             context.insert(change)
             try context.save()

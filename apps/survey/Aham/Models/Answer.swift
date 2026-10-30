@@ -20,6 +20,10 @@ final class Answer {
     // 答案内容
     var selectedOptions: [String]   // 选中的选项（单选/多选）
     var textValue: String           // 文本答案 / 数字答案
+    /// 来源原文或访谈定位；不作为有效答案计入进度。
+    var evidence: String = ""
+    /// 单题单调递增，用于撤销与异步 AI 写入的冲突检查。
+    var revision: Int = 0
     var otherText: String = ""      // "其他" 选项的补充文本
     var noteText: String            // 顾问笔记
 

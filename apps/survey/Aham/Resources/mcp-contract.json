@@ -91,7 +91,7 @@
     },
     {
       "name": "create_project",
-      "description": "新建调研项目。未知客户事实保持空白。request_id 用于避免重试时重复创建。",
+      "description": "新建调研项目。未知客户事实保持空白。request_id 用于避免重试时重复创建；重试必须保持请求内容相同。",
       "summary": "幂等创建调研项目",
       "arguments": "customer, request_id?, consultant?, industry?, scopes?, departments?, …",
       "isWrite": true,
@@ -172,7 +172,7 @@
     },
     {
       "name": "upsert_answers",
-      "description": "兼容工具：严格校验后批量写回答案、合法选项和顾问笔记。新工作流优先使用 preview_answer_import + commit_answer_import。",
+      "description": "兼容工具：严格校验后批量写回答案、合法选项、顾问笔记和 evidence 来源证据。新工作流优先使用 preview_answer_import + commit_answer_import。",
       "summary": "严格批量写回答案、选项与笔记",
       "arguments": "project, answers[], request_id?",
       "isWrite": true,
@@ -208,7 +208,7 @@
     },
     {
       "name": "update_project",
-      "description": "修改项目白名单字段或状态。可传 expected_revision 防止覆盖并发修改；归档项目仅允许明确取消归档。",
+      "description": "修改 customerName、consultant、companyScale、headcount、revenue、existingSystems、productInfo、surveyGoal 或 status。可传 expected_revision；归档项目只能恢复到 inProgress，或满足必答题要求后恢复到 completed。",
       "summary": "带修订控制地更新项目资料或状态",
       "arguments": "project, fields, expected_revision?, request_id?",
       "isWrite": true,
@@ -216,7 +216,20 @@
         "type": "object",
         "properties": {
           "project": { "type": "string", "minLength": 1 },
-          "fields": { "type": "object", "minProperties": 1 },
+          "fields": {
+            "type": "object", "minProperties": 1, "additionalProperties": false,
+            "properties": {
+              "customerName": { "type": "string", "minLength": 1 },
+              "consultant": { "type": "string" },
+              "companyScale": { "type": "string" },
+              "headcount": { "type": "string" },
+              "revenue": { "type": "string" },
+              "existingSystems": { "type": "string" },
+              "productInfo": { "type": "string" },
+              "surveyGoal": { "type": "string" },
+              "status": { "type": "string", "enum": ["draft", "inProgress", "completed", "archived"] }
+            }
+          },
           "expected_revision": { "type": "integer", "minimum": 0 },
           "request_id": { "type": "string", "minLength": 8 }
         },
@@ -239,7 +252,7 @@
     },
     {
       "name": "undo_change_set",
-      "description": "撤销一次尚未撤销的答案批量写入。只支持答案变更集，不删除项目。",
+      "description": "撤销一次尚未撤销的答案批量写入。只支持答案或转写变更集，不删除项目；目标答案有后续修改时返回 UNDO_CONFLICT。",
       "summary": "撤销答案批量写入",
       "arguments": "change_set, request_id",
       "isWrite": true,
