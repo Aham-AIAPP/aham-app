@@ -1,13 +1,13 @@
 # aham-app
 
-Aham 系列的应用技能插件，中文名「Aham 应用技能」，版本 1.0.1。技能决定写什么、按什么顺序写；规范、取值和排版引擎来自 aham-design 插件。
+Aham 系列的应用技能插件，中文名「Aham 应用技能」，版本 1.0.1。技能决定写什么、按什么顺序写；规范、取值和排版引擎来自 aham-design 插件，它在独立仓库 [Aham-AIAPP/aham-design](https://github.com/Aham-AIAPP/aham-design)。
 
 ## 依赖 aham-design
 
 `.claude-plugin/plugin.json` 声明依赖 `aham-design` 的 `^1.0.0`。从插件市场安装本插件时，Claude Code 在同一范围里一并安装 aham-design：
 
 ```text
-/plugin marketplace add Aham-AIAPP/aham-plugins
+/plugin marketplace add Aham-AIAPP/aham-app
 /plugin install aham-app@aham-plugins
 ```
 
@@ -34,9 +34,10 @@ Aham 系列的应用技能插件，中文名「Aham 应用技能」，版本 1.0
 
 ## 测试
 
-本插件的测试在仓库根目录的 `tests/`：
+本插件的测试在仓库根目录的 `tests/`。先把 aham-design 检出到 `plugins/aham-design`：
 
 ```bash
+git clone https://github.com/Aham-AIAPP/aham-design plugins/aham-design
 python3 -m unittest discover -s tests
 ```
 
