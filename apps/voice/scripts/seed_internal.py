@@ -28,6 +28,35 @@ import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
+ROOT = Path(__file__).resolve().parents[1]
+
+
+def load_env_file(path: Path) -> None:
+    """读 Voice 目录的 .env，只补进当前环境里还没有的变量。
+
+    不依赖 python-dotenv，系统自带的 python3 也能跑。只认 KEY=VALUE 行，
+    可带 export 前缀和成对引号；空行和 # 开头的行跳过。
+    """
+    if not path.is_file():
+        return
+    for raw in path.read_text(encoding="utf-8").splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        if line.startswith("export "):
+            line = line[len("export "):].lstrip()
+        key, value = line.split("=", 1)
+        key, value = key.strip(), value.strip()
+        if len(value) >= 2 and value[0] == value[-1] and value[0] in "'\"":
+            value = value[1:-1]
+        if key:
+            os.environ.setdefault(key, value)
+
+
+# 与后端相同：先读 .env.local，再读 .env；已在环境里的变量不覆盖。
+load_env_file(ROOT / ".env.local")
+load_env_file(ROOT / ".env")
+
 BASE = Path(os.environ.get("RECORDING_AI_HOME", Path.home() / ".cache" / "recording-ai"))
 # 导入用户的邮箱按 <username>@<域名> 合成，部署方在 .env 里设成自己的域名。
 EMAIL_DOMAIN = os.environ.get("VOICE_SEED_EMAIL_DOMAIN", "example.com")
