@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import io
 import os
+import subprocess
 import sys
 import unittest
 import zipfile
@@ -41,6 +42,15 @@ class CheckPublicTests(unittest.TestCase):
         with zipfile.ZipFile(buffer, "w") as archive:
             archive.writestr("word/document.xml", "<w:t>Secret</w:t><w:t>Co</w:t>")
         self.assertIn("SecretCo", check_public._office_text(buffer.getvalue()))
+
+    def test_non_ascii_paths_are_read(self):
+        # git 默认把中文路径转义成带引号的形式，按那个名字读不到文件，检查会静默跳过。
+        tracked = subprocess.run(["git", "ls-files", "-z"], cwd=check_public.ROOT,
+                                 capture_output=True, text=True, check=True).stdout.split("\0")
+        chinese = [name for name in tracked if name and not name.isascii() and not name.endswith(".png")]
+        self.assertTrue(chinese, "仓库里应该有中文文件名，本测试才有意义")
+        read = {name for name, _ in check_public.tracked_files(staged=False)}
+        self.assertTrue(set(chinese) <= read, "中文文件名的文件没有读到内容")
 
     def test_repository_passes_built_in_checks(self):
         files = check_public.tracked_files(staged=False)

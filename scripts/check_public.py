@@ -80,13 +80,14 @@ def _office_text(data: bytes) -> str:
 
 def tracked_files(staged: bool) -> list[tuple[str, str]]:
     if staged:
-        names = _git("diff", "--cached", "--name-only", "--diff-filter=ACMR").splitlines()
+        names = _git("diff", "--cached", "--name-only", "-z", "--diff-filter=ACMR").split("\0")
         read = lambda name: _git_bytes("show", f":{name}")  # noqa: E731
     else:
-        names = _git("ls-files").splitlines()
+        names = _git("ls-files", "-z").split("\0")
         read = lambda name: (ROOT / name).read_bytes()  # noqa: E731
     files = []
-    for name in names:
+    # -z 输出不转义路径，中文文件名才能读到；末尾的空串跳过。
+    for name in filter(None, names):
         files.append((f"{name}（路径）", name))
         suffix = Path(name).suffix.lower()
         if suffix in SKIP_SUFFIXES:
