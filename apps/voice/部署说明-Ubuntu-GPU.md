@@ -1,4 +1,4 @@
-# Orchisky Voice — Ubuntu 22.04 + NVIDIA GPU 部署说明
+# Aham Voice — Ubuntu 22.04 + NVIDIA GPU 部署说明
 
 > 本文档面向**执行部署的人或 AI**。前提：只有本仓库源码 + 一台干净的 Ubuntu 22.04 服务器。
 > 按顺序执行即可，每步都给了验证方法。遇到与文档不符的现象，**停下来报告，不要猜着往下走**。
@@ -14,7 +14,7 @@
 
 | 缺什么 | 用途 | 没有会怎样 |
 |---|---|---|
-| `internal_seed.json` | 内部版种子：员工账号 + 客户热词库 | 系统能跑，但没有用户，需手工建账号；热词为空，转写专有名词准确率下降 |
+| `internal_seed.json` | 用户与热词种子：成员账号 + 客户热词库 | 系统能跑，但没有用户，需手工建账号；热词为空，转写专有名词准确率下降 |
 | 大模型 API Key | 会议纪要、情绪语义分析 | 转写正常，但生成不了纪要 |
 | 既有业务数据（可选） | 从旧机迁移录音 / 数据库 / 声纹 | 全新空库开始 |
 
@@ -160,7 +160,7 @@ sudo chown -R "$USER:$USER" /opt/orchisky-voice /srv/orchisky-voice-data
 ├── voiceprints/                  # 声纹样本
 ├── bin/{ffmpeg,ffprobe}          # 指向系统 ffmpeg 的软链
 ├── config.json                   # 大模型配置（网页端写入）
-└── internal_seed.json            # 内部版种子（人工放入，不在仓库里）
+└── internal_seed.json            # 用户与热词种子（人工放入，不在仓库里）
 ```
 
 > 存储放在 RAID1 上。1.92T 可用容量，按旧机 43 个录音占 2.6G 估算，够用很久。
@@ -170,7 +170,7 @@ sudo chown -R "$USER:$USER" /opt/orchisky-voice /srv/orchisky-voice-data
 ## 4. 拉源码
 
 ```bash
-git clone https://github.com/Orchisky/orchisky-voice.git /opt/orchisky-voice
+git clone https://github.com/Aham-AIAPP/aham-voice.git /opt/orchisky-voice
 cd /opt/orchisky-voice
 ```
 
@@ -306,8 +306,8 @@ RECORDING_AI_HOME=/srv/orchisky-voice-data
 # 让 ASR / 情绪模型走 GPU。不设则默认 cpu（macOS 本机部署的默认值）。
 NEWVOICE_ASR_DEVICE=cuda:0
 
-# 新建用户的初始密码，首次登录强制修改
-NEWVOICE_INITIAL_PASSWORD=orchisky888888
+# 新建用户的初始密码，首次登录强制修改。务必改成自己的值，不要沿用代码默认值
+NEWVOICE_INITIAL_PASSWORD=ChangeMe-2026
 ```
 
 `NEWVOICE_ASR_DEVICE` 是本次为 Linux 部署新增的开关，会同时作用于：
@@ -372,7 +372,7 @@ python scripts/seed_internal.py             # 确认无误再导入
 ```bash
 sudo tee /etc/systemd/system/orchisky-voice-backend.service >/dev/null <<'EOF'
 [Unit]
-Description=Orchisky Voice backend (FastAPI + FunASR)
+Description=Aham Voice backend (FastAPI + FunASR)
 After=network-online.target
 Wants=network-online.target
 
@@ -401,7 +401,7 @@ sudo sed -i "s/%i_PLACEHOLDER/$USER/" /etc/systemd/system/orchisky-voice-backend
 ```bash
 sudo tee /etc/systemd/system/orchisky-voice-frontend.service >/dev/null <<'EOF'
 [Unit]
-Description=Orchisky Voice frontend static server
+Description=Aham Voice frontend static server
 After=network-online.target
 
 [Service]
@@ -507,7 +507,7 @@ launchctl unload ~/Library/LaunchAgents/com.newvoice.backend.plist
 sudo systemctl stop orchisky-voice-backend orchisky-voice-frontend
 
 # 从旧机拷三样：数据库、录音、声纹
-OLD="lichengbao@<旧机IP>:'~/Library/Application Support/AhamVoice'"
+OLD="<旧机用户名>@<旧机IP>:'~/Library/Application Support/AhamVoice'"
 rsync -avP "$OLD/app-data/newvoice.sqlite3" /srv/orchisky-voice-data/app-data/
 rsync -avP "$OLD/app-data/recordings/"      /srv/orchisky-voice-data/app-data/recordings/
 rsync -avP "$OLD/voiceprints/"              /srv/orchisky-voice-data/voiceprints/
@@ -575,6 +575,6 @@ sqlite3 /srv/orchisky-voice-data/app-data/newvoice.sqlite3 \
 | `NEWVOICE_VOICEPRINT_THRESHOLD` | 0.66 | 声纹匹配阈值（0.45–0.95） |
 | `NEWVOICE_TMP_TTL_HOURS` | 24 | 临时文件保留时长 |
 | `NEWVOICE_EXPORT_TTL_DAYS` | 14 | 导出文件保留天数 |
-| `NEWVOICE_INITIAL_PASSWORD` | `orchisky888888` | 新建用户初始密码 |
+| `NEWVOICE_INITIAL_PASSWORD` | 代码内置默认值（见 `backend/app/main.py` 的 `initial_password()`） | 新建用户初始密码，部署时务必设置 |
 
 完整清单可从源码提取：`grep -oE 'NEWVOICE_[A-Z_]+' backend/app/main.py | sort -u`

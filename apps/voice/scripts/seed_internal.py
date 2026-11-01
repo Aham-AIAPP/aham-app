@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """
-Orchisky Voice 内部版种子导入（幂等）。
+Aham Voice 用户与热词种子导入（幂等）。
 
-把种子文件里的**真实用户名**与**热词库**导入本机 sqlite。
+把种子文件里的**用户名**与**热词库**导入本机 sqlite，用于换机或团队部署。
 
-种子含员工名与客户热词，**不入库**；结构模板见 scripts/internal_seed.example.json。
+真实种子含成员姓名与客户热词，**不入库**；结构模板见 scripts/internal_seed.example.json。
 查找顺序：--seed <路径> → $INTERNAL_SEED_PATH → $RECORDING_AI_HOME/internal_seed.json。
-- 不含任何密钥/密码：用户密码统一用 NEWVOICE_INITIAL_PASSWORD（默认 orchisky888888），
-  must_change_password=1（首次登录强制改）；邮箱按 <username>@orchisky.cn 合成。
+- 不含任何密钥/密码：用户密码统一用 NEWVOICE_INITIAL_PASSWORD（未设置时用 initial_password() 里的默认值，
+  部署时务必设置），must_change_password=1（首次登录强制改）；邮箱按 <username>@<域名> 合成，域名见下方插入用户处。
 - 幂等：用户按 username、热词按 (word, owner) 去重，已存在则跳过；可反复运行。
 
 用法：
@@ -34,7 +34,7 @@ DRY = "--dry-run" in sys.argv
 
 
 def seed_path() -> Path:
-    # 真实种子含员工名与客户热词，不入版本库；默认放数据目录，与 sqlite / 录音同处。
+    # 真实种子含成员姓名与客户热词，不入版本库；默认放数据目录，与 sqlite / 录音同处。
     if "--seed" in sys.argv:
         i = sys.argv.index("--seed") + 1
         if i >= len(sys.argv):
@@ -71,7 +71,7 @@ def main() -> int:
     if not src.exists():
         print(
             f"✗ 找不到种子文件：{src}\n"
-            "  真实种子（员工名 / 客户热词）不入版本库，请放到上述路径，或用 --seed <路径> 指定。\n"
+            "  真实种子（成员姓名 / 客户热词）不入版本库，请放到上述路径，或用 --seed <路径> 指定。\n"
             "  结构模板见 scripts/internal_seed.example.json。"
         )
         return 1
@@ -146,7 +146,7 @@ def main() -> int:
     tag = "[dry-run] " if DRY else ""
     print(f"{tag}用户：新增 {u_added}，跳过(已存在) {u_skip}")
     print(f"{tag}热词：新增 {h_added}，跳过(已存在) {h_skip}")
-    print(f"{tag}完成。密码=NEWVOICE_INITIAL_PASSWORD（默认 orchisky888888），首登强制改。")
+    print(f"{tag}完成。密码=NEWVOICE_INITIAL_PASSWORD（未设置时用代码默认值），首登强制改。")
     return 0
 
 

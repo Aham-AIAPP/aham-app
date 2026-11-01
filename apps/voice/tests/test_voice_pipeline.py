@@ -94,9 +94,9 @@ class PipelineTests(unittest.TestCase):
         m.create_hotword({'word':'保留词','aliases':'原别名'},self.user)
         m.create_hotword({'word':'金蝶','aliases':'其他用户别名'},v.owner('bob'))
         with m.db() as c:external=[dict(r) for r in c.execute("select * from hotwords where source!='manual' or owner_id is null or owner_id!='alice'")]
-        result=v.update_hotwords({'entries':[{'word':'金蝶','aliases':['金碟'],'weight':9},{'word':'Orchisky'}]},self.user)
+        result=v.update_hotwords({'entries':[{'word':'金蝶','aliases':['金碟'],'weight':9},{'word':'Aham'}]},self.user)
         self.assertEqual(result['created'],2)
-        result=v.update_hotwords({'entries':[{'word':'金蝶','weight':10},{'word':'orchisky'}]},self.user)
+        result=v.update_hotwords({'entries':[{'word':'金蝶','weight':10},{'word':'aham'}]},self.user)
         self.assertEqual((result['updated'],result['unchanged']),(1,1))
         items=v.read_action('hotwords',{'query':'金碟'},self.user)['items']
         self.assertEqual(len(items),1);self.assertEqual(items[0]['weight'],10)

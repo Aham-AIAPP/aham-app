@@ -7,7 +7,7 @@ from starlette.testclient import TestClient
 from mcp_service.oauth import OAuth,Denied,challenge
 from mcp_service.server import create_app,consent_cookie_name,page_policy
 
-ISSUER='https://ai.orchisky.cn/voice'
+ISSUER='https://voice.example.com/voice'
 
 @pytest.fixture
 def auth(tmp_path):
@@ -68,7 +68,7 @@ def test_http_discovery_mcp_boundary_and_scopes(auth):
             json.dumps(args)  # Exercise the real bridge's JSON serialization.
             if a in ('sync','retry','update_hotwords') and 'voice:manage' not in g['scopes']:raise ValueError('需要管理授权')
             return {'authenticated':True,'name':'Test Alice','action':a}
-    with TestClient(create_app(auth,Backend()),base_url='https://ai.orchisky.cn') as client:
+    with TestClient(create_app(auth,Backend()),base_url='https://voice.example.com') as client:
         assert client.get('/voice/health',headers={'Host':'evil.example'}).status_code==403
         assert client.get('/voice/health',headers={'Origin':'https://new-client.example'}).status_code==200
         assert client.post('/voice/oauth/consent',data={'csrf':'wrong'}).status_code==403
@@ -95,7 +95,7 @@ def test_http_discovery_mcp_boundary_and_scopes(auth):
 def test_any_origin_oauth_and_authenticated_mcp(auth,origin):
     class Backend:
         async def query(self,g,a,args):return {'action':a,'arguments':args}
-    with TestClient(create_app(auth,Backend()),base_url='https://ai.orchisky.cn') as client:
+    with TestClient(create_app(auth,Backend()),base_url='https://voice.example.com') as client:
         for path in ['/.well-known/oauth-authorization-server/voice','/.well-known/oauth-protected-resource/voice/mcp','/voice/oauth/register','/voice/oauth/token','/voice/mcp']:
             r=client.options(path,headers={'Origin':origin,'Access-Control-Request-Method':'POST','Access-Control-Request-Headers':'authorization,content-type,mcp-protocol-version'})
             assert r.status_code==200 and r.headers['access-control-allow-origin'] in ('*',origin)
@@ -131,7 +131,7 @@ def test_any_origin_oauth_and_authenticated_mcp(auth,origin):
 
 
 def test_unknown_origins_need_auth_and_host_stays_restricted(auth):
-    with TestClient(create_app(auth,None),base_url='https://ai.orchisky.cn') as client:
+    with TestClient(create_app(auth,None),base_url='https://voice.example.com') as client:
         for origin in ['https://new-client.example','http://localhost:8080','null']:
             r=client.get('/.well-known/oauth-authorization-server/voice',headers={'Origin':origin})
             assert r.status_code==200 and r.headers['access-control-allow-origin']=='*'
@@ -168,7 +168,7 @@ def test_browser_callback_csp_separate_tabs_and_friendly_repeat(auth):
     import re
     c=auth.register({'redirect_uris':['https://claude.ai/api/mcp/auth_callback'],'client_name':'Claude'})
     p={'client_id':c['client_id'],'redirect_uri':c['redirect_uris'][0],'response_type':'code','resource':auth.resource,'code_challenge_method':'S256','code_challenge':challenge('z'*43),'state':'test','scope':'voice:read'}
-    with TestClient(create_app(auth,None),base_url='https://ai.orchisky.cn') as client:
+    with TestClient(create_app(auth,None),base_url='https://voice.example.com') as client:
         forms=[]
         for _ in range(2):
             response=client.get('/voice/oauth/authorize',params=p)

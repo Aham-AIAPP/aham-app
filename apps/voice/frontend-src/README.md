@@ -74,9 +74,20 @@ export default defineConfig([
 
 ## Aham UI 9.1 改造
 
-基线为 aham-ui 9.1.0，提交 `464daa3bc1db4d77b8a9f132e48bc7dda3d4dbf3`。
-`src/styles/aham/tokens.json` 保留上游原始取值，`scripts/build-aham-tokens.mjs` 生成 CSS。
-字体随应用自托管，许可在 `public/fonts/LICENSE.txt`。不再依赖 Google Fonts 请求。
+界面结构的基线为 aham-ui 9.1.0，提交 `464daa3bc1db4d77b8a9f132e48bc7dda3d4dbf3`。
+
+界面取值来自 aham-design 插件（Aham-AIAPP/aham-plugins 仓库的 `plugins/aham-design/tokens.json`，
+当前复制自本地提交 `9f60a228255e63820accfbc96fa5779f59374994`；该 GitHub 仓库尚未建立）。
+`src/styles/aham/tokens.json` 是 aham-design 生成的 `--wb-*` 变量视图的副本，每个取值带 `$source` 记录对应的 aham-design 键名，不要手改。
+更新取值的步骤：
+
+```sh
+AHAM_DESIGN_DIR=<aham-plugins 仓库>/plugins/aham-design node scripts/sync-aham-design-tokens.mjs
+node scripts/build-aham-tokens.mjs
+npm run check:tokens
+```
+
+字体只用 Windows 和 Mac 自带的字体（微软雅黑、苹方等），不再自托管 Inter，也不请求 Google Fonts。
 
 React 继续管理路由、表单、请求和弹窗状态。通过 token 适配层统一旧组件，
 不同时引入另一套会操作同一 DOM 的交互运行时。后端增加独立的纪要改写预览/确认接口和草稿表；MCP 同步增加纪要来源字段。

@@ -210,7 +210,7 @@ export function AppShell() {
         <div className="app-shell__brand">
           <button className="icon-btn sidebar-toggle" aria-label={narrow ? "关闭导航" : "收起导航"} title="展开 / 收起导航（⌘/Ctrl+B）" onClick={toggleSidebar}><Icon name="panel-left" size={14} /></button>
           <span className="app-shell__brand-name">
-            Orchisky <em>Voice</em>
+            Aham <em>Voice</em>
           </span>
         </div>
         <nav className="app-shell__sidebar-nav" aria-label="主导航">

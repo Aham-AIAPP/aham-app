@@ -1,4 +1,4 @@
-# Orchisky Voice 网页版 · Aham UI 9.1 精修
+# Aham Voice 网页版 · Aham UI 9.1 精修
 
 当前主线对应本地多用户网页版，沿用 aham-ui 9.1.0（`464daa3`）的内容优先、单主操作、安静层级与可核对的 AI 输出设计。已将网页版与旧桌面版的历史归并，应用代码以经过验证的 `82df197` 为准；旧桌面版保留在 [archive/desktop-main-20261026](https://github.com/Aham-AIAPP/aham-voice/tree/archive/desktop-main-20261026)。部署时使用当前主线的配套代码。
 

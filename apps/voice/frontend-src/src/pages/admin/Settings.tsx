@@ -38,7 +38,7 @@ function providerForBase(base: string): ProviderKey {
 }
 
 // 大模型配置（对齐 aham-voice 开源版）。支持任意 OpenAI 兼容接口。
-// orchisky 多用户语义:仅管理员可改/测（后端 require_admin），配置全局单份存 config.json。
+// 多用户版语义:仅管理员可改/测（后端 require_admin），配置全局单份存 config.json。
 export function AdminSettings() {
   const qc = useQueryClient();
   const settings = useQuery({ queryKey: ["settings"], queryFn: fetchSettings });

@@ -8,8 +8,8 @@ Deployment: 2026-10-21. This extension preserves the existing Voice SQLite data 
 - Frontend: `com.newvoice.frontend`, port 5173; `/app/integrations` manages sync and personal OAuth grants.
 - Durable worker: `com.orchisky.voice-worker`, `python -m backend.app.voice_worker` in the ASR environment. A filesystem lock ensures one worker; SQLite commits each stage. Scheduler scans every 600 seconds independently of ASR.
 - OAuth MCP: `com.orchisky.voice-mcp`, `python -m mcp_service.server` in an isolated venv using `mcp_service/requirements.txt`. Loopback port 8770.
-- Tunnel: `com.orchisky.voice-public-tunnel`, restricted reverse SSH from Tencent loopback 18769 to Mac loopback 8770.
-- nginx serves `https://ai.orchisky.cn/voice/mcp` and its OAuth discovery paths, without exposing the Voice API or file tree.
+- Tunnel: `com.orchisky.voice-public-tunnel`, restricted reverse SSH from the cloud server loopback 18769 to Mac loopback 8770.
+- nginx serves `https://voice.example.com/voice/mcp` and its OAuth discovery paths, without exposing the Voice API or file tree.
 
 ## Configuration and state
 
@@ -29,7 +29,7 @@ Disabling scheduled sync stops new scans, not existing queued work. Automatic na
 
 ## MCP connection
 
-URL: `https://ai.orchisky.cn/voice/mcp`
+URL: `https://voice.example.com/voice/mcp` (replace `voice.example.com` with your own domain; it must match `public_issuer`)
 Transport: Streamable HTTP. Authentication: OAuth 2.0 authorization code with PKCE S256. Dynamic registration is supported; no static client secret is needed. Required resource is the exact MCP URL. Default scope `voice:read`; optional `voice:manage` allows personal hotword updates for the authenticated user, and explicit sync/retry for the configured DingTalk owner only.
 
 ChatGPT: Plugins → plus → Add custom MCP server → name and URL → OAuth → review and create as a plugin → connect using the local Voice username/password. In a new chat, select the plugin with @.
@@ -37,13 +37,13 @@ ChatGPT: Plugins → plus → Add custom MCP server → name and URL → OAuth �
 Codex CLI (verified installed flags):
 
 ```sh
-codex mcp add orchisky-voice --url https://ai.orchisky.cn/voice/mcp --oauth-resource https://ai.orchisky.cn/voice/mcp --oauth-client-registration dcr
+codex mcp add aham-voice --url https://voice.example.com/voice/mcp --oauth-resource https://voice.example.com/voice/mcp --oauth-client-registration dcr
 ```
 
 Follow the login prompt. If sign-in did not start:
 
 ```sh
-codex mcp login orchisky-voice --oauth-client-registration dcr --scopes voice:read
+codex mcp login aham-voice --oauth-client-registration dcr --scopes voice:read
 ```
 
 For optional management tools, reauthorize with `--scopes voice:read,voice:manage`. Revoke individual grants on the local integration page. Access tokens last up to one hour; refresh credentials rotate and expire after 30 days. Refresh reuse revokes the grant.
@@ -63,7 +63,7 @@ npm run build --prefix frontend-src
 
 Run pipeline tests in the ASR environment and OAuth tests in the MCP environment with pytest installed. Tests use temporary databases and synthetic users. Public acceptance additionally exercised real HTTPS, OAuth login, initialization, tool discovery, authorized reads, cross-user denial, read-scope denial and revocation using an ephemeral test account, removed afterward.
 
-Pilot: 54m21s, 407 segments, 18,658 transcript characters and a 9,898-character current summary; local title `2026-10-20｜产品化边界与金蝶接入认证及定价交付口径讨论`, DingTalk title `产品化边界与金蝶接入认证及定价交付口径讨论`. Original 57 recordings, 22,504 segments and 57 summaries matched the pre-change SQLite backup row-for-row; original audio files exist.
+Pilot: 54m21s, 407 segments, 18,658 transcript characters and a 9,898-character current summary; local title `2026-10-20｜示例会议主题`, DingTalk title `示例会议主题` (the real meeting title is omitted). Original 57 recordings, 22,504 segments and 57 summaries matched the pre-change SQLite backup row-for-row; original audio files exist.
 
 Backup: `repair-backups/voice-integration-20261021-101632` inside the data home. Never restore this old database over new recordings. To roll back runtime, first stop worker/MCP/tunnel, preserve the current database, and repoint backend/frontend WorkingDirectory to the prior release. Additive integration tables may remain. The previous API's background queue is not a substitute for the durable worker.
 
@@ -85,7 +85,7 @@ In Claude custom connector setup, use the same URL, OAuth sign-in and **Register
 Example tool arguments:
 
 ```json
-{"entries":[{"word":"金蝶","aliases":["金碟"],"weight":9},{"word":"兰之天","kind":"客户简称","weight":10}]}
+{"entries":[{"word":"金蝶","aliases":["金碟"],"weight":9},{"word":"示例客户","kind":"客户简称","weight":10}]}
 ```
 
 These changes feed subsequent local transcription jobs; they do not reprocess historical transcripts or update DingTalk ASR vocabulary. Existing ASR filtering still applies (normally 2–8 characters and no formal company-name suffixes); returned `asr_eligible_terms` shows qualifying candidates. Personal product/system terms remain disabled across service restarts when explicitly disabled.

@@ -39,13 +39,13 @@ export function Login() {
   return (
     <form className="auth-form" onSubmit={handleSubmit}>
       <h1 className="auth-form__title">
-        登录到 <em>Orchisky Voice</em>
+        登录到 <em>Aham Voice</em>
       </h1>
-      <p className="auth-form__lede">使用公司账号继续。首次登录后会被引导设置新密码。</p>
+      <p className="auth-form__lede">使用团队账号继续。首次登录后会被引导设置新密码。</p>
 
       <div className="auth-hint">
-        <div>用户名：姓名全拼小写（如 <code>lichengbao</code> / <code>zhutao</code>）</div>
-        <div>初始密码：<code>orchisky888888</code>（首次登录会要求改密）</div>
+        <div>用户名：姓名全拼小写（如 <code>zhangsan</code>）</div>
+        <div>初始密码由管理员提供（首次登录会要求改密）</div>
       </div>
 
       <FormRow label="用户名 / 邮箱 / 手机号" htmlFor="login-username">

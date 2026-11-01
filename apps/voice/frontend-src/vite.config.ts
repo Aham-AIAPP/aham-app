@@ -3,7 +3,7 @@ import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import path from "node:path";
 
-// Orchisky Voice frontend.
+// Aham Voice frontend.
 //
 // Build target: ../frontend/dist (the static-served bundle that the existing
 // frontend_static_server.py picks up). The backend reads dist files directly,

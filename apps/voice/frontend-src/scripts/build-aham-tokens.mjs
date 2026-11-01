@@ -10,8 +10,8 @@ function declarations(group) {
 }
 const common = Object.entries(tokens).filter(([key]) => !['color', '$meta'].includes(key))
   .map(([, group]) => declarations(group)).filter(Boolean).join('\n');
-const css = '/* Generated from Aham UI 9.1.0, commit 464daa3. Run node scripts/build-aham-tokens.mjs. */\n'
-  + "@font-face { font-family: 'Inter Variable'; font-style: normal; font-weight: 100 900; font-display: swap; src: url('/fonts/InterVariable.woff2') format('woff2'); }\n"
+const meta = tokens.$meta;
+const css = `/* Generated from ${meta.name} ${meta.version}, ${meta.source.repository} ${meta.source.path} @ ${meta.source.commit.slice(0, 7)}. Run node scripts/build-aham-tokens.mjs. */\n`
   + ':root {\n' + common + '\n' + declarations(tokens.color.light) + '\n  color-scheme: light;\n}\n'
   + ':root.dark {\n' + declarations(tokens.color.dark) + '\n  color-scheme: dark;\n}\n'
   + '@media (prefers-contrast: more) {\n  :root {\n' + declarations(tokens.color['contrast-more'].light)

@@ -749,7 +749,6 @@ def ensure_schema() -> None:
                 values(?,?,?,?,?,?,?,?,?)
                 """,
                 [
-                    (str(uuid.uuid4()), "name", "李成豹", "manager", "[]", 1, 10, timestamp, timestamp),
                     (str(uuid.uuid4()), "local_username", "administrator", "admin", "[]", 1, 1, timestamp, timestamp),
                 ],
             )
@@ -3068,7 +3067,7 @@ def me(user: dict[str, Any] = Depends(current_user)) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 # 大模型（LLM）配置端点 —— 对齐 aham-voice 开源版。
 # 配置是全局单份(存 config.json),读取对登录用户开放;写入/测试限管理员
-# (orchisky 多用户语义,不同于 aham 单用户的全放行)。
+# (多用户版语义,不同于单机版的全放行)。
 # ---------------------------------------------------------------------------
 def _settings_view() -> dict[str, Any]:
     api_key, base, model = get_llm_config()

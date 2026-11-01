@@ -1,5 +1,5 @@
 {
-  "_comment": "内部版种子数据模板。真实文件不入库（.gitignore 已排除），放在 $RECORDING_AI_HOME/internal_seed.json，或用 --seed 指定。字段含义见 scripts/seed_internal.py。不含密钥/密码/邮箱/手机号：密码由 NEWVOICE_INITIAL_PASSWORD 设定、首登强制改，邮箱按 <username>@orchisky.cn 合成。",
+  "_comment": "用户与热词种子模板，全部为虚构示例。真实文件不入库（.gitignore 已排除），放在 $RECORDING_AI_HOME/internal_seed.json，或用 --seed 指定。字段含义见 scripts/seed_internal.py。不含密钥/密码/邮箱/手机号：密码由 NEWVOICE_INITIAL_PASSWORD 设定、首登强制改，邮箱由导入脚本按 <username>@<域名> 合成。",
   "users": [
     {
       "username": "administrator",

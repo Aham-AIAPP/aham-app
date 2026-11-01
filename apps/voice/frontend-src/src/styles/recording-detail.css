@@ -18,7 +18,7 @@
 .record-export-actions .btn > svg { display: block; width: var(--wb-icon); height: var(--wb-icon); }
 .record-export-actions .btn--secondary { background: var(--wb-bg); border: 1px solid var(--wb-line); }
 .record-export-actions .btn--secondary:hover { background: var(--wb-button-hover); }
-.record-section { width: 100%; max-width: 1120px; margin: 0 auto var(--wb-s5); padding: var(--wb-s6); border: 1px solid var(--wb-line); border-radius: var(--wb-radius-lg); background: var(--wb-bg); }
+.record-section { width: 100%; max-width: 1120px; margin: 0 auto var(--wb-s5); padding: var(--wb-s6); border: 1px solid var(--wb-line); border-radius: var(--wb-radius); background: var(--wb-bg); }
 .record-section[hidden] { display: none; }
 .record-section-head { margin-bottom: var(--wb-s3); min-height: var(--wb-row); }
 .record-section-head h2 { font-size: var(--wb-title); font-weight: 600; letter-spacing: -.02em; }
