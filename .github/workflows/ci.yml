@@ -50,8 +50,9 @@ jobs:
           python scripts/check_public.py --history
 
   # PPT 引擎：用 demo 的五页示例跑 check_slides.js、导出 PPTX、跑 check_deck.py，再生成一次确认结果一致
+  # Playwright 1.56.1 不支持 ubuntu 26.04，ubuntu-latest 换到 26.04 后装不上浏览器，这里固定 24.04
   ppt:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
