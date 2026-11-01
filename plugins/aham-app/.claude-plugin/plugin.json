@@ -2,7 +2,7 @@
   "name": "aham-app",
   "displayName": "Aham App",
   "version": "1.0.0",
-  "description": "Aham 系列的应用技能，例如 PPT 方案流程。规范和排版引擎来自 aham-design。",
+  "description": "Aham 系列的应用技能：aham-ppt-proposal 把材料做成方案级、汇报级的 PPT。规范、取值和排版引擎来自 aham-design，安装时一并安装。",
   "author": {
     "name": "Aham"
   },

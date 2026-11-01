@@ -1,0 +1,170 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  UI_DIR: plugins/aham-design/skills/aham-design/assets/ui
+  PPT_DIR: plugins/aham-design/skills/aham-ppt/assets/html2pptx
+
+jobs:
+  # 两组 Python 测试和公开检查。PPT 取值测试里调用 Node 的部分要先装好引擎的 npm 依赖，否则会跳过
+  python:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: 安装 Python 依赖
+        run: |
+          python -m pip install --upgrade pip
+          pip install python-docx lxml \
+            -r plugins/aham-design/skills/aham-ppt/requirements.txt \
+            -r plugins/aham-app/skills/aham-ppt-proposal/requirements.txt
+      - name: 安装 PPT 引擎的 npm 依赖
+        working-directory: ${{ env.PPT_DIR }}
+        run: npm install --no-audit --no-fund
+      - name: aham-design 插件测试
+        run: python -m unittest discover -s plugins/aham-design/tests -v
+      - name: 仓库脚本测试
+        run: python -m unittest discover -s tests -v
+      - name: 公开检查
+        env:
+          AHAM_PRIVATE_TERMS: ${{ secrets.AHAM_PRIVATE_TERMS }}
+        run: |
+          if [ -z "$AHAM_PRIVATE_TERMS" ]; then
+            echo "::warning::没有读到仓库密钥 AHAM_PRIVATE_TERMS，本次只查内置词和企业名称规则"
+          fi
+          python scripts/check_public.py --history
+
+  # 界面样式库：构建核对、lint、组件契约、主题生成和 node 测试，不需要浏览器
+  ui:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: 界面检查
+        working-directory: ${{ env.UI_DIR }}
+        run: npm run check
+
+  # 界面浏览器回归：qa/run-browser.mjs 在 Chromium 和 WebKit 里各跑一遍
+  ui-browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: ${{ env.UI_DIR }}/package-lock.json
+      - name: 安装依赖和浏览器
+        working-directory: ${{ env.UI_DIR }}
+        run: |
+          npm ci --no-audit --no-fund
+          npx playwright install --with-deps chromium webkit
+      - name: 安装中文字体和 pdftotext
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y fonts-noto-cjk poppler-utils
+      - name: 浏览器回归
+        working-directory: ${{ env.UI_DIR }}
+        run: npm run test:browser
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ui-browser-regression
+          path: ${{ env.UI_DIR }}/qa-results/
+          if-no-files-found: warn
+          retention-days: 14
+
+  # 界面示例页截图：1440 和 390 两种宽度、浅色和深色两种主题，上传为构件，用来看外观
+  shots:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: ${{ env.UI_DIR }}/package-lock.json
+      - name: 安装依赖和 Chromium
+        working-directory: ${{ env.UI_DIR }}
+        run: |
+          npm ci --no-audit --no-fund
+          npx playwright install --with-deps chromium
+      - name: 安装中文字体
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y fonts-noto-cjk
+      - name: 示例页截图
+        working-directory: ${{ env.UI_DIR }}
+        run: |
+          node qa/screenshots.mjs --out "$RUNNER_TEMP/ui-shots"
+          count=$(find "$RUNNER_TEMP/ui-shots" -name '*.png' | wc -l)
+          {
+            echo "## 界面示例页截图"
+            echo "共 $count 张，见构件 ui-shots。截图用 Noto Sans CJK SC 渲染中文，Windows 上实际用微软雅黑。"
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ui-shots
+          path: ${{ runner.temp }}/ui-shots/
+          if-no-files-found: error
+          retention-days: 30
+
+  # PPT 引擎：用 demo 的五页示例跑 check_slides.js、导出 PPTX、跑 check_deck.py，再生成一次确认结果一致
+  ppt:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: 安装依赖和 Chromium
+        run: |
+          pip install -r plugins/aham-design/skills/aham-ppt/requirements.txt \
+            -r plugins/aham-app/skills/aham-ppt-proposal/requirements.txt
+          cd "$PPT_DIR"
+          npm install --no-audit --no-fund
+          npx playwright install --with-deps chromium
+          node -e "console.log('pptxgenjs', require('pptxgenjs/package.json').version, 'playwright', require('playwright/package.json').version)"
+      - name: 安装中文字体
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y fonts-noto-cjk
+      - name: 生成样张并检查
+        run: python scripts/build_ppt_samples.py "$RUNNER_TEMP/ppt/head" --check
+      - name: 再生成一次，确认两次结果一致
+        run: |
+          python scripts/build_ppt_samples.py "$RUNNER_TEMP/ppt/head-again"
+          python scripts/compare_outputs.py diff "$RUNNER_TEMP/ppt/head" "$RUNNER_TEMP/ppt/head-again" --limit 200
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ppt-samples
+          path: ${{ runner.temp }}/ppt/head/
+          if-no-files-found: warn
+          retention-days: 30
