@@ -1,0 +1,11 @@
+{
+  "name": "aham-design",
+  "displayName": "Aham Design",
+  "version": "1.0.0",
+  "description": "Aham 系列的通用规范和排版引擎：tokens.json 是全部视觉取值的唯一来源，aham-word 技能按它生成 Word 文档。",
+  "author": {
+    "name": "Aham"
+  },
+  "license": "MIT",
+  "keywords": ["design-tokens", "word", "docx", "typography"]
+}

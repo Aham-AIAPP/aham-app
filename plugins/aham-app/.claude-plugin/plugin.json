@@ -1,0 +1,13 @@
+{
+  "name": "aham-app",
+  "displayName": "Aham App",
+  "version": "1.0.0",
+  "description": "Aham 系列的应用技能，例如 PPT 方案流程。规范和排版引擎来自 aham-design。",
+  "author": {
+    "name": "Aham"
+  },
+  "license": "MIT",
+  "dependencies": [
+    { "name": "aham-design", "version": "^1.0.0" }
+  ]
+}

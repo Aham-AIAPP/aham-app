@@ -1,0 +1,21 @@
+{
+  "name": "aham-plugins",
+  "owner": {
+    "name": "Aham"
+  },
+  "metadata": {
+    "description": "Aham 系列插件：aham-design 放通用规范和排版引擎，aham-app 放应用技能并依赖 aham-design。"
+  },
+  "plugins": [
+    {
+      "name": "aham-design",
+      "source": "./plugins/aham-design",
+      "description": "通用规范和排版引擎：tokens.json、Word 规范和引擎。"
+    },
+    {
+      "name": "aham-app",
+      "source": "./plugins/aham-app",
+      "description": "应用技能，依赖 aham-design。"
+    }
+  ]
+}

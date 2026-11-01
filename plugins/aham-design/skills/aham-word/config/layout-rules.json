@@ -1,0 +1,140 @@
+{
+  "schema_version": "1.0",
+  "rules_id": "aham-layout-rules",
+  "description": "Aham Word 版面规则。每条写明依据和依据强度：实证、标准、惯例、偏好。规则里不写视觉取值，颜色、字号和线宽见插件根的 tokens.json。",
+  "strength_levels": {
+    "实证": "有实验或可用性测试数据，用于文档属推论时注明",
+    "标准": "有编号的国标、ISO 或 W3C 条款",
+    "惯例": "权威专家或业界通行做法",
+    "偏好": "无外部依据，由用户决定"
+  },
+  "rules": [
+    {
+      "id": "numbering",
+      "rule": "有序编号",
+      "value": {
+        "list": "1.",
+        "sublist": "（1）"
+      },
+      "basis": "GB/T 9704-2012 7.3.3",
+      "strength": "标准",
+      "scope": "全部文档与网页"
+    },
+    {
+      "id": "cover_title",
+      "rule": "封面与正文首页主标题",
+      "value": {
+        "main": "project_name",
+        "subtitle": "document_type"
+      },
+      "basis": "ISO 24896:2026 3.3.2：标题要能识别内容",
+      "strength": "标准",
+      "scope": "全部有封面的文档"
+    },
+    {
+      "id": "first_page_info_line",
+      "rule": "正文首页信息条",
+      "value": {
+        "show_when_cover": false
+      },
+      "basis": "Sweller 等 2019 冗余效应（推论）",
+      "strength": "实证",
+      "scope": "全部有封面的文档"
+    },
+    {
+      "id": "section_summary",
+      "rule": "章节说明",
+      "value": {
+        "style": "subtitle",
+        "label": false,
+        "rules": false
+      },
+      "basis": "Butterick《Practical Typography》线条克制；Palmer 1992 格式塔分组",
+      "strength": "惯例",
+      "scope": "全部文档"
+    },
+    {
+      "id": "amount_unit",
+      "rule": "金额单位",
+      "value": {
+        "in_label": true,
+        "in_header": true,
+        "after_number": false,
+        "label_suffix": "（元，含税）",
+        "header_suffix": "（元）"
+      },
+      "basis": "ISO 24896:2026、IBCS：单位写进标题",
+      "strength": "标准",
+      "scope": "全部含金额的表格"
+    },
+    {
+      "id": "key_value_table",
+      "rule": "基本信息键值表",
+      "value": {
+        "columns": 1,
+        "label_position": "left",
+        "header_row": false
+      },
+      "basis": "Baymard 2023、CXL 2016 表单研究（推论）",
+      "strength": "实证",
+      "scope": "全部文档"
+    },
+    {
+      "id": "keep_small_tables",
+      "rule": "小表分页",
+      "value": {
+        "max_rows": 8
+      },
+      "basis": "W3C《中文排版需求》孤行规则",
+      "strength": "标准",
+      "scope": "全部 Word 文档"
+    },
+    {
+      "id": "cjk_punctuation",
+      "rule": "中文标点",
+      "value": {
+        "normalize_halfwidth_in_cjk": true
+      },
+      "basis": "GB/T 15834-2011",
+      "strength": "标准",
+      "scope": "全部文档与网页"
+    },
+    {
+      "id": "faint_contrast",
+      "rule": "淡化文字对比度",
+      "value": {
+        "min_ratio": 4.5,
+        "token": "role.document.color.faint"
+      },
+      "basis": "WCAG 2.2 SC 1.4.3（用于印刷品属借用）",
+      "strength": "标准",
+      "scope": "全部文档与网页"
+    },
+    {
+      "id": "table_style",
+      "rule": "表格",
+      "value": {
+        "style": "three-line",
+        "zebra": false,
+        "row_rule_min_pt": 0.5
+      },
+      "basis": "GB/T 7713.1-2006 三线表；Enders 2007/2008；Butterick",
+      "strength": "标准",
+      "scope": "全部文档"
+    },
+    {
+      "id": "body_measure",
+      "rule": "版心与字号：取值见 tokens.json",
+      "value": {
+        "tokens": [
+          "layout.page.portrait_body_mm",
+          "size.word.body",
+          "size.word.table"
+        ]
+      },
+      "basis": "GB/T 9704-2012 5.2；W3C clreq 行长不超过 48 字",
+      "strength": "标准",
+      "scope": "全部 Word 文档"
+    }
+  ]
+}

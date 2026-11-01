@@ -1,0 +1,8 @@
+{
+  "description": "Aham Word 的品牌取值：排版引擎印在页眉页脚和封面的名称和 logo，以及 Word 标记字符样式名。换品牌改这个文件，或调用 aham_doc.brand.set_brand。",
+  "company": "Aham Word",
+  "short_name": "Aham",
+  "wordmark": "Aham",
+  "mark_style": "Aham Mark",
+  "logo": "assets/aham-logo.png"
+}
