@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aham.ai/schemas/aham-survey/project-brief-v1.json",
+  "title": "Aham Survey project brief",
+  "type": "object",
+  "required": ["customer"],
+  "properties": {
+    "customer": { "type": "string", "minLength": 1 },
+    "consultant": { "type": "string" },
+    "industry": { "type": "string" },
+    "scopes": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+    "departments": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+    "surveyGoal": { "type": "string" },
+    "existingSystems": { "type": "string" },
+    "unknownFields": { "type": "array", "items": { "type": "string" }, "uniqueItems": true }
+  },
+  "additionalProperties": false
+}
+

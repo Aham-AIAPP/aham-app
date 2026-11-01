@@ -1,0 +1,45 @@
+# Cursor / Codeium / Zed AI 编辑规则（Aham App）
+# 此文件与 CLAUDE.md 规则等价，放在项目根部以便不同 AI 编辑器读取
+
+## 核心铁律
+- 禁止硬编码 padding / corner radius / font size。必须用 AHSpacing / AHRadius / AHIconBox token。
+- 禁止直接用 GroupBox、.borderedProminent、.bordered。必须用 AHCard、AHSection、.buttonStyle(.ahPrimary / .ahSecondary / .ahGhost)。
+- 禁止 Color.blue.opacity(...) 等字面色。用 Color.ahAccent、Color.ahAccentBG、Color.ahSuccess/.ahWarning/.ahDanger/.ahInfo、Color.ahPaperAlt 等语义色。
+- 禁止 .font(.system(size: 13)) / .font(.title)。用 .ahTitle() / .ahTitle2() / .ahTitle3() / .ahMeta() / .ahCaption() / .ahSectionLabel() / .ahMono()。
+- 不允许在 View 内自己搭建 RoundedRectangle + overlay 做卡片/图标容器。用 AHCard、AHIconTile、AHPill。
+- 新加的颜色/尺寸必须先扩展 DesignTokens.swift 再在 View 用。
+
+## 组件使用速查
+- 卡片         → AHCard { ... }
+- 带标题的 Section → AHCard { AHSection("标题") { ... } trailing: { ... } }
+- 胶囊标签     → AHPill(text: "...", icon: "...", style: .success/.danger/.info/.warning/.neutral/.accent)
+- 图标容器     → AHIconTile(symbol: "sparkles", size: AHIconBox.lg, tint: .ahAccent)
+- 状态小圆点   → AHStatusDot(color: ...)
+- Segmented tab → AHSegmentedTab(selection: $tab, items: [(key, "标签", "sfSymbol?"), ...])
+- 数据卡片     → AHStatCard(label, value, delta?, icon?)
+- 空状态       → AHEmptyState(symbol, title, message?, actionLabel?, action?)
+- 标准分隔线   → AHDivider()
+- 主按钮       → Button { ... } label: { Label("..", systemImage: "..") }.buttonStyle(.ahPrimary)
+- 次按钮       → .buttonStyle(.ahSecondary)
+- Ghost 按钮   → .buttonStyle(.ahGhost)
+- Label 行     → AHLabeledRow(label: "标签") { 右侧内容 }
+
+## 间距 token
+AHSpacing.xxs(4) / .xs(6) / .s(8) / .m(12) / .l(16) / .xl(20) / .xxl(24) / .xxxl(32) / .huge(48)
+
+## 圆角 token
+AHRadius.xs(3) / .sm(5) / .md(8) / .lg(10) / .xl(12) / .xxl(16) / .pill(999)
+
+## 图标容器尺寸
+AHIconBox.xs(18) / .sm(22) / .md(28) / .lg(36) / .xl(48) / .hero(64)
+
+## 动效
+AHAnimation.quick (UI 反馈) / .standard (转场) / .expand (展开折叠)
+
+## 审查清单（每次提交前自检）
+- [ ] 没有 magic number
+- [ ] 没有 GroupBox / borderedProminent
+- [ ] 没有字面色 Color.xxx.opacity
+- [ ] 所有字体走 .ah* modifier
+- [ ] 所有按钮走 .ahPrimary/.ahSecondary/.ahGhost
+- [ ] 复用组件，不重复造

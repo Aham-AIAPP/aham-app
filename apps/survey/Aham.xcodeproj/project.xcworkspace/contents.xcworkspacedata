@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Workspace
+   version = "1.0">
+   <FileRef
+      location = "self:">
+   </FileRef>
+   <Group
+      location = "group:AhamTests"
+      name = "AhamTests">
+      <FileRef
+         location = "group:DocumentImportTests.swift">
+      </FileRef>
+   </Group>
+</Workspace>

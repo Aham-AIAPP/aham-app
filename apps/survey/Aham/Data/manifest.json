@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "departmentFiles": [
+    "procurement"
+  ],
+  "departments": [
+    {
+      "id": "procurement",
+      "name": "采购",
+      "icon": "Purchase",
+      "defaultSelected": true,
+      "description": "供应商管理、采购订单、比价、交期跟踪、供应商评审"
+    }
+  ]
+}

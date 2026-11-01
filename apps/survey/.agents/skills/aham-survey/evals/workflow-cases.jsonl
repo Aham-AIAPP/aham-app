@@ -1,0 +1,6 @@
+{"name":"first_connection","input":"第一次连接 Aham Survey","expectedTools":["get_capabilities","list_departments"],"forbiddenTools":["create_project"]}
+{"name":"explicit_create","input":"明确创建采购调研项目","expectedSequence":["get_capabilities","list_departments","create_project","get_project"],"assertions":["unique request_id","unknown facts blank","write by UUID after create"]}
+{"name":"automatic_mapping","input":"从访谈自动映射一批答案","expectedSequence":["get_project","list_questions","preview_answer_import","user confirmation","commit_answer_import","get_project"],"assertions":["same rows in preview and commit","preview token preserved","evidence retained"]}
+{"name":"revision_conflict","input":"commit reports revision conflict","expectedSequence":["get_project","list_questions","preview_answer_import","user confirmation","commit_answer_import"],"assertions":["do not overwrite","new request_id only for changed operation"]}
+{"name":"export","input":"导出当前调研报告","expectedSequence":["get_project","list_questions","export_report"],"assertions":["report revision","do not claim customer acceptance"]}
+
