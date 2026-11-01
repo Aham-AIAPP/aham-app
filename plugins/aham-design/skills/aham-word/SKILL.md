@@ -1,11 +1,11 @@
 ---
 name: aham-word
-description: 按 Aham 设计规范生成 Word 文档（.docx）。触发场景：用户要做一份 Word；要把资料整理成 Word 版的方案、报告、需求说明、会议纪要或说明文档；要按统一规范出 docx；要带封面、目录、页码和三线表的正式文档。做法是把内容写成 JSON，由 scripts/build_docx.py 调用 aham_doc 引擎生成；颜色、字体、字号和线宽全部取自 aham-design 插件根目录的 tokens.json，内容里不写格式。PPT、Excel 和网页不用本技能。
+description: 按 Aham 设计规范生成 Word 文档（.docx）。触发场景：用户要做一份 Word；要把资料整理成 Word 版的方案、报告、需求说明、会议纪要或说明文档；要按统一规范出 docx；要带封面、目录、页码和三线表的正式文档；交付 Word 前要先出一页网页预览给用户确认。做法是把内容写成 JSON，由 scripts/build_docx.py 调用 aham_doc 引擎生成；颜色、字体、字号和线宽全部取自 aham-design 插件根目录的 tokens.json，内容里不写格式；同一份内容由 scripts/build_preview.py 排成网页预览。PPT 和 Excel 不用本技能。
 ---
 
 # Aham Word
 
-本技能把结构化内容排成 Word 文档。格式全部由引擎决定，取值全部来自插件根目录的 `tokens.json`。同一份内容生成两次，得到的文件除时间戳外完全一致。
+本技能把结构化内容排成 Word 文档，同一份内容也能排成单文件网页预览。格式全部由引擎决定，取值全部来自插件根目录的 `tokens.json`。同一份内容生成两次，得到的文件除时间戳外完全一致。
 
 ## 文件位置
 
@@ -13,13 +13,16 @@ description: 按 Aham 设计规范生成 Word 文档（.docx）。触发场景�
 |---|---|
 | `../../tokens.json` | 设计取值：颜色、字体、字号、线宽、版心。整个 aham-design 插件共用这一份 |
 | `scripts/build_docx.py` | 命令行入口：内容 JSON → .docx |
-| `scripts/aham_doc/` | 排版引擎。`document.py` 组装整份文档，`word.py` 写各类内容块，`tokens.py` 读取值 |
+| `scripts/build_preview.py` | 命令行入口：同一份内容 JSON → 网页预览 .html |
+| `scripts/build_html.py`、`scripts/audit_html.py`、`scripts/bar_chart.py` | 网页内容 JSON → .html；网页审计；分组柱状图 SVG |
+| `scripts/aham_doc/` | 排版引擎。`document.py` 组装整份文档，`word.py` 写各类内容块，`html.py` 写网页，`webstyle.py` 把取值转成 CSS 变量，`tokens.py` 读取值 |
 | `scripts/update_toc_export.py` | 用 LibreOffice 刷新目录和页码域，再导出 PDF |
 | `config/layout-rules.json` | 版面规则，每条写明依据和依据强度 |
 | `config/writing-rules.json` | 用词和标点规则 |
 | `config/brand.json` | 页眉、页脚和封面上的品牌名与 logo |
 | `references/word-spec.md` | 影响 Word 排版的元素清单，逐项写明取值、来源和引擎实现情况 |
 | `references/content-format.md` | 内容 JSON 的格式 |
+| `references/web-format.md` | 网页内容 JSON 的格式、网页预览和网页扩展点 |
 | `examples/` | 样张内容、生成脚本和生成好的样张 |
 
 ## 生成流程
@@ -28,8 +31,9 @@ description: 按 Aham 设计规范生成 Word 文档（.docx）。触发场景�
 2. 客户名、金额、数量、日期、编号等事实，用户没有给出时，AI 向用户询问。没有来源的事实不写进文档。
 3. AI 按 `references/content-format.md` 把内容写成 JSON。内容只写文字和结构，不写字体、颜色和字号。
 4. 运行 `python3 scripts/build_docx.py 内容.json 输出.docx`。引擎保存后检查 OOXML 属性顺序，检查不通过时删除文件并报错。
-5. 需要 PDF 时运行 `python3 scripts/update_toc_export.py 输出.docx 输出.pdf`。这一步同时填好目录页码。
-6. 交付前，AI 打开 PDF 或 .docx 逐页查看，确认没有空白页、表格没有超出版心。
+5. 需要用户先确认时，运行 `python3 scripts/build_preview.py 内容.json 预览.html` 出网页预览，再运行 `python3 scripts/audit_html.py 预览.html`。
+6. 需要 PDF 时运行 `python3 scripts/update_toc_export.py 输出.docx 输出.pdf`。这一步同时填好目录页码。
+7. 交付前，AI 打开 PDF 或 .docx 逐页查看，确认没有空白页、表格没有超出版心。
 
 ## 内容规则
 
@@ -73,7 +77,7 @@ description: 按 Aham 设计规范生成 Word 文档（.docx）。触发场景�
 
 - 文件里的字体名是「微软雅黑」。没有安装这一字体的电脑会用其他字体显示，文件内容不变。
 - 目录先写入标题文字，页码位置写「［待刷新］」。Word 里更新域，或运行 `update_toc_export.py` 后，才有页码。
-- 引擎只输出 Word。HTML 预览、网页样式和图表生成没有迁入本技能。
+- 网页预览把 Word 内容块换成网页内容块，分页、空白块和页眉页脚不进预览。网页只在样式和结构上检查过，没有在浏览器里截图核对。
 - 样张只在 LibreOffice 中渲染检查过，没有在 Microsoft Word 中打开核对。
 
 ## 依赖

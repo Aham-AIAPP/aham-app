@@ -158,6 +158,7 @@ def document_style(path: Path | None = None) -> dict[str, Any]:
                 "table": file_font,
                 "latin": file_font,
                 "web_stack": family["ui"],
+                "code_stack": family["code"],
                 "weights": dict(weight["document"]),
                 "web_weights": dict(weight["web"]),
             },
@@ -171,10 +172,11 @@ def document_style(path: Path | None = None) -> dict[str, Any]:
                 "colors": dict(role["rule_color"]),
             },
             "page": dict(data["layout"]["page"]),
-            "web": dict(data["layout"]["web"]),
+            "web": copy.deepcopy(data["layout"]["web"]),
             "word": copy.deepcopy(data["layout"]["word"]),
             "excel": copy.deepcopy(data["layout"]["excel"]),
             "limits": dict(data["layout"]["limits"]),
+            "radius": dict(data["radius"]),
         }
     except KeyError as exc:
         raise TokenError(f"tokens.json 缺少文档取值：{exc}") from exc

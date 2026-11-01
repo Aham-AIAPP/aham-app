@@ -1,4 +1,4 @@
-"""Aham 文档排版引擎：Word 渲染、整份文档组装、文字规范化和 OOXML 检查。
+"""Aham 文档排版引擎：Word 渲染、网页渲染、整份文档组装、文字规范化和产出检查。
 
 源码在 aham-design 插件的 skills/aham-word/scripts/aham_doc/。视觉取值读插件根的 tokens.json，
 版面规则、写作规则和品牌取值读技能的 config/。
@@ -8,32 +8,43 @@
 
 - blocks           文档块类型登记和校验
 - brand            品牌配置：名称、英文品牌名、logo、Word 标记字符样式名
+- chart            分组柱状图 SVG
+- checks           网页审计：色值、字体、外部资源、荧光标记、风险条和用词
 - document         整份 Word 文档的组装和命令行入口
 - docx_ooxml       OOXML 属性顺序检查和修正
 - docx_typography  文档取值读取和字体槽校验
 - docx_widths      表格列宽计算
+- html             网页渲染器和扩展点
 - notes            说明条款的序号与标签写法
 - outline          章节编号和目录条目
 - paths            技能目录和 config/ 读取
+- preview          Word 内容的网页预览
 - text             中文标点、金额和人民币大写
 - tokens           tokens.json 的读取、引用解析和文档取值视图
+- webstyle         tokens.json 转 CSS 变量、组件样式和交互脚本、流程图转独立 SVG
 - word             Word 渲染器和扩展点
 
 引擎不导入调用方的脚本。调用方自己的内容块、表格规则、SVG 预处理和 SVG 转 PNG 函数经 word 模块的
-扩展点登记（register_block、register_table_hooks、set_svg_styler、set_svg_rasterizer），名称和 logo 经 brand 模块传入。
+扩展点登记（register_block、register_table_hooks、set_svg_styler、set_svg_rasterizer），网页的业务块、表格行和样式经
+html 模块的 register_block、register_row、register_stylesheet 登记，名称和 logo 经 brand 模块传入。
 """
 
 __all__ = [
     "blocks",
     "brand",
+    "chart",
+    "checks",
     "document",
     "docx_ooxml",
     "docx_typography",
     "docx_widths",
+    "html",
     "notes",
     "outline",
     "paths",
+    "preview",
     "text",
     "tokens",
+    "webstyle",
     "word",
 ]
