@@ -1,9 +1,9 @@
 import SwiftUI
 import AppKit
 
-// MARK: - AhamUI 10.1.0 native tokens
-// Source: aham-ui/tokens.json (78bba0c). Native controls retain macOS semantics.
-// Neutral primary actions, paired light/dark colors, stable control geometry.
+// MARK: - AhamUI 10.1.1 native tokens
+// Source: aham-ui/tokens.json (9afc302). Native controls retain macOS semantics.
+// Brand-blue primary actions (same in light and dark), paired light/dark colors, stable control geometry.
 
 // MARK: - HEX → Color 辅助
 
@@ -55,9 +55,10 @@ extension Color {
     static let ahAccentPress = ahDynamic("#336EE8", dark: "#6C97F0")
     static let ahAccentBG = ahDynamic("#EDF1FA", dark: "#1F2A40")
     static let ahAccentBorder = ahDynamic("#E5E5E4", dark: "#2E2E2C")
-    static let ahAction = ahDynamic("#252524", dark: "#E3E2E0")
-    static let ahActionHover = ahDynamic("#383836", dark: "#F5F5F3")
-    static let ahActionPress = ahDynamic("#151515", dark: "#CECDCA")
+    static let ahAction = ahDynamic("#336EE8", dark: "#336EE8")
+    static let ahActionHover = ahDynamic("#2A62D6", dark: "#2A62D6")
+    static let ahActionPress = ahDynamic("#2357C4", dark: "#2357C4")
+    static let ahOnAction = ahDynamic("#FFFFFF", dark: "#FFFFFF")
     static let ahButton = ahDynamic("#F3F3F2", dark: "#252524")
     static let ahButtonHover = ahDynamic("#EBEBEA", dark: "#2E2E2C")
     static let ahButtonPress = ahDynamic("#E3E2E1", dark: "#383836")

@@ -20,7 +20,7 @@ final class UIRegressionTests: XCTestCase {
             let mode = try XCTUnwrap(NSAppearance(named: appearance))
             mode.performAsCurrentDrawingAppearance {
                 for background in [Color.ahAction, .ahActionHover, .ahActionPress] {
-                    XCTAssertGreaterThanOrEqual(contrast(.ahOnAccent, background), 4.5)
+                    XCTAssertGreaterThanOrEqual(contrast(.ahOnAction, background), 4.5)
                 }
                 XCTAssertGreaterThanOrEqual(contrast(.ahInk, .ahPaper), 4.5)
                 XCTAssertGreaterThanOrEqual(contrast(.ahInk60, .ahButton), 4.5)

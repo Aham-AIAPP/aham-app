@@ -340,7 +340,7 @@ private struct AHButtonSurface<Label: View>: View {
     @State private var hovered = false
     private var state: AHControlState { .resolve(enabled: enabled, pressed: pressed, hovered: hovered) }
     private var foreground: Color {
-        state == .disabled ? .ahInk60 : (variant == .primary ? .ahOnAccent : .ahInk)
+        state == .disabled ? .ahInk60 : (variant == .primary ? .ahOnAction : .ahInk)
     }
     private var background: Color {
         if state == .disabled { return .ahButton }

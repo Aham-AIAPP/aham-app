@@ -1,6 +1,6 @@
 # Aham Survey：AhamUI 10.1 原生适配
 
-参考事实源：Aham-AIAPP/aham-ui 10.1.0，main 78bba0c。Swift 原子组件统一引用 DesignTokens.swift。
+参考事实源：Aham-AIAPP/aham-ui 10.1.0，main 78bba0c；主按钮按 10.1.1（main 9afc302）改回主色蓝。Swift 原子组件统一引用 DesignTokens.swift。
 
 ## 保留的页面结构
 
@@ -10,7 +10,7 @@
 
 ## 控件与行为
 
-- 主按钮中性色；浅/暗主题均使用 action/on 配对色。disabled 优先于 pressed/hover，文字与底色同时更新。按钮不缩放；默认最小高度32、圆角6。
+- 主按钮用主色蓝：常态 #336EE8、悬停 #2A62D6、按下 #2357C4，文字白色，浅色和暗色同值。disabled 优先于 pressed/hover，文字与底色同时更新。按钮不缩放；默认最小高度32、圆角6。
 - Hover 进入立即响应、退出120ms；动作200ms内。键盘触发或系统 Reduce Motion 开启时不执行布局动画。
 - 清除显示不可撤销说明，并在确认时核对答案修订号。
 - 单选、多选通过 Button 暴露键盘和辅助功能语义；保留原选项文案。
