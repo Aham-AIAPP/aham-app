@@ -29,6 +29,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 BASE = Path(os.environ.get("RECORDING_AI_HOME", Path.home() / ".cache" / "recording-ai"))
+# 导入用户的邮箱按 <username>@<域名> 合成，部署方在 .env 里设成自己的域名。
+EMAIL_DOMAIN = os.environ.get("VOICE_SEED_EMAIL_DOMAIN", "example.com")
 DB_PATH = BASE / "app-data" / "newvoice.sqlite3"
 DRY = "--dry-run" in sys.argv
 
@@ -103,7 +105,7 @@ def main() -> int:
                  password_hash,must_change_password,failed_login_count,last_active_at,last_login_at,created_at,updated_at)
                values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (
-                f"local-{username}", username, u["name"], f"{username}@orchisky.cn", None,
+                f"local-{username}", username, u["name"], f"{username}@{EMAIL_DOMAIN}", None,
                 u.get("dept") or "销售部", u["role"], u.get("team_id"),
                 json.dumps(u.get("managed_team_ids", []), ensure_ascii=False),
                 "active", "local", None,

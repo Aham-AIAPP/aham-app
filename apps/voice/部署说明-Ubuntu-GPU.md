@@ -141,15 +141,15 @@ sudo apt install -y nodejs
 ## 3. 目录规划
 
 ```bash
-sudo mkdir -p /opt/orchisky-voice          # 源码
-sudo mkdir -p /srv/orchisky-voice-data     # 数据目录（RECORDING_AI_HOME）
-sudo chown -R "$USER:$USER" /opt/orchisky-voice /srv/orchisky-voice-data
+sudo mkdir -p /opt/aham-voice          # 源码
+sudo mkdir -p /srv/aham-voice-data     # 数据目录（RECORDING_AI_HOME）
+sudo chown -R "$USER:$USER" /opt/aham-voice /srv/aham-voice-data
 ```
 
 数据目录最终会长成这样（**总计约 15G 起步，录音持续增长**）：
 
 ```
-/srv/orchisky-voice-data/
+/srv/aham-voice-data/
 ├── venvs/asr/                    # Python 虚拟环境（CUDA 版 torch，约 8–10G）
 ├── models/modelscope/iic/        # 5 个本地模型，3.9G
 ├── app-data/
@@ -170,8 +170,8 @@ sudo chown -R "$USER:$USER" /opt/orchisky-voice /srv/orchisky-voice-data
 ## 4. 拉源码
 
 ```bash
-git clone https://github.com/Aham-AIAPP/aham-voice.git /opt/orchisky-voice
-cd /opt/orchisky-voice
+git clone https://github.com/Aham-AIAPP/aham-voice.git /opt/aham-voice
+cd /opt/aham-voice
 ```
 
 私有仓库，需要有权限的凭据（`gh auth login` 或 SSH key / PAT）。
@@ -183,8 +183,8 @@ cd /opt/orchisky-voice
 ### 5.1 建 venv
 
 ```bash
-python3.12 -m venv /srv/orchisky-voice-data/venvs/asr
-source /srv/orchisky-voice-data/venvs/asr/bin/activate
+python3.12 -m venv /srv/aham-voice-data/venvs/asr
+source /srv/aham-voice-data/venvs/asr/bin/activate
 pip install -U pip wheel setuptools
 ```
 
@@ -217,7 +217,7 @@ python -c "import torch; print(torch.__version__, torch.cuda.is_available(), tor
 ### 5.3 装其余依赖
 
 ```bash
-cd /opt/orchisky-voice
+cd /opt/aham-voice
 pip install -r backend/requirements-asr.txt
 ```
 
@@ -236,8 +236,8 @@ pip 会识别为已满足，不会重装。
 （见 `backend/app/main.py` 顶部 `MODELS` / `VAD` / `PUNC` / `PARAFORMER` / `CAMPLUS` / `EMOTION`）。
 
 ```bash
-source /srv/orchisky-voice-data/venvs/asr/bin/activate
-export MODEL_DIR=/srv/orchisky-voice-data/models/modelscope/iic
+source /srv/aham-voice-data/venvs/asr/bin/activate
+export MODEL_DIR=/srv/aham-voice-data/models/modelscope/iic
 mkdir -p "$MODEL_DIR"
 
 python - <<'PY'
@@ -263,7 +263,7 @@ PY
 验证 5 个目录都在且体积合理：
 
 ```bash
-du -sh /srv/orchisky-voice-data/models/modelscope/iic/*
+du -sh /srv/aham-voice-data/models/modelscope/iic/*
 ```
 
 期望（±10% 正常）：
@@ -283,10 +283,10 @@ du -sh /srv/orchisky-voice-data/models/modelscope/iic/*
 代码从 `$RECORDING_AI_HOME/bin/ffmpeg` 调用，不走 PATH 查找：
 
 ```bash
-mkdir -p /srv/orchisky-voice-data/bin
-ln -sf "$(command -v ffmpeg)"  /srv/orchisky-voice-data/bin/ffmpeg
-ln -sf "$(command -v ffprobe)" /srv/orchisky-voice-data/bin/ffprobe
-/srv/orchisky-voice-data/bin/ffmpeg -version | head -1
+mkdir -p /srv/aham-voice-data/bin
+ln -sf "$(command -v ffmpeg)"  /srv/aham-voice-data/bin/ffmpeg
+ln -sf "$(command -v ffprobe)" /srv/aham-voice-data/bin/ffprobe
+/srv/aham-voice-data/bin/ffmpeg -version | head -1
 ```
 
 ---
@@ -294,14 +294,14 @@ ln -sf "$(command -v ffprobe)" /srv/orchisky-voice-data/bin/ffprobe
 ## 8. 配置 `.env`
 
 ```bash
-cd /opt/orchisky-voice
+cd /opt/aham-voice
 cp .env.example .env
 ```
 
 编辑 `.env`，Linux + GPU 部署的最小配置：
 
 ```ini
-RECORDING_AI_HOME=/srv/orchisky-voice-data
+RECORDING_AI_HOME=/srv/aham-voice-data
 
 # 让 ASR / 情绪模型走 GPU。不设则默认 cpu（macOS 本机部署的默认值）。
 NEWVOICE_ASR_DEVICE=cuda:0
@@ -326,8 +326,8 @@ FunASR 主模型（ASR + VAD + 标点 + 说话人）、emotion2vec 情绪模型�
 ### 9.1 手工起一次，确认能跑
 
 ```bash
-cd /opt/orchisky-voice
-source /srv/orchisky-voice-data/venvs/asr/bin/activate
+cd /opt/aham-voice
+source /srv/aham-voice-data/venvs/asr/bin/activate
 python -m uvicorn backend.app.main:app --host 0.0.0.0 --port 8000
 ```
 
@@ -348,11 +348,11 @@ curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:8000/api/me
 把人工提供的种子文件放到数据目录，然后：
 
 ```bash
-cp /path/to/internal_seed.json /srv/orchisky-voice-data/internal_seed.json
+cp /path/to/internal_seed.json /srv/aham-voice-data/internal_seed.json
 
-cd /opt/orchisky-voice
-source /srv/orchisky-voice-data/venvs/asr/bin/activate
-export RECORDING_AI_HOME=/srv/orchisky-voice-data
+cd /opt/aham-voice
+source /srv/aham-voice-data/venvs/asr/bin/activate
+export RECORDING_AI_HOME=/srv/aham-voice-data
 
 python scripts/seed_internal.py --dry-run   # 先预览
 python scripts/seed_internal.py             # 确认无误再导入
@@ -370,7 +370,7 @@ python scripts/seed_internal.py             # 确认无误再导入
 ### 10.1 后端
 
 ```bash
-sudo tee /etc/systemd/system/orchisky-voice-backend.service >/dev/null <<'EOF'
+sudo tee /etc/systemd/system/aham-voice-backend.service >/dev/null <<'EOF'
 [Unit]
 Description=Aham Voice backend (FastAPI + FunASR)
 After=network-online.target
@@ -379,27 +379,27 @@ Wants=network-online.target
 [Service]
 Type=simple
 User=%i_PLACEHOLDER
-WorkingDirectory=/opt/orchisky-voice
-Environment=RECORDING_AI_HOME=/srv/orchisky-voice-data
+WorkingDirectory=/opt/aham-voice
+Environment=RECORDING_AI_HOME=/srv/aham-voice-data
 Environment=NEWVOICE_ASR_DEVICE=cuda:0
-ExecStart=/srv/orchisky-voice-data/venvs/asr/bin/python -m uvicorn backend.app.main:app --host 0.0.0.0 --port 8000
+ExecStart=/srv/aham-voice-data/venvs/asr/bin/python -m uvicorn backend.app.main:app --host 0.0.0.0 --port 8000
 Restart=always
 RestartSec=5
-StandardOutput=append:/var/log/orchisky-voice-backend.log
-StandardError=append:/var/log/orchisky-voice-backend.log
+StandardOutput=append:/var/log/aham-voice-backend.log
+StandardError=append:/var/log/aham-voice-backend.log
 
 [Install]
 WantedBy=multi-user.target
 EOF
 
 # 把 User 换成实际运行账号（拥有 /opt 与 /srv 两个目录的那个）
-sudo sed -i "s/%i_PLACEHOLDER/$USER/" /etc/systemd/system/orchisky-voice-backend.service
+sudo sed -i "s/%i_PLACEHOLDER/$USER/" /etc/systemd/system/aham-voice-backend.service
 ```
 
 ### 10.2 前端静态服务
 
 ```bash
-sudo tee /etc/systemd/system/orchisky-voice-frontend.service >/dev/null <<'EOF'
+sudo tee /etc/systemd/system/aham-voice-frontend.service >/dev/null <<'EOF'
 [Unit]
 Description=Aham Voice frontend static server
 After=network-online.target
@@ -407,28 +407,28 @@ After=network-online.target
 [Service]
 Type=simple
 User=%i_PLACEHOLDER
-WorkingDirectory=/opt/orchisky-voice
-ExecStart=/srv/orchisky-voice-data/venvs/asr/bin/python frontend_static_server.py
+WorkingDirectory=/opt/aham-voice
+ExecStart=/srv/aham-voice-data/venvs/asr/bin/python frontend_static_server.py
 Restart=always
 RestartSec=5
-StandardOutput=append:/var/log/orchisky-voice-frontend.log
-StandardError=append:/var/log/orchisky-voice-frontend.log
+StandardOutput=append:/var/log/aham-voice-frontend.log
+StandardError=append:/var/log/aham-voice-frontend.log
 
 [Install]
 WantedBy=multi-user.target
 EOF
 
-sudo sed -i "s/%i_PLACEHOLDER/$USER/" /etc/systemd/system/orchisky-voice-frontend.service
+sudo sed -i "s/%i_PLACEHOLDER/$USER/" /etc/systemd/system/aham-voice-frontend.service
 ```
 
 ### 10.3 启用
 
 ```bash
-sudo touch /var/log/orchisky-voice-backend.log /var/log/orchisky-voice-frontend.log
-sudo chown "$USER" /var/log/orchisky-voice-*.log
+sudo touch /var/log/aham-voice-backend.log /var/log/aham-voice-frontend.log
+sudo chown "$USER" /var/log/aham-voice-*.log
 sudo systemctl daemon-reload
-sudo systemctl enable --now orchisky-voice-backend orchisky-voice-frontend
-sudo systemctl status orchisky-voice-backend --no-pager
+sudo systemctl enable --now aham-voice-backend aham-voice-frontend
+sudo systemctl status aham-voice-backend --no-pager
 ```
 
 ---
@@ -467,11 +467,11 @@ sudo ufw allow from 10.0.0.0/8 to any port 8000 proto tcp
 ```bash
 # 1. GPU 可用
 nvidia-smi | head -12
-/srv/orchisky-voice-data/venvs/asr/bin/python -c \
+/srv/aham-voice-data/venvs/asr/bin/python -c \
   "import torch;print('cuda:',torch.cuda.is_available(),torch.cuda.get_device_name(0))"
 
 # 2. 服务在跑
-systemctl is-active orchisky-voice-backend orchisky-voice-frontend
+systemctl is-active aham-voice-backend aham-voice-frontend
 
 # 3. 后端应答（401 = 正常，未登录）
 curl -s -o /dev/null -w "backend %{http_code}\n" http://127.0.0.1:8000/api/me
@@ -480,10 +480,10 @@ curl -s -o /dev/null -w "backend %{http_code}\n" http://127.0.0.1:8000/api/me
 curl -s -o /dev/null -w "frontend %{http_code}\n" http://127.0.0.1:5173/
 
 # 5. 模型齐全（5 个目录）
-ls /srv/orchisky-voice-data/models/modelscope/iic/ | wc -l
+ls /srv/aham-voice-data/models/modelscope/iic/ | wc -l
 
 # 6. ffmpeg 软链有效
-/srv/orchisky-voice-data/bin/ffmpeg -version | head -1
+/srv/aham-voice-data/bin/ffmpeg -version | head -1
 ```
 
 **最终验收（必须做）**：浏览器打开 `http://<服务器IP>:5173`，用管理员账号登录 →
@@ -504,15 +504,15 @@ ls /srv/orchisky-voice-data/models/modelscope/iic/ | wc -l
 launchctl unload ~/Library/LaunchAgents/com.newvoice.backend.plist
 
 # 新机上停服务
-sudo systemctl stop orchisky-voice-backend orchisky-voice-frontend
+sudo systemctl stop aham-voice-backend aham-voice-frontend
 
 # 从旧机拷三样：数据库、录音、声纹
 OLD="<旧机用户名>@<旧机IP>:'~/Library/Application Support/AhamVoice'"
-rsync -avP "$OLD/app-data/newvoice.sqlite3" /srv/orchisky-voice-data/app-data/
-rsync -avP "$OLD/app-data/recordings/"      /srv/orchisky-voice-data/app-data/recordings/
-rsync -avP "$OLD/voiceprints/"              /srv/orchisky-voice-data/voiceprints/
+rsync -avP "$OLD/app-data/newvoice.sqlite3" /srv/aham-voice-data/app-data/
+rsync -avP "$OLD/app-data/recordings/"      /srv/aham-voice-data/app-data/recordings/
+rsync -avP "$OLD/voiceprints/"              /srv/aham-voice-data/voiceprints/
 
-sudo systemctl start orchisky-voice-backend orchisky-voice-frontend
+sudo systemctl start aham-voice-backend aham-voice-frontend
 ```
 
 **不要**拷 `venvs/`（macOS ARM 的二进制在 Linux 上跑不了）和 `models/`
@@ -526,20 +526,20 @@ sudo systemctl start orchisky-voice-backend orchisky-voice-frontend
 
 ```bash
 # 状态 / 重启 / 日志
-systemctl status orchisky-voice-backend --no-pager
-sudo systemctl restart orchisky-voice-backend
-tail -f /var/log/orchisky-voice-backend.log
+systemctl status aham-voice-backend --no-pager
+sudo systemctl restart aham-voice-backend
+tail -f /var/log/aham-voice-backend.log
 
 # 更新代码
-cd /opt/orchisky-voice && git pull
-sudo systemctl restart orchisky-voice-backend orchisky-voice-frontend
+cd /opt/aham-voice && git pull
+sudo systemctl restart aham-voice-backend aham-voice-frontend
 
 # 改了前端源码后重新构建（需要 Node ≥ 22）
-cd /opt/orchisky-voice/frontend-src && npm install && npm run build   # 产出 ../frontend/dist
-sudo systemctl restart orchisky-voice-frontend
+cd /opt/aham-voice/frontend-src && npm install && npm run build   # 产出 ../frontend/dist
+sudo systemctl restart aham-voice-frontend
 
 # 备份（sqlite 用 .backup，别直接拷运行中的文件）
-sqlite3 /srv/orchisky-voice-data/app-data/newvoice.sqlite3 \
+sqlite3 /srv/aham-voice-data/app-data/newvoice.sqlite3 \
   ".backup '/srv/backup/newvoice-$(date +%F).sqlite3'"
 ```
 
@@ -558,7 +558,7 @@ sqlite3 /srv/orchisky-voice-data/app-data/newvoice.sqlite3 \
 | `seed_internal.py` 找不到种子 | 种子文件不在数据目录 | 见第 9.2 节，或用 `--seed <路径>` 指定 |
 | 转写排队很慢 | 全局锁串行，见第 1 节架构限制 | 属预期行为，不是配置问题 |
 
-日志优先看 `/var/log/orchisky-voice-backend.log`，FunASR 的报错都会打在那里。
+日志优先看 `/var/log/aham-voice-backend.log`，FunASR 的报错都会打在那里。
 
 ---
 

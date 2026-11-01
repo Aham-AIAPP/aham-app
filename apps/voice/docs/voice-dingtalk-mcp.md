@@ -6,9 +6,9 @@ Deployment: 2026-10-21. This extension preserves the existing Voice SQLite data 
 
 - API: `com.newvoice.backend`, port 8000; existing Voice session authentication.
 - Frontend: `com.newvoice.frontend`, port 5173; `/app/integrations` manages sync and personal OAuth grants.
-- Durable worker: `com.orchisky.voice-worker`, `python -m backend.app.voice_worker` in the ASR environment. A filesystem lock ensures one worker; SQLite commits each stage. Scheduler scans every 600 seconds independently of ASR.
-- OAuth MCP: `com.orchisky.voice-mcp`, `python -m mcp_service.server` in an isolated venv using `mcp_service/requirements.txt`. Loopback port 8770.
-- Tunnel: `com.orchisky.voice-public-tunnel`, restricted reverse SSH from the cloud server loopback 18769 to Mac loopback 8770.
+- Durable worker: `com.aham.voice-worker`, `python -m backend.app.voice_worker` in the ASR environment. A filesystem lock ensures one worker; SQLite commits each stage. Scheduler scans every 600 seconds independently of ASR.
+- OAuth MCP: `com.aham.voice-mcp`, `python -m mcp_service.server` in an isolated venv using `mcp_service/requirements.txt`. Loopback port 8770.
+- Tunnel: `com.aham.voice-public-tunnel`, restricted reverse SSH from the cloud server loopback 18769 to Mac loopback 8770.
 - nginx serves `https://voice.example.com/voice/mcp` and its OAuth discovery paths, without exposing the Voice API or file tree.
 
 ## Configuration and state

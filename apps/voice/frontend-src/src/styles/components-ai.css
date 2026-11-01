@@ -111,7 +111,7 @@
      data-mode="focus"  full-takeover for a single deep task
 
    Always carries:
-     · Optional .dock__context badge ("当前：南都电源 · 线索")
+     · Optional .dock__context badge ("当前：示例电源 · 线索")
      · A .composer (the existing one)
      · Optional .dock__pending stub showing the user has unconfirmed cards
      · Optional .dock__diag one-liner for current external-API failure
@@ -364,7 +364,7 @@
      <a class="action-tile" href="…">
        <h3 class="action-tile__title">信息预查询</h3>
        <p class="action-tile__body">…</p>
-       <p class="action-tile__meta">例如：浙江南都电源股份有限公司</p>
+       <p class="action-tile__meta">例如：示例电源股份有限公司</p>
      </a>
 
    States:

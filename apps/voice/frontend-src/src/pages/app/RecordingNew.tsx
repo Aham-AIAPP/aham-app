@@ -155,7 +155,7 @@ export function RecordingNew() {
             id="rec-tag"
             value={tag}
             onChange={(e) => setTag(e.target.value)}
-            placeholder="如：浙江南都电源 · 储能项目"
+            placeholder="如：示例电源 · 储能项目"
           />
         </FormRow>
 
