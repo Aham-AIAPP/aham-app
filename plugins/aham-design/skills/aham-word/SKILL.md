@@ -35,6 +35,7 @@ description: 按 Aham 设计规范生成 Word 文档（.docx）。触发场景�
 
 - 同一个数字在文档里出现多次时，在 `numeric_facts` 里声明一次，正文用 `{{fact:编号}}` 引用。
 - 关键数字（`meta.key_figures`）最多 4 个。
+- 风险条（`tone` 为 `risk` 的提示条）全文最多 2 条，上限取 `layout.limits.risk_callouts_per_document`，超出时生成报错。
 - 参与方（`parties`）最多 4 个，颜色按顺序取 `role.document.party`。
 - 表格最多 12 列。列宽键只认 `widths_cm`，拼错的宽度键直接报错。
 - 表头含「金额」「单价」「总价」「税额」的列靠右排，并在表头补单位。
@@ -46,7 +47,7 @@ description: 按 Aham 设计规范生成 Word 文档（.docx）。触发场景�
 - 引擎从脚本所在目录逐级向上查找同时含 `tokens.json` 和 `.claude-plugin/plugin.json` 的目录，读取其中的 `tokens.json`。
 - 环境变量 `AHAM_DESIGN_TOKENS` 指向另一份 tokens.json 时，引擎改读那一份。
 - `tokens.py` 的 `document_style()` 把 tokens.json 换算成引擎使用的文档取值视图。文档颜色经 `role.document` 映射到冷灰色阶和蓝色色阶。
-- 引擎代码里没有颜色和字号常量，测试 `test_engine.py` 逐行检查这一点。段距、缩进和单元格内边距目前仍写在引擎代码里，详见 `references/word-spec.md`。
+- 引擎代码里没有颜色、字号和版式数值常量。段距、行距、缩进、页边距、页眉页脚距和单元格内边距读 `tokens.json` 的 `layout.page` 和 `layout.word`。测试 `test_engine.py` 逐行检查这一点。
 
 ## 扩展点
 
@@ -73,7 +74,6 @@ description: 按 Aham 设计规范生成 Word 文档（.docx）。触发场景�
 - 文件里的字体名是「微软雅黑」。没有安装这一字体的电脑会用其他字体显示，文件内容不变。
 - 目录先写入标题文字，页码位置写「［待刷新］」。Word 里更新域，或运行 `update_toc_export.py` 后，才有页码。
 - 引擎只输出 Word。HTML 预览、网页样式和图表生成没有迁入本技能。
-- 「全文风险提示最多 2 条」这类全文规则写在 tokens.json 里，引擎生成时不检查。
 - 样张只在 LibreOffice 中渲染检查过，没有在 Microsoft Word 中打开核对。
 
 ## 依赖

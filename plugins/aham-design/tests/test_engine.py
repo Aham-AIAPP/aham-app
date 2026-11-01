@@ -200,6 +200,28 @@ class TokenSourceTests(unittest.TestCase):
             literals = [m for m in size_literal.findall(source) if m != "set_run_font(run, FONT_BODY, 1,"]
             self.assertEqual(literals, [], f"{path.name} 写死了字号")
 
+    def test_engine_source_has_no_layout_literals(self):
+        """段距、缩进、页边距和单元格内边距都读 tokens.json 的 layout 分组；只允许 0 和 1pt 占位行距。"""
+        length = re.compile(r"\b(?:Pt|Cm|Mm|Inches)\(\s*-?(\d+(?:\.\d+)?)\s*\)")
+        margin = re.compile(r"set_cell_margins\([^)]*?=\s*([1-9]\d*)")
+        border = re.compile(r"space=\s*(\d+)")
+        for path in sorted(LIB.glob("*.py")):
+            source = path.read_text("utf-8")
+            literals = [v for v in length.findall(source) if float(v) not in (0.0, 1.0)]
+            self.assertEqual(literals, [], f"{path.name} 写死了长度")
+            self.assertEqual(margin.findall(source), [], f"{path.name} 写死了单元格内边距")
+            self.assertEqual(border.findall(source), [], f"{path.name} 写死了边线间距")
+
+    def test_layout_values_reach_the_document(self):
+        resolved = tokens.resolve(tokens.load_tokens())
+        word = resolved["layout"]["word"]
+        page = resolved["layout"]["page"]
+        xml = _document_xml(_build({"meta": BASE_META, "chapters": [{"title": "范围", "blocks": [
+            {"type": "list", "items": ["一"]}]}]}))
+        self.assertIn(f'w:left="{round(word["list"]["indent_cm"] / 2.54 * 1440)}"', xml)
+        self.assertIn(f'w:top="{round(page["top_margin_mm"] / 25.4 * 1440)}"', xml)
+        self.assertIn(f'w:header="{round(page["header_distance_mm"] / 25.4 * 1440)}"', xml)
+
     def test_missing_token_file_fails_loudly(self):
         with self.assertRaises(tokens.TokenError):
             tokens.load_tokens(Path(tempfile.mkdtemp()) / "none.json")
@@ -278,6 +300,15 @@ class DocumentTests(unittest.TestCase):
         xml = _document_xml(path)
         first_paragraph = re.search(r"<w:body><w:p[ >].*?</w:p>", xml).group(0)
         self.assertNotIn("w:pageBreakBefore", first_paragraph)
+
+    def test_risk_callouts_are_limited(self):
+        limit = int(tokens.value("layout.limits.risk_callouts_per_document"))
+        risk = {"type": "callout", "tone": "risk", "label": "风险", "text": "说明"}
+        _build({"meta": BASE_META, "chapters": [{"title": "范围", "blocks": [risk] * limit}]})
+        content = {"meta": BASE_META, "chapters": [{"title": "范围", "blocks": [risk] * limit,
+                                                     "chapters": [{"title": "下级", "blocks": [risk]}]}]}
+        with self.assertRaises(document.DocumentError):
+            _build(content)
 
     def test_demo_builds_identically_twice(self):
         sys.path.insert(0, str(SKILL / "examples"))
