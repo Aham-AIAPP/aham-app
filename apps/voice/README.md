@@ -1,5 +1,7 @@
 # Aham Voice
 
+本目录 2026-11-01 从 Aham-AIAPP/aham-voice 并入 [aham-app](https://github.com/Aham-AIAPP/aham-app)，提交历史一并保留。部署和开发都在 aham-app 仓库的 `apps/voice` 目录进行，aham-voice 仓库停止更新。
+
 > 销售 / 项目会议录音处理：本地转写 → DeepSeek 纪要与情绪分析
 > Python FastAPI · FunASR · 说话人分离 · 前端 React 19 + Vite + Tailwind v4（Aham 设计系统）
 

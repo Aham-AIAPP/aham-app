@@ -1,6 +1,6 @@
 # aham-app
 
-Aham 系列的应用技能插件，中文名「Aham 应用技能」，版本 1.0.1。技能决定写什么、按什么顺序写；规范、取值和排版引擎来自 aham-design 插件，它在独立仓库 [Aham-AIAPP/aham-design](https://github.com/Aham-AIAPP/aham-design)。
+Aham 系列的应用技能插件，中文名「Aham 应用技能」，版本 1.1.0。技能决定写什么、按什么顺序写；规范、取值和排版引擎来自 aham-design 插件，它在独立仓库 [Aham-AIAPP/aham-design](https://github.com/Aham-AIAPP/aham-design)。
 
 ## 依赖 aham-design
 
@@ -25,12 +25,14 @@ Aham 系列的应用技能插件，中文名「Aham 应用技能」，版本 1.0
 | 技能 | 用途 |
 |---|---|
 | [aham-ppt-proposal](skills/aham-ppt-proposal/SKILL.md) | 把材料做成方案级、汇报级的 PPT。八个阶段：受众与规范、材料解析、论点提炼、叙事骨架、页面规划、样页确认、逐页设计、质检交付。页面写成 HTML 幻灯片，网页预览确认后导出可编辑 PPTX |
+| [aham-survey](skills/aham-survey/SKILL.md) | 通过 aham-survey MCP 使用本机 Aham Survey App：建调研项目、读问卷、把访谈内容映射为答案并在用户确认后回写、检查缺口、导出报告。需要 Aham Survey 1.1.0 及以上和 Node.js 18 及以上。App 的源码在仓库的 [apps/survey](../../apps/survey/) |
 
 ## 依赖
 
 - aham-design 的 PPT 引擎依赖：Node.js 包 pptxgenjs、playwright，Playwright 的 Chromium，Python 包 python-pptx。
 - 本技能的 Python 依赖：`pip install -r skills/aham-ppt-proposal/requirements.txt`，用于读材料提纲和检查 PPTX。
 - LibreOffice 可选，用于导出 PDF 和抽查渲染。
+- aham-survey 技能依赖本机运行的 Aham Survey App 和 Node.js 18 及以上，不依赖 aham-design。
 
 ## 测试
 

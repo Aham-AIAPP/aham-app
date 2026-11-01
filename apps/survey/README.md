@@ -1,8 +1,10 @@
 # Aham Survey — 现场调研工具（macOS）
 
-[![Release](https://img.shields.io/github/v/release/Aham-AIAPP/aham-survey?color=336EE8)](https://github.com/Aham-AIAPP/aham-survey/releases)
+本目录 2026-11-01 从 Aham-AIAPP/aham-survey 并入 [aham-app](https://github.com/Aham-AIAPP/aham-app)，提交历史一并保留，aham-survey 仓库停止更新。
+
+[![Release](https://img.shields.io/github/v/release/Aham-AIAPP/aham-app?filter=survey-v*&color=336EE8)](https://github.com/Aham-AIAPP/aham-app/releases?q=survey-v&expanded=true)
 [![License: MIT](https://img.shields.io/badge/License-MIT-336EE8.svg)](LICENSE)
-[![Design](https://img.shields.io/badge/Design-Aham%20UI%20v10.1-336EE8.svg)](https://github.com/Aham-AIAPP/aham-ui)
+[![Design](https://img.shields.io/badge/Design-Aham%20UI%20v10.1-336EE8.svg)](https://github.com/Aham-AIAPP/aham-design)
 [![Type](https://img.shields.io/badge/type-macOS%20App-336EE8.svg)](#)
 [![联系我](https://img.shields.io/badge/%E8%81%94%E7%B3%BB%E6%88%91-%E5%BE%AE%E4%BF%A1-336EE8.svg?logo=wechat&logoColor=white)](assets/wechat-qr.png)
 
@@ -52,14 +54,14 @@ Aham Survey 为此而做：它不止于「记下来」，而是把现场调研�
 
 ## 开始使用
 
-[**↓ 下载最新版（.dmg）**](https://github.com/Aham-AIAPP/aham-survey/releases/latest)（仅 Apple Silicon）。拖入「应用程序」；首次打开右键 → 打开，或终端执行 `xattr -dr com.apple.quarantine "/Applications/Aham Survey.app"` 解除隔离。AI 能力在「设置」里填自己的 LLM API Key（仅存本机）。
+[**↓ 下载最新版（.dmg）**](https://github.com/Aham-AIAPP/aham-app/releases?q=survey-v&expanded=true)（仅 Apple Silicon）。Aham Survey 并入 [aham-app](https://github.com/Aham-AIAPP/aham-app) 仓库后，新版本在 aham-app 发布，标签以 `survey-v` 开头；1.2.1 及以前的安装包在 [aham-survey 的 Releases](https://github.com/Aham-AIAPP/aham-survey/releases)。拖入「应用程序」；首次打开右键 → 打开，或终端执行 `xattr -dr com.apple.quarantine "/Applications/Aham Survey.app"` 解除隔离。AI 能力在「设置」里填自己的 LLM API Key（仅存本机）。
 
 **接入 MCP**：打开 App，首页会显示服务状态与不含明文 Token 的接入配置。需要 Node 18+，适配器和机器可读契约随 App 分发。连接后会提供 15 个工具、4 个 Prompt 和 2 个 Resource，覆盖能力预检、建项目、读题、答案预览/确认、幂等写入、导出、变更日志和撤销。
 
-**安装 Agent Skill**：仓库内的 [`.agents/skills/aham-survey`](.agents/skills/aham-survey/SKILL.md) 是 Codex、Claude Code、VS Code 共用的业务工作流；安装器也能合并 Claude Desktop 的本机 MCP 配置，Cursor 不发现 Skill 时会生成 Rules 降级壳。安装脚本默认只预演，确认目标路径后再加 `--apply`：
+**安装 Agent Skill**：技能在 aham-app 插件里，位置是 [`plugins/aham-app/skills/aham-survey`](../../plugins/aham-app/skills/aham-survey/SKILL.md)。Claude Code 安装 aham-app 插件即可使用这个技能。技能是 Codex、Claude Code、VS Code 共用的业务工作流；安装器也能合并 Claude Desktop 的本机 MCP 配置，Cursor 不发现 Skill 时会生成 Rules 降级壳。安装脚本默认只预演，确认目标路径后再加 `--apply`。在 aham-app 仓库根目录运行：
 
 ```sh
-node .agents/skills/aham-survey/scripts/install-client.mjs \
+node plugins/aham-app/skills/aham-survey/scripts/install-client.mjs \
   --client codex \
   --adapter "/Applications/Aham Survey.app/Contents/Resources/aham-survey-mcp.mjs" \
   --config "$HOME/Library/Application Support/Aham Survey/mcp-connection.json"
@@ -73,7 +75,7 @@ node .agents/skills/aham-survey/scripts/install-client.mjs \
 
 ## 更新记录
 
-[Releases](https://github.com/Aham-AIAPP/aham-survey/releases) · [CHANGELOG](CHANGELOG.md)（Keep a Changelog · SemVer） · [CONTRIBUTING](CONTRIBUTING.md) · [MIT](LICENSE)
+[Releases](https://github.com/Aham-AIAPP/aham-app/releases?q=survey-v&expanded=true) · [CHANGELOG](CHANGELOG.md)（Keep a Changelog · SemVer） · [CONTRIBUTING](CONTRIBUTING.md) · [MIT](LICENSE)
 
 ## 关于 Aham
 
@@ -81,11 +83,10 @@ node .agents/skills/aham-survey/scripts/install-client.mjs \
 
 | 应用 | 一句话 |
 |---|---|
-| [Aham UI](https://github.com/Aham-AIAPP/aham-ui) | 供 AI 消费的设计系统——写一次规范，AI 产出处处一致 |
-| [Aham Word](https://github.com/Aham-AIAPP/aham-word) | 供 AI 消费的 Word 规范——AI 据规范产出处处一致的 .docx |
+| [Aham 设计规范](https://github.com/Aham-AIAPP/aham-design) | 通用规范和排版引擎：文档、表格、PPT、网页、应用界面五类规范，Word 引擎和 PPT 引擎 |
 | **Aham Survey** | 现场调研工具（macOS）——本地优先，把现场对话做成结构化调研成果 |
-| [Aham Voice](https://github.com/Aham-AIAPP/aham-voice) | 录音转写与会议纪要（macOS）——本地离线转写，纪要走你自己的模型 |
-| [Aham PPT](https://github.com/Aham-AIAPP/aham-ppt) | 克制的 AI PPT 制作技能——把素材做成方案级 PPT |
+| [Aham Voice](../voice/) | 录音转写与会议纪要（macOS）——本地离线转写，纪要走你自己的模型 |
+| [Aham 应用技能](../../plugins/aham-app/) | 把材料做成方案级、汇报级的 PPT，以及 Aham Survey 的调研技能 |
 
 ### 关注 · 交流
 

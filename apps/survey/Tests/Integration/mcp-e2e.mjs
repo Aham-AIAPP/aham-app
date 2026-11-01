@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { readFile, stat } from "node:fs/promises";
 import { resolve } from "node:path";
-import { MCPStdioClient } from "../../.agents/skills/aham-survey/scripts/mcp-client.mjs";
+import { MCPStdioClient } from "../../../../plugins/aham-app/skills/aham-survey/scripts/mcp-client.mjs";
 
 const args = process.argv.slice(2);
 const value = (name) => {

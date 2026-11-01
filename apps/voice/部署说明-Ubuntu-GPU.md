@@ -141,9 +141,9 @@ sudo apt install -y nodejs
 ## 3. 目录规划
 
 ```bash
-sudo mkdir -p /opt/aham-voice          # 源码
+sudo mkdir -p /opt/aham-app            # 源码：aham-app 仓库，Voice 在 apps/voice
 sudo mkdir -p /srv/aham-voice-data     # 数据目录（RECORDING_AI_HOME）
-sudo chown -R "$USER:$USER" /opt/aham-voice /srv/aham-voice-data
+sudo chown -R "$USER:$USER" /opt/aham-app /srv/aham-voice-data
 ```
 
 数据目录最终会长成这样（**总计约 15G 起步，录音持续增长**）：
@@ -170,11 +170,12 @@ sudo chown -R "$USER:$USER" /opt/aham-voice /srv/aham-voice-data
 ## 4. 拉源码
 
 ```bash
-git clone https://github.com/Aham-AIAPP/aham-voice.git /opt/aham-voice
+git clone https://github.com/Aham-AIAPP/aham-app.git /opt/aham-app
+ln -s /opt/aham-app/apps/voice /opt/aham-voice
 cd /opt/aham-voice
 ```
 
-私有仓库，需要有权限的凭据（`gh auth login` 或 SSH key / PAT）。
+Aham Voice 在 aham-app 仓库的 `apps/voice` 目录。软链 `/opt/aham-voice` 指向这个目录，后文的路径不变。aham-app 是公开仓库，拉取不需要凭据。
 
 ---
 

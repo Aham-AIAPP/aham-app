@@ -7,6 +7,10 @@
 
 ## [Unreleased]
 
+### 仓库
+
+- 2026-11-01 并入 Aham-AIAPP/aham-app 的 `apps/survey`，提交历史一并保留。Agent Skill 移到 aham-app 插件的 `plugins/aham-app/skills/aham-survey`，内容不变，Claude Code 安装 aham-app 插件即可使用；集成测试 `mcp-e2e.mjs` 的引用路径随之改。README、贡献说明和介绍页的链接改到 aham-app 和 aham-design。新版本在 aham-app 发布，标签以 `survey-v` 开头。
+
 ### 移除
 
 - 删除 deliverables/ 里两期公众号文章的成品。它们与 Survey App 无关，构建脚本依赖已停用的公众号排版仓库。

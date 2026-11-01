@@ -6,7 +6,7 @@
 
 - macOS + Xcode，打开 `Aham.xcodeproj` 构建；当前仅支持 Apple Silicon（M 系列）。
 - AI 能力需在「设置」里填入自己的 LLM API Key（仅存本机）。
-- 视觉 / 设计改动须遵循仓库内 `CLAUDE.md` 与兄弟仓库 [aham-ui](https://github.com/Aham-AIAPP/aham-ui) 的设计系统铁规（颜色 / 间距 / 组件只走 design tokens）。
+- 视觉 / 设计改动须遵循仓库内 `CLAUDE.md` 与[aham-design](https://github.com/Aham-AIAPP/aham-design) 的设计系统铁规（颜色 / 间距 / 组件只走 design tokens）。
 
 ## 提交规范
 
@@ -29,4 +29,4 @@
 
 ## 报告问题
 
-通过 [Issues](https://github.com/Aham-AIAPP/aham-survey/issues) 提交 bug 或建议，附上 macOS 版本、复现步骤与必要日志。
+通过 [Issues](https://github.com/Aham-AIAPP/aham-app/issues) 提交 bug 或建议，附上 macOS 版本、复现步骤与必要日志。
