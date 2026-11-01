@@ -7,6 +7,7 @@ import io
 import os
 import subprocess
 import sys
+import tempfile
 import unittest
 import zipfile
 from pathlib import Path
@@ -45,12 +46,13 @@ class CheckPublicTests(unittest.TestCase):
 
     def test_non_ascii_paths_are_read(self):
         # git 默认把中文路径转义成带引号的形式，按那个名字读不到文件，检查会静默跳过。
-        tracked = subprocess.run(["git", "ls-files", "-z"], cwd=check_public.ROOT,
-                                 capture_output=True, text=True, check=True).stdout.split("\0")
-        chinese = [name for name in tracked if name and not name.isascii() and not name.endswith(".png")]
-        self.assertTrue(chinese, "仓库里应该有中文文件名，本测试才有意义")
-        read = {name for name, _ in check_public.tracked_files(staged=False)}
-        self.assertTrue(set(chinese) <= read, "中文文件名的文件没有读到内容")
+        with tempfile.TemporaryDirectory() as tmp:
+            subprocess.run(["git", "init", "-q", tmp], check=True)
+            (Path(tmp) / "部署说明.md").write_text("中文文件名里的内容\n", encoding="utf-8")
+            subprocess.run(["git", "-C", tmp, "add", "部署说明.md"], check=True)
+            with mock.patch.object(check_public, "ROOT", Path(tmp)):
+                files = dict(check_public.tracked_files(staged=False))
+        self.assertEqual(files.get("部署说明.md"), "中文文件名里的内容\n")
 
     def test_repository_passes_built_in_checks(self):
         files = check_public.tracked_files(staged=False)
