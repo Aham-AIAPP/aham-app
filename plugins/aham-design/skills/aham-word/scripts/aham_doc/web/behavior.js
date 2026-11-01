@@ -1,4 +1,4 @@
-/* Aham 文档网页的交互：视图切换、折叠段、行筛选、待确认清单、指令框复制、打印前展开。 */
+/* 文档网页的交互：视图切换、折叠段、行筛选、待确认清单、指令框复制、打印前展开。 */
 (function () {
   function all(sel, root) { return Array.prototype.slice.call((root || document).querySelectorAll(sel)); }
 

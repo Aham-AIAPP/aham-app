@@ -456,7 +456,7 @@ class Builder:
                               for p, n in sorted(counts.items()))
             segs = (f'<div class="segs" role="group" aria-label="按答复方筛选" data-filter-list="{ident}">'
                     f'<button type="button" class="seg" aria-pressed="true" data-key="all">全部<span class="num">{len(items)}</span></button>{buttons}</div>')
-        store = b.get("store_key") or f"aham-{ident}"
+        store = b.get("store_key") or f"proposal-{ident}"
         return (f'<div class="q-tools">{segs}<div class="prog" data-prog="{ident}"><span>{esc(b.get("progress_label", "已确认"))} '
                 f'<span class="prog-n num">0 / {len(items)}</span></span><span class="prog-bar"><span></span></span></div>'
                 f'<button type="button" class="btn btn-ghost" data-clear="{ident}">清空勾选</button></div>'
