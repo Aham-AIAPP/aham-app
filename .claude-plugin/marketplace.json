@@ -15,7 +15,7 @@
     {
       "name": "aham-app",
       "source": "./plugins/aham-app",
-      "description": "应用技能：PPT 方案流程 aham-ppt-proposal，依赖 aham-design。"
+      "description": "Aham 应用技能：PPT 方案流程 aham-ppt-proposal，依赖 aham-design。"
     }
   ]
 }

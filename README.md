@@ -5,7 +5,7 @@ Aham 系列的 Claude Code 插件市场，含两个插件：
 | 插件 | 版本 | 内容 |
 |---|---|---|
 | [aham-design](plugins/aham-design/) | 1.0.0 | 通用设计规范和排版引擎：取值文件 `tokens.json`，文档、表格、PPT、网页、应用界面五类规范，界面样式库，Word 引擎和 PPT 引擎 |
-| [aham-app](plugins/aham-app/) | 1.0.0 | 应用技能：PPT 方案流程 `aham-ppt-proposal`。依赖 aham-design |
+| [aham-app](plugins/aham-app/) | 1.0.1 | Aham 应用技能：PPT 方案流程 `aham-ppt-proposal`。依赖 aham-design |
 
 aham-design 与具体业务无关，只放规范、取值和引擎。aham-app 的技能决定写什么、按什么顺序写，画页面和排版调用 aham-design。
 

@@ -1,8 +1,17 @@
 # 变更记录
 
-本文件按 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 的格式记录变更，版本号遵循[语义化版本](https://semver.org/lang/zh-CN/)。aham-design 和 aham-app 两个插件同步发版。
+本文件按 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 的格式记录变更，版本号遵循[语义化版本](https://semver.org/lang/zh-CN/)。aham-design 和 aham-app 两个插件共用本记录和版本标签，标签号取本次发版里的插件版本。
 
 ## [Unreleased]
+
+## [1.0.1] - 2026-11-01
+
+只改 aham-app。aham-design 没有改动，仍是 1.0.0。
+
+### 变更
+
+- aham-app 的显示名由「Aham App」改为「Aham 应用技能」。插件标识 `aham-app` 和技能不变，已安装的用户更新即可。
+- aham-app 的说明改为「Aham 应用技能：按 aham-design 的规范把材料做成方案级、汇报级的 PPT（aham-ppt-proposal）」，插件市场里的说明同样以「Aham 应用技能」开头。
 
 ## [1.0.0] - 2026-11-01
 
@@ -55,5 +64,6 @@
 
 迁移时逐项比对过新旧产出：Word 样张、PPT 样张和界面样式各有一份差异清单，没有放进本仓库。
 
-[Unreleased]: https://github.com/Aham-AIAPP/aham-plugins/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/Aham-AIAPP/aham-plugins/compare/v1.0.1...HEAD
+[1.0.1]: https://github.com/Aham-AIAPP/aham-plugins/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/Aham-AIAPP/aham-plugins/releases/tag/v1.0.0
