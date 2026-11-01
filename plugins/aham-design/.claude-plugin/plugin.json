@@ -1,8 +1,8 @@
 {
   "name": "aham-design",
-  "displayName": "Aham Design",
-  "version": "1.0.0",
-  "description": "Aham 系列的通用设计规范和排版引擎：tokens.json 是全部视觉取值的唯一来源；aham-design 技能给出文档、表格、PPT、网页、应用界面五类规范和界面样式库，aham-word 技能生成 Word 文档和网页，aham-ppt 技能画 HTML 幻灯片并导出可编辑 PPTX。",
+  "displayName": "Aham 设计规范",
+  "version": "1.0.1",
+  "description": "Aham 设计规范：Aham 系列的通用规范和排版引擎。tokens.json 是全部视觉取值的唯一来源；aham-design 技能给出文档、表格、PPT、网页、应用界面五类规范和界面样式库，aham-word 技能生成 Word 文档和网页，aham-ppt 技能画 HTML 幻灯片并导出可编辑 PPTX。",
   "author": {
     "name": "Aham"
   },

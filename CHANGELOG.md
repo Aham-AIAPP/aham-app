@@ -4,6 +4,16 @@
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-11-01
+
+两个插件的中文显示名配成一对：「Aham 设计规范」和「Aham 应用技能」。插件标识、技能、取值和引擎都不变，已安装的用户更新即可。
+
+### 变更
+
+- aham-design 的显示名由「Aham Design」改为「Aham 设计规范」，插件说明和插件市场说明以「Aham 设计规范」开头。`tokens.json` 的 `$meta.version` 仍是 1.0.0：它是取值的版本，写进 Word 的样式信息，这次取值没有变。
+- aham-app 的显示名由「Aham App」改为「Aham 应用技能」。
+- aham-app 的说明改为「Aham 应用技能：按 Aham 设计规范（aham-design）把材料做成方案级、汇报级的 PPT（aham-ppt-proposal）」，插件市场里的说明同样以「Aham 应用技能」开头。
+
 ## [1.0.0] - 2026-11-01
 
 第一个版本。三个旧仓库的内容并入本仓库，拆成 aham-design 和 aham-app 两个插件。全部视觉取值按取值决议表统一，写进 `plugins/aham-design/tokens.json`。
@@ -55,5 +65,6 @@
 
 迁移时逐项比对过新旧产出：Word 样张、PPT 样张和界面样式各有一份差异清单，没有放进本仓库。
 
-[Unreleased]: https://github.com/Aham-AIAPP/aham-plugins/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/Aham-AIAPP/aham-plugins/compare/v1.0.1...HEAD
+[1.0.1]: https://github.com/Aham-AIAPP/aham-plugins/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/Aham-AIAPP/aham-plugins/releases/tag/v1.0.0

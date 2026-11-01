@@ -10,12 +10,12 @@
     {
       "name": "aham-design",
       "source": "./plugins/aham-design",
-      "description": "通用设计规范和排版引擎：tokens.json、五类规范、界面样式库、Word 引擎和 PPT 引擎。"
+      "description": "Aham 设计规范：通用规范和排版引擎，含 tokens.json、五类规范、界面样式库、Word 引擎和 PPT 引擎。"
     },
     {
       "name": "aham-app",
       "source": "./plugins/aham-app",
-      "description": "应用技能：PPT 方案流程 aham-ppt-proposal，依赖 aham-design。"
+      "description": "Aham 应用技能：PPT 方案流程 aham-ppt-proposal，依赖 aham-design。"
     }
   ]
 }
