@@ -47,7 +47,7 @@ python3 scripts/seed_internal.py --dry-run   # 预览
 python3 scripts/seed_internal.py             # 导入
 ```
 
-导入的用户密码统一为 `NEWVOICE_INITIAL_PASSWORD`，**首次登录强制改**。部署时务必在 `.env` 里设置这个变量，不要沿用代码默认值。邮箱由导入脚本按 `<username>@<域名>` 合成。
+导入的用户密码统一为 `NEWVOICE_INITIAL_PASSWORD`，**首次登录强制改**。部署时必须在 `.env` 里设置这个变量，代码里没有默认值：没有设置时，新建、导入和重置用户都会失败。邮箱由导入脚本按 `<username>@<域名>` 合成。
 
 ## 部署要点
 

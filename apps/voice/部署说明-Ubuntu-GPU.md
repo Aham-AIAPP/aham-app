@@ -306,7 +306,7 @@ RECORDING_AI_HOME=/srv/orchisky-voice-data
 # 让 ASR / 情绪模型走 GPU。不设则默认 cpu（macOS 本机部署的默认值）。
 NEWVOICE_ASR_DEVICE=cuda:0
 
-# 新建用户的初始密码，首次登录强制修改。务必改成自己的值，不要沿用代码默认值
+# 新建用户的初始密码，首次登录强制修改。必须设置，代码里没有默认值
 NEWVOICE_INITIAL_PASSWORD=ChangeMe-2026
 ```
 
@@ -575,6 +575,6 @@ sqlite3 /srv/orchisky-voice-data/app-data/newvoice.sqlite3 \
 | `NEWVOICE_VOICEPRINT_THRESHOLD` | 0.66 | 声纹匹配阈值（0.45–0.95） |
 | `NEWVOICE_TMP_TTL_HOURS` | 24 | 临时文件保留时长 |
 | `NEWVOICE_EXPORT_TTL_DAYS` | 14 | 导出文件保留天数 |
-| `NEWVOICE_INITIAL_PASSWORD` | 代码内置默认值（见 `backend/app/main.py` 的 `initial_password()`） | 新建用户初始密码，部署时务必设置 |
+| `NEWVOICE_INITIAL_PASSWORD` | 无，必须设置 | 新建、导入和重置用户的初始密码；没有设置时这些操作失败，启动时给空密码账号和新建的 administrator 用随机密码 |
 
 完整清单可从源码提取：`grep -oE 'NEWVOICE_[A-Z_]+' backend/app/main.py | sort -u`

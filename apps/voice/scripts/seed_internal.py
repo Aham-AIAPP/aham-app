@@ -6,8 +6,8 @@ Aham Voice 用户与热词种子导入（幂等）。
 
 真实种子含成员姓名与客户热词，**不入库**；结构模板见 scripts/internal_seed.example.json。
 查找顺序：--seed <路径> → $INTERNAL_SEED_PATH → $RECORDING_AI_HOME/internal_seed.json。
-- 不含任何密钥/密码：用户密码统一用 NEWVOICE_INITIAL_PASSWORD（未设置时用 initial_password() 里的默认值，
-  部署时务必设置），must_change_password=1（首次登录强制改）；邮箱按 <username>@<域名> 合成，域名见下方插入用户处。
+- 不含任何密钥/密码：用户密码统一用 NEWVOICE_INITIAL_PASSWORD（必须设置，
+  未设置时脚本退出），must_change_password=1（首次登录强制改）；邮箱按 <username>@<域名> 合成，域名见下方插入用户处。
 - 幂等：用户按 username、热词按 (word, owner) 去重，已存在则跳过；可反复运行。
 
 用法：
@@ -48,7 +48,11 @@ def seed_path() -> Path:
 
 
 def initial_password() -> str:
-    return os.environ.get("NEWVOICE_INITIAL_PASSWORD", "orchisky888888")
+    value = os.environ.get("NEWVOICE_INITIAL_PASSWORD")
+    if not value:
+        print("✗ 没有设置 NEWVOICE_INITIAL_PASSWORD。导入用户前先在 .env 里设置初始密码。")
+        raise SystemExit(2)
+    return value
 
 
 def hash_password(password: str) -> str:
@@ -146,7 +150,7 @@ def main() -> int:
     tag = "[dry-run] " if DRY else ""
     print(f"{tag}用户：新增 {u_added}，跳过(已存在) {u_skip}")
     print(f"{tag}热词：新增 {h_added}，跳过(已存在) {h_skip}")
-    print(f"{tag}完成。密码=NEWVOICE_INITIAL_PASSWORD（未设置时用代码默认值），首登强制改。")
+    print(f"{tag}完成。密码=NEWVOICE_INITIAL_PASSWORD，首登强制改。")
     return 0
 
 

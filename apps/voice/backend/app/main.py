@@ -254,8 +254,32 @@ def parse_local_time(value: str | None) -> datetime | None:
         return None
 
 
+INITIAL_PASSWORD_ENV = "NEWVOICE_INITIAL_PASSWORD"
+
+
+def configured_initial_password() -> str | None:
+    """返回部署时设置的初始密码；没有设置或为空时返回 None。代码里不再写默认值。"""
+    return os.environ.get(INITIAL_PASSWORD_ENV) or None
+
+
 def initial_password() -> str:
-    return os.environ.get("NEWVOICE_INITIAL_PASSWORD", "orchisky888888")
+    """新建、导入和重置用户时使用的初始密码；部署没有设置时拒绝操作。"""
+    value = configured_initial_password()
+    if value is None:
+        raise HTTPException(status_code=500, detail=f"服务端没有设置 {INITIAL_PASSWORD_ENV}，不能设置初始密码。")
+    return value
+
+
+def bootstrap_password() -> str:
+    """启动时补齐空密码和创建 administrator 用的密码。
+
+    没有设置初始密码时用随机值，服务照常启动；这些账号要由管理员在设置初始密码后重置。
+    """
+    value = configured_initial_password()
+    if value is None:
+        print(f"警告：没有设置 {INITIAL_PASSWORD_ENV}，空密码账号和新建的 administrator 使用随机密码。", file=sys.stderr)
+        return secrets.token_urlsafe(24)
+    return value
 
 
 def hash_password(password: str) -> str:
@@ -689,7 +713,8 @@ def ensure_schema() -> None:
             conn.execute("alter table speaker_profiles add column note text")
         # 演示团队 / 演示用户（销售一组·项目调研组 / 陈思源·林伟·韩雪·赵敏）的播种已移除——
         # 本部署只保留真实用户。仅保留下方的 administrator 引导账号。
-        default_hash = hash_password(initial_password())
+        startup_password = bootstrap_password()
+        default_hash = hash_password(startup_password)
         timestamp = now()
         conn.execute(
             """
@@ -728,7 +753,7 @@ def ensure_schema() -> None:
                     "active",
                     "local",
                     None,
-                    hash_password(initial_password()),
+                    hash_password(startup_password),
                     1,
                     0,
                     timestamp,
