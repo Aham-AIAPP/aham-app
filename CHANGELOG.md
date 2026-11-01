@@ -4,8 +4,22 @@
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-11-01
+
+aham-app 1.1.0。Aham Voice 和 Aham Survey 两个应用连同提交历史并入本仓库，Survey 的技能成为 aham-app 插件的第二个技能。aham-design 移到独立仓库，插件标识和版本不变。
+
+### 新增
+
+- aham-app 插件新增技能 `aham-survey`：通过本机 Aham Survey App 建调研项目、读问卷、回写答案、导出报告。技能原在 aham-survey 仓库的 `.agents/skills/aham-survey`，内容不变。
+- `apps/voice`：Aham Voice 的全部代码和提交历史，来自 Aham-AIAPP/aham-voice 的 main，加上公开版去掉内部名称的一个提交。3 条旧提交说明去掉内部名称，引用的 PR 编号改为 `Aham-AIAPP/aham-voice#N`。
+- `apps/survey`：Aham Survey 的全部代码和提交历史，来自 Aham-AIAPP/aham-survey 的 main。引用的 PR 编号改为 `Aham-AIAPP/aham-survey#N`。
+- GitHub Actions 工作流 `.github/workflows/voice.yml`：`apps/voice` 有改动时跑后端和 MCP 测试，核对前端取值，重新构建前端并确认与提交的构建产物一致。
+
 ### 变更
 
+- Aham Voice 去掉公司内部名称：MCP 服务名、服务标识和种子用户的邮箱域名改为环境变量 `VOICE_MCP_NAME`、`VOICE_MCP_SERVICE_ID`、`VOICE_SEED_EMAIL_DOMAIN`，默认值分别是 Aham Voice、aham-voice-mcp、example.com。部署说明里的 launchd 标签改为 `com.aham.voice-*`。上传页提示语里的企业名换成示例名，前端重新构建。两个热词同步脚本后端不调用，从公开版删除。
+- Aham Voice 的 Ubuntu 部署说明改为拉取 aham-app 仓库，用软链 `/opt/aham-voice` 指向 `apps/voice`，后文路径不变。
+- Aham Survey 的 README、贡献说明和介绍页的链接改到 aham-app 和 aham-design；新版本的安装包在 aham-app 发布，标签以 `survey-v` 开头。
 - 仓库由 Aham-AIAPP/aham-plugins 改名为 Aham-AIAPP/aham-app，旧地址自动转到新地址。插件市场的名字仍是 aham-plugins，安装命令里的 `@aham-plugins` 不变。
 - aham-design 移到独立仓库 Aham-AIAPP/aham-design，提交历史一并带过去。本仓库删除 `plugins/aham-design`，市场清单里 aham-design 的来源改为这个 GitHub 仓库。已安装的用户更新插件市场即可，插件标识和版本不变。
 - CI 把 aham-design 检出到 `plugins/aham-design` 后再跑仓库测试和 PPT 样张。aham-design 自己的测试、界面样式库检查、浏览器回归和截图移到 aham-design 仓库的 CI。
@@ -76,6 +90,7 @@
 
 迁移时逐项比对过新旧产出：Word 样张、PPT 样张和界面样式各有一份差异清单，没有放进本仓库。
 
-[Unreleased]: https://github.com/Aham-AIAPP/aham-app/compare/v1.0.1...HEAD
+[Unreleased]: https://github.com/Aham-AIAPP/aham-app/compare/aham-app--v1.1.0...HEAD
+[1.1.0]: https://github.com/Aham-AIAPP/aham-app/compare/v1.0.1...aham-app--v1.1.0
 [1.0.1]: https://github.com/Aham-AIAPP/aham-app/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/Aham-AIAPP/aham-app/releases/tag/v1.0.0

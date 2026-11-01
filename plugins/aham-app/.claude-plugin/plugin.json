@@ -1,8 +1,8 @@
 {
   "name": "aham-app",
   "displayName": "Aham 应用技能",
-  "version": "1.0.1",
-  "description": "Aham 应用技能：按 Aham 设计规范（aham-design）把材料做成方案级、汇报级的 PPT（aham-ppt-proposal）。规范、取值和排版引擎来自 aham-design，安装时一并安装。",
+  "version": "1.1.0",
+  "description": "Aham 应用技能：按 Aham 设计规范（aham-design）把材料做成方案级、汇报级的 PPT（aham-ppt-proposal）；通过本机 Aham Survey App 管理现场调研项目和答案回写（aham-survey）。规范、取值和排版引擎来自 aham-design，安装时一并安装。",
   "author": {
     "name": "Aham"
   },

@@ -1,0 +1,66 @@
+name: voice
+
+# Aham Voice 在 apps/voice。只在这个目录或本文件有改动时运行
+on:
+  push:
+    paths:
+      - "apps/voice/**"
+      - ".github/workflows/voice.yml"
+  pull_request:
+    paths:
+      - "apps/voice/**"
+      - ".github/workflows/voice.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: voice-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: apps/voice
+
+jobs:
+  # 后端和 MCP 服务的测试。只装网页层和 MCP 的依赖，不装 ASR 模型
+  python:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: 安装依赖
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt -r mcp_service/requirements.txt pytest
+      - name: 测试
+        run: python -m pytest tests
+
+  # 前端：核对取值文件，重新构建，确认构建产物与提交的 frontend/dist 一致
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: apps/voice/frontend-src/package-lock.json
+      - name: 安装依赖
+        working-directory: apps/voice/frontend-src
+        run: npm ci --no-audit --no-fund
+      - name: 核对取值
+        working-directory: apps/voice/frontend-src
+        run: npm run check:tokens
+      - name: 构建
+        working-directory: apps/voice/frontend-src
+        run: npm run build
+      - name: 构建产物与提交一致
+        run: |
+          if [ -n "$(git status --porcelain -- frontend/dist)" ]; then
+            git status --porcelain -- frontend/dist
+            echo "::error::frontend/dist 与重新构建的结果不一致。在 frontend-src 运行 npm run build 后提交 frontend/dist"
+            exit 1
+          fi

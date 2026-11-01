@@ -1,0 +1,185 @@
+import SwiftUI
+
+// MARK: - ExportPanelData（轻量，仅用于面板展示，无需预建完整快照）
+
+struct ExportPanelData {
+    var projectName: String
+    var selectedDeptIds: [String]
+    var deptNames: [String: String]          // deptId → 显示名
+    var deptAnsweredCounts: [String: Int]    // deptId → 已回答数
+}
+
+// MARK: - ExportPanelView
+
+struct ExportPanelView: View {
+    let panelData: ExportPanelData
+    @Binding var isPresented: Bool
+    /// 用户确认后，异步生成内容 → 返回 (data, fileName)，失败返回 nil
+    var onGenerate: (ExportConfig) async -> (Data, String)?
+    /// 生成完成后触发 NSSavePanel（由父视图处理）
+    var onExport: (Data, String) -> Void
+
+    @State private var format: ExportFormat = .markdown
+    @State private var includeNotes = true
+    @State private var includeAIPolish = true
+    @State private var includeVoice = true
+    @State private var includeMemo = true
+    @State private var addFrontmatter = true
+    @State private var selectedDepts: Set<String>
+    @State private var isGenerating = false
+    @State private var generateError: String?
+
+    init(panelData: ExportPanelData,
+         isPresented: Binding<Bool>,
+         onGenerate: @escaping (ExportConfig) async -> (Data, String)?,
+         onExport: @escaping (Data, String) -> Void) {
+        self.panelData = panelData
+        self._isPresented = isPresented
+        self.onGenerate = onGenerate
+        self.onExport = onExport
+        self._selectedDepts = State(initialValue: Set(panelData.selectedDeptIds))
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            // 标题栏
+            HStack {
+                Image(systemName: "square.and.arrow.up")
+                    .ahTitle2()
+                    .foregroundStyle(Color.ahInk60)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("导出调研报告")
+                        .ahTitle3()
+                    Text(panelData.projectName)
+                        .ahCaption()
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                Button { isPresented = false } label: {
+                    Image(systemName: "xmark.circle.fill").foregroundStyle(.tertiary)
+                }
+                .buttonStyle(.ahInline)
+                .disabled(isGenerating)
+            }
+            .padding(AHSpacing.xl)
+
+            Divider()
+
+            ScrollView {
+                VStack(alignment: .leading, spacing: AHSpacing.xl) {
+                    // 导出格式
+                    AHCard {
+                        AHSection("导出格式") {
+                            Picker("格式", selection: $format) {
+                                ForEach(ExportFormat.allCases, id: \.self) { Text($0.rawValue).tag($0) }
+                            }
+                            .pickerStyle(.radioGroup)
+                            .labelsHidden()
+                        }
+                    }
+
+                    // 导出内容
+                    AHCard {
+                        AHSection("导出内容") {
+                            VStack(alignment: .leading, spacing: AHSpacing.s) {
+                                Toggle("顾问笔记",    isOn: $includeNotes)
+                                Toggle("AI 润色结果", isOn: $includeAIPolish)
+                                Toggle("转写文本",     isOn: $includeVoice)
+                                Toggle("现场备忘",     isOn: $includeMemo)
+                                AHDivider()
+                                Toggle("包含 YAML 文件头", isOn: $addFrontmatter)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+
+                    // 导出部门
+                    AHCard {
+                        AHSection("导出部门") {
+                            VStack(alignment: .leading, spacing: AHSpacing.s) {
+                                ForEach(panelData.selectedDeptIds, id: \.self) { deptId in
+                                    let name = panelData.deptNames[deptId] ?? deptId
+                                    let count = panelData.deptAnsweredCounts[deptId] ?? 0
+                                    Toggle(isOn: Binding(
+                                        get: { selectedDepts.contains(deptId) },
+                                        set: { if $0 { selectedDepts.insert(deptId) } else { selectedDepts.remove(deptId) } }
+                                    )) {
+                                        HStack {
+                                            Text(name)
+                                            Spacer()
+                                            Text("\(count) 条回答").ahCaption().foregroundStyle(.tertiary)
+                                        }
+                                    }
+                                }
+                            }
+                        } trailing: {
+                            HStack(spacing: AHSpacing.xs) {
+                                Button("全选") { selectedDepts = Set(panelData.selectedDeptIds) }
+                                    .buttonStyle(.ahGhost)
+                                Button("清空") { selectedDepts.removeAll() }
+                                    .buttonStyle(.ahGhost)
+                            }
+                        }
+                    }
+
+                    if let err = generateError {
+                        Label(err, systemImage: "exclamationmark.triangle")
+                            .ahCaption()
+                            .foregroundStyle(Color.ahDanger)
+                    }
+                }
+                .padding(AHSpacing.xl)
+            }
+
+            .disabled(isGenerating)
+
+            Divider()
+
+            HStack {
+                Spacer()
+                Button("取消") { isPresented = false }
+                    .buttonStyle(.ahSecondary)
+                    .keyboardShortcut(.cancelAction)
+                    .disabled(isGenerating)
+                Button { confirmExport() } label: {
+                    Text(isGenerating ? "正在生成…" : "确认导出")
+                        .frame(width: AHLayout.editorHeight)
+
+                }
+                .buttonStyle(.ahPrimary)
+                .disabled(selectedDepts.isEmpty || isGenerating)
+                .keyboardShortcut(.defaultAction)
+            }
+            .padding(AHSpacing.xl)
+        }
+        .frame(width: 480, height: 600)
+        .interactiveDismissDisabled(isGenerating)
+    }
+
+    // MARK: - Actions
+
+    private func confirmExport() {
+        guard !isGenerating, !selectedDepts.isEmpty else { return }
+        let config = ExportConfig(
+            format: format,
+            addFrontmatter: addFrontmatter,
+            includeNotes: includeNotes,
+            includeAIPolish: includeAIPolish,
+            includeVoice: includeVoice,
+            includeMemo: includeMemo,
+            departmentFilter: Array(selectedDepts)
+        )
+        isGenerating = true
+        generateError = nil
+        Task {
+            if let (content, fileName) = await onGenerate(config) {
+                isGenerating = false
+                isPresented = false
+                onExport(content, fileName)
+            } else {
+                isGenerating = false
+                generateError = "生成失败，请重试"
+            }
+        }
+    }
+}

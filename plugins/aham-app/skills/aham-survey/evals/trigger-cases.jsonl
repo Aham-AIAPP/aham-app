@@ -1,0 +1,7 @@
+{"name":"create_mes_survey","prompt":"给苏州某装备厂创建一个 MES 现场调研项目","shouldTrigger":true,"expected":"aham-survey"}
+{"name":"map_interview","prompt":"把这段客户访谈整理到调研问卷里，先给我看准备写哪些答案","shouldTrigger":true,"expected":"aham-survey"}
+{"name":"survey_gap","prompt":"检查这个调研项目还缺哪些关键问题","shouldTrigger":true,"expected":"aham-survey"}
+{"name":"ordinary_doc","prompt":"把这份会议纪要排成正式 Word","shouldTrigger":false,"expected":"not aham-survey"}
+{"name":"generic_code_review","prompt":"评审这个 Swift PR 的并发问题","shouldTrigger":false,"expected":"not aham-survey"}
+{"name":"consumer_poll","prompt":"帮我设计一个用户满意度在线投票","shouldTrigger":false,"expected":"not aham-survey unless Aham Survey explicitly requested"}
+

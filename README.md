@@ -1,13 +1,26 @@
-# Aham 插件
+# Aham 应用
 
-Aham 系列的 Claude Code 插件市场，含两个插件。aham-app 在本仓库，aham-design 在独立仓库 [Aham-AIAPP/aham-design](https://github.com/Aham-AIAPP/aham-design)：
+Aham 系列的应用仓库：Claude Code 插件市场 aham-plugins、aham-app 插件，以及 Aham Voice 和 Aham Survey 两个应用的源码。
+
+## 插件
+
+插件市场含两个插件。aham-app 在本仓库，aham-design 在独立仓库 [Aham-AIAPP/aham-design](https://github.com/Aham-AIAPP/aham-design)：
 
 | 插件 | 版本 | 内容 |
 |---|---|---|
 | [aham-design](https://github.com/Aham-AIAPP/aham-design) | 1.0.1 | Aham 设计规范：通用规范和排版引擎，取值文件 `tokens.json`，文档、表格、PPT、网页、应用界面五类规范，界面样式库，Word 引擎和 PPT 引擎 |
-| [aham-app](plugins/aham-app/) | 1.0.1 | Aham 应用技能：PPT 方案流程 `aham-ppt-proposal`。依赖 aham-design |
+| [aham-app](plugins/aham-app/) | 1.1.0 | Aham 应用技能：PPT 方案流程 `aham-ppt-proposal`，现场调研技能 `aham-survey`。依赖 aham-design |
 
 aham-design 与具体业务无关，只放规范、取值和引擎。aham-app 的技能决定写什么、按什么顺序写，画页面和排版调用 aham-design。
+
+## 应用
+
+| 应用 | 目录 | 内容 |
+|---|---|---|
+| Aham Voice | [apps/voice](apps/voice/) | 会议录音处理：本机转写和说话人分离，云端模型生成纪要和情绪分析，多用户网页版，带 MCP 服务。部署见目录里的两份部署说明 |
+| Aham Survey | [apps/survey](apps/survey/) | macOS 现场调研 App，通过 MCP 接入 Claude。配套技能是 aham-app 插件里的 `aham-survey`。安装包在 Releases 里标签以 `survey-v` 开头的版本 |
+
+两个应用 2026-11-01 从各自的仓库并入，提交历史一并保留。原仓库 Aham-AIAPP/aham-voice 和 Aham-AIAPP/aham-survey 停止更新。
 
 ## 安装
 
@@ -42,6 +55,7 @@ claude plugin install aham-app@aham-plugins
 | `aham-word` | aham-design | 把结构化内容排成 Word 文档，同一份内容也能排成网页预览 |
 | `aham-ppt` | aham-design | 用组件写 1920×1080 的 HTML 幻灯片，预览、排版检查、导出可编辑 PPTX |
 | `aham-ppt-proposal` | aham-app | 从材料做一整份方案或汇报 PPT，分八个阶段，调用 aham-ppt 引擎 |
+| `aham-survey` | aham-app | 通过本机 Aham Survey App 建调研项目、读问卷、回写答案、导出报告 |
 
 ## 依赖
 
@@ -60,7 +74,11 @@ plugins/
   aham-app/
     .claude-plugin/plugin.json      声明依赖 aham-design ^1.0.0
     skills/aham-ppt-proposal/       PPT 方案流程
+    skills/aham-survey/             现场调研技能
   aham-design/                      不提交。本地开发和 CI 把 aham-design 仓库检出到这里
+apps/
+  voice/                            Aham Voice：后端、MCP 服务、前端源码和构建产物、测试
+  survey/                           Aham Survey：Xcode 工程和测试
 scripts/
   check_public.py                   公开检查
   compare_outputs.py                产出比对
@@ -93,7 +111,18 @@ claude plugin validate plugins/aham-app
 python3 scripts/build_ppt_samples.py 输出目录 --check
 ```
 
-`.github/workflows/ci.yml` 在每次推送和拉取请求时运行以上检查，并把 PPT 样张上传为构件。aham-design 自己的测试、界面样式库检查、浏览器回归和截图在 aham-design 仓库的 CI 里运行。
+Aham Voice 的测试在 `apps/voice` 运行：
+
+```bash
+cd apps/voice
+pip install -r backend/requirements.txt -r mcp_service/requirements.txt pytest
+python3 -m pytest tests
+(cd frontend-src && npm ci && npm run check:tokens && npm run build)
+```
+
+Aham Survey 用 Xcode 打开 `apps/survey/Aham.xcodeproj` 构建和测试。
+
+`.github/workflows/ci.yml` 在每次推送和拉取请求时运行插件的检查，并把 PPT 样张上传为构件。`.github/workflows/voice.yml` 在 `apps/voice` 有改动时运行 Aham Voice 的测试，并核对前端构建产物与提交的一致。aham-design 自己的测试、界面样式库检查、浏览器回归和截图在 aham-design 仓库的 CI 里运行。
 
 ## 许可
 
