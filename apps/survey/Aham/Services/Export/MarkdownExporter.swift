@@ -15,20 +15,29 @@ struct MarkdownExporter {
         <meta charset='UTF-8'>
         <title>\(escapeHTML(title))</title>
         <style>
-          body { font-family: -apple-system, "PingFang SC", "Microsoft YaHei", Arial, sans-serif;
-                 font-size: 11pt; line-height: 1.6; margin: 2cm; color: #1a1a1a; }
-          h1 { font-size: 18pt; color: #1a3557; border-bottom: 2px solid #1a3557; padding-bottom: 6pt; }
-          h2 { font-size: 14pt; color: #2c5f8a; margin-top: 16pt; }
-          h3 { font-size: 12pt; color: #3a3a3a; }
-          table { border-collapse: collapse; width: 100%; margin: 8pt 0; }
-          td, th { border: 1px solid #ccc; padding: 4pt 8pt; }
-          th { background: #f0f4f8; }
-          blockquote { border-left: 3px solid #aaa; margin-left: 0; padding-left: 12pt; color: #555; }
-          em { color: #2c5f8a; }
-          hr { border: none; border-top: 1px solid #ddd; margin: 12pt 0; }
-          .note { background: #fffbe6; padding: 4pt 8pt; border-radius: 4pt; }
-          .voice { background: #eef6ff; padding: 4pt 8pt; border-radius: 4pt; }
-          .polish { background: #f0fff4; padding: 4pt 8pt; border-radius: 4pt; }
+          /* 取值来自 aham-design（Aham-AIAPP/aham-plugins 9f60a22）tokens.json 的 role.document 和 size.word。
+             中文、西文和数字用同一种字体；表格按三线表，不画竖线、不加底色。 */
+          @page { size: 210mm 297mm; margin: 25.4mm 25mm; }
+          body { font-family: "微软雅黑", "Microsoft YaHei", "PingFang SC", sans-serif;
+                 font-size: 10.5pt; line-height: 1.6; color: #141A26; }
+          h1 { font-size: 16pt; font-weight: bold; color: #141A26;
+               border-top: 1.5pt solid #141A26; padding-top: 6pt; margin: 18pt 0 8pt; }
+          h2 { font-size: 14pt; font-weight: bold; color: #141A26; margin: 14pt 0 6pt; }
+          h3 { font-size: 12pt; font-weight: bold; color: #141A26; margin: 10pt 0 4pt; }
+          p { margin: 0 0 4pt; }
+          table { border-collapse: collapse; width: 100%; margin: 8pt 0;
+                  border-top: 0.75pt solid #141A26; border-bottom: 0.75pt solid #141A26; }
+          td, th { font-size: 9pt; padding: 4pt 6pt; text-align: left; vertical-align: top;
+                   border: none; border-bottom: 0.5pt solid #D9DEE5; }
+          th { font-weight: normal; color: #5D6675;
+               border-top: 0.75pt solid #141A26; border-bottom: 0.75pt solid #141A26; }
+          blockquote { border-left: 1.5pt solid #2453C7; margin: 6pt 0; padding-left: 10pt; color: #3A4352; }
+          em { font-style: normal; color: #2453C7; }
+          strong { font-weight: bold; }
+          hr { border: none; border-top: 0.5pt solid #D9DEE5; margin: 12pt 0; }
+          .note { background: #FBF2E4; padding: 4pt 8pt; }
+          .voice { background: #EEF2FC; padding: 4pt 8pt; }
+          .polish { background: #EAF4EE; padding: 4pt 8pt; }
         </style>
         </head>
         <body>
