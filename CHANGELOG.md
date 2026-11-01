@@ -1,17 +1,18 @@
 # 变更记录
 
-本文件按 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 的格式记录变更，版本号遵循[语义化版本](https://semver.org/lang/zh-CN/)。aham-design 和 aham-app 两个插件共用本记录和版本标签，标签号取本次发版里的插件版本。
+本文件按 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 的格式记录变更，版本号遵循[语义化版本](https://semver.org/lang/zh-CN/)。aham-design 和 aham-app 两个插件同步发版。
 
 ## [Unreleased]
 
 ## [1.0.1] - 2026-11-01
 
-只改 aham-app。aham-design 没有改动，仍是 1.0.0。
+两个插件的中文显示名配成一对：「Aham 设计规范」和「Aham 应用技能」。插件标识、技能、取值和引擎都不变，已安装的用户更新即可。
 
 ### 变更
 
-- aham-app 的显示名由「Aham App」改为「Aham 应用技能」。插件标识 `aham-app` 和技能不变，已安装的用户更新即可。
-- aham-app 的说明改为「Aham 应用技能：按 aham-design 的规范把材料做成方案级、汇报级的 PPT（aham-ppt-proposal）」，插件市场里的说明同样以「Aham 应用技能」开头。
+- aham-design 的显示名由「Aham Design」改为「Aham 设计规范」，插件说明和插件市场说明以「Aham 设计规范」开头。`tokens.json` 的 `$meta.version` 仍是 1.0.0：它是取值的版本，写进 Word 的样式信息，这次取值没有变。
+- aham-app 的显示名由「Aham App」改为「Aham 应用技能」。
+- aham-app 的说明改为「Aham 应用技能：按 Aham 设计规范（aham-design）把材料做成方案级、汇报级的 PPT（aham-ppt-proposal）」，插件市场里的说明同样以「Aham 应用技能」开头。
 
 ## [1.0.0] - 2026-11-01
 
