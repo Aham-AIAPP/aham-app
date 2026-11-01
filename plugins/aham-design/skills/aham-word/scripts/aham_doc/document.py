@@ -19,7 +19,7 @@ from .brand import current_brand
 from .docx_ooxml import audit_docx_property_order, normalize_docx_property_order, summarize_violations
 from .outline import display_heading, flatten_numbered_chapters
 
-__all__ = ["DocumentError", "build_document", "load_content", "main"]
+__all__ = ["DocumentError", "build_document", "check_limits", "load_content", "main"]
 
 
 class DocumentError(ValueError):
@@ -47,9 +47,36 @@ def _meta(content: dict[str, Any]) -> dict[str, Any]:
     return meta
 
 
+def _risk_callouts(content: dict[str, Any]) -> int:
+    """全文风险条（tone 为 risk 的提示条）的条数，含下级章节。"""
+    def count(chapters: list[Any]) -> int:
+        total = 0
+        for chapter in chapters or []:
+            if not isinstance(chapter, dict):
+                continue
+            for block in chapter.get("blocks") or []:
+                if (isinstance(block, dict)
+                        and str(block.get("type", "paragraph")).lower() in {"callout", "lead"}
+                        and str(block.get("tone", "")).lower() == "risk"):
+                    total += 1
+            total += count(chapter.get("chapters") or chapter.get("children") or [])
+        return total
+
+    return count(content.get("chapters") or [])
+
+
+def check_limits(content: dict[str, Any]) -> None:
+    """全文版式上限：风险条条数不超过 tokens.json 的 layout.limits.risk_callouts_per_document。"""
+    limit = int(W.STYLE["limits"]["risk_callouts_per_document"])
+    risks = _risk_callouts(content)
+    if risks > limit:
+        raise DocumentError(f"风险条 {risks} 条，超过上限 {limit} 条：把次要风险并入正文或合并成一条")
+
+
 def build_document(content: dict[str, Any], out_path: Path, base_dir: Path | None = None) -> Path:
     """按内容生成 .docx，返回文件路径。base_dir 是图片等相对路径的起点，缺省为输出目录。"""
     meta = _meta(content)
+    check_limits(content)
     out_path = Path(out_path)
     base = Path(base_dir) if base_dir else out_path.parent
     chapters = content.get("chapters") or []

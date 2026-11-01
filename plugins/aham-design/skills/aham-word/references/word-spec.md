@@ -5,7 +5,7 @@
 ## 实现情况标记
 
 - **引擎**：引擎已实现，取值从 `tokens.json` 读取。
-- **引擎（代码）**：引擎已实现，取值写在引擎代码 `scripts/aham_doc/word.py` 里。改这类取值要改代码。
+- **引擎（代码）**：引擎已实现，写法在引擎代码 `scripts/aham_doc/word.py` 里。这类项目只有排法或开关，没有数值。版式数值全部在 `tokens.json`。
 - **规范**：本文给出取值或原则，引擎没有实现，需要时手工设置或由业务技能扩展。
 
 颜色写作「角色（色值，tokens 键）」。文档颜色的角色在 `role.document.color`，每个角色指向 `color` 下的冷灰或蓝色色阶。
@@ -26,12 +26,12 @@
 
 | 元素 | 取值 | tokens.json 键 | 实现 |
 |---|---|---|---|
-| 纸张 | A4，21.0 × 29.7 cm | `layout.page.paper` | 引擎（代码） |
+| 纸张 | A4，21.0 × 29.7 cm | `layout.page.paper`、`paper_width_mm`、`paper_height_mm` | 引擎 |
 | 方向 | 纵向。章节写 `orientation: landscape` 时新开横向节 | — | 引擎 |
-| 页边距 上 / 下 | 2.54 cm | — | 引擎（代码） |
-| 页边距 左 / 右 | 2.5 cm | `layout.page.left_margin_mm`、`right_margin_mm` | 引擎（代码），代码里的数值与 tokens 相同 |
+| 页边距 上 / 下 | 2.54 cm | `layout.page.top_margin_mm`、`bottom_margin_mm` | 引擎 |
+| 页边距 左 / 右 | 2.5 cm | `layout.page.left_margin_mm`、`right_margin_mm` | 引擎 |
 | 版心宽度 | 纵向 160 mm，横向 247 mm | `layout.page.portrait_body_mm`、`landscape_body_mm` | 引擎：目录制表位和表格列宽按它计算 |
-| 页眉 / 页脚距边 | 1.2 cm | — | 引擎（代码） |
+| 页眉 / 页脚距边 | 1.2 cm | `layout.page.header_distance_mm`、`footer_distance_mm` | 引擎 |
 | 首页不同 | 有封面时开，封面不印正文页眉页脚 | — | 引擎 |
 | 分栏、奇偶页不同、行号 | 不用 | — | 规范 |
 | 页面底色、页面边框 | 不用 | — | 规范 |
@@ -109,9 +109,9 @@
 | 表格行距 | 最小值 15 磅；紧凑表格 13.5 磅 | `layout.word.line_spacing.table_pt`、`layout.word.table.compact.line_pt` | 引擎 |
 | 正文段后 | 6 磅 | `layout.word.line_spacing.body_space_after_pt` | 引擎 |
 | 正文排法 | 两端撑满 | — | 引擎（代码） |
-| 首行缩进 | 2 字符 | — | 引擎（代码） |
-| 标题行距 | 1.15 倍 | — | 引擎（代码） |
-| 标题段前 / 段后 | 标题 1：18 / 7 磅；标题 2：14 / 5 磅；标题 3：10 / 4 磅 | — | 引擎（代码） |
+| 首行缩进 | 2 字符 | `layout.word.paragraph.first_line_indent_chars` | 引擎 |
+| 标题行距 | 1.15 倍 | `layout.word.heading.line_multiple` | 引擎 |
+| 标题段前 / 段后 | 标题 1：18 / 7 磅；标题 2：14 / 5 磅；标题 3：10 / 4 磅 | `layout.word.heading.h1` 至 `h3` | 引擎 |
 | 标题与下段同页 | 开 | — | 引擎（代码） |
 | 小表整表同页 | 8 行以内的表格不跨页 | `config/layout-rules.json` 的 `keep_small_tables` | 引擎 |
 | 中文标点 | 中文句子里的半角标点换成全角 | `config/layout-rules.json` 的 `cjk_punctuation` | 引擎 |
@@ -138,8 +138,8 @@
 |---|---|---|
 | 无序列表符号 | 「• 」 | 引擎（代码） |
 | 有序编号 | 「1. 」；正文已自带编号时不再加 | 引擎，依据 `config/layout-rules.json` 的 `numbering` |
-| 一级 / 二级缩进 | 左缩进 0.78 / 1.48 cm，悬挂 0.38 cm | 引擎（代码） |
-| 段后 | 3 磅 | 引擎（代码） |
+| 一级 / 二级缩进 | 左缩进 0.78 / 1.48 cm，悬挂 0.38 cm；取值 `layout.word.list.*` | 引擎 |
+| 段后 | 3 磅；取值 `layout.word.list.space_after_pt` | 引擎 |
 
 列表符号写成文字，不用 Word 自动编号。LibreOffice 显示 Word 自动编号的符号时会换用 OpenSymbol 字体。符号写成文字后，所有字符都用微软雅黑。
 
@@ -160,9 +160,9 @@
 | 表头跨页重复 | 开 | — | 引擎 |
 | 宽度 | 固定布局，列宽按版心等比缩放，不超出版心 | `layout.page.portrait_body_mm` | 引擎 |
 | 列数上限 | 12 | `layout.word.table_capacity.max_columns` | 引擎 |
-| 表题 | 在表格上方，8.5 磅粗体 ink，段前 7 磅、段后 4 磅 | `size.word.caption` | 引擎 |
-| 表注 | 在表格下方，8.5 磅 muted | `size.word.caption` | 引擎 |
-| 键值表 | 两列，标签在左，无表头行 | `config/layout-rules.json` 的 `key_value_table` | 引擎 |
+| 表题 | 在表格上方，8.5 磅粗体 ink，段前 7 磅、段后 4 磅 | `size.word.caption`、`layout.word.caption.*` | 引擎 |
+| 表注 | 在表格下方，8.5 磅 muted，段前 3 磅、段后 6 磅 | `size.word.caption`、`layout.word.notes.block_note_*` | 引擎 |
+| 键值表 | 两列，标签在左，无表头行；标签列缺省 3.2 cm | `config/layout-rules.json` 的 `key_value_table`、`layout.word.table.key_value.*` | 引擎 |
 | 合计行、分组行、合并单元格 | 由业务技能经 `register_table_hooks` 实现 | `line.word.total_top` 等 | 规范 |
 
 不用的写法：竖线、外框、全网格；斑马纹；数据区铺色；数字列居左。
@@ -175,11 +175,11 @@
 |---|---|---|---|
 | 提示条 | 上方 accent 1.5 磅线，下方 line 0.5 磅线；标签粗体 accent | `line.word.callout_top`、`callout_bottom` | 引擎 |
 | 规则条、风险条 | 同提示条，上线和标签用 hot 色 | `role.document.rule_color.key_top`、`risk_top` | 引擎 |
-| 风险条数量 | 全文不超过 2 条 | `layout.limits.risk_callouts_per_document` | 规范：引擎不检查 |
-| 引语 | 左侧 accent 1.5 磅竖线，左缩进 0.45 cm，加中文引号，不填底；出处印在下方居右 | `line.word.quote_left` | 引擎 |
-| 说明条款 | 序号和冒号前的标签粗体，悬挂缩进 0.78 cm，ink 色。紧跟表格时用表注字号 | — | 引擎 |
+| 风险条数量 | 全文不超过 2 条，超出时生成报错 | `layout.limits.risk_callouts_per_document` | 引擎 |
+| 引语 | 左侧 accent 1.5 磅竖线，左缩进 0.45 cm，加中文引号，不填底；出处印在下方居右 | `line.word.quote_left`、`layout.word.quote.*` | 引擎 |
+| 说明条款 | 序号和冒号前的标签粗体，悬挂缩进 0.78 cm，ink 色。紧跟表格时用表注字号 | `layout.word.notes.*` | 引擎 |
 | 章节说明 | 章标题下一行 9.5 磅 muted 文字，不加标签和线 | `config/layout-rules.json` 的 `section_summary` | 引擎 |
-| 关键数字 | 最多 4 个，每个上方一条 ink 1.5 磅线，标签 8.5 磅 muted，数值 12 磅粗体 | `line.word.key_figure_top` | 引擎 |
+| 关键数字 | 最多 4 个，每个上方一条 ink 1.5 磅线，标签 8.5 磅 muted，数值 12 磅粗体 | `line.word.key_figure_top`、`layout.word.key_figures.*` | 引擎 |
 
 ---
 
@@ -202,12 +202,12 @@
 
 | 元素 | 取值 | tokens.json 键 | 实现 |
 |---|---|---|---|
-| 封面 logo | 居中，宽 3.6 cm，下方空 48 磅 | `config/brand.json` 的 `logo` | 引擎（代码） |
+| 封面 logo | 居中，宽 3.6 cm，下方空 48 磅 | `config/brand.json` 的 `logo`、`layout.word.cover.logo_*` | 引擎 |
 | 封面标题 | 居中，28 磅粗体 ink，单倍行距 | `size.word.cover_title` | 引擎 |
-| 封面短线 | 居中，accent 1.75 磅，左右各缩进 5.4 cm | `line.word.cover_rule` | 引擎 |
+| 封面短线 | 居中，accent 1.75 磅，左右各缩进 5.4 cm | `line.word.cover_rule`、`layout.word.cover.rule_*` | 引擎 |
 | 封面信息行 | 居中，标签 muted、值 ink，10.5 磅 | `size.word.body` | 引擎 |
 | 封面页脚 | 居中，公司名，8.5 磅 muted | `size.word.header_footer` | 引擎 |
-| 页眉 | 左侧文档标题，8.5 磅 muted；右侧 logo，宽 2.35 cm | `size.word.header_footer` | 引擎 |
+| 页眉 | 左侧文档标题，8.5 磅 muted；右侧 logo，宽 2.35 cm | `size.word.header_footer`、`layout.word.header_footer.*` | 引擎 |
 | 页脚 | 左侧「公司名｜版本」，右侧「第 X 页 / 共 Y 页」，上方 line 0.5 磅线 | `line.word.footer_top` | 引擎 |
 | 页码 | PAGE 和 NUMPAGES 域 | — | 引擎 |
 | 页眉中的章节名 | STYLEREF 域 | — | 规范 |
@@ -225,7 +225,7 @@
 | 目录标题 | 「目录」，20 磅粗体 ink，下方 ink 0.75 磅线 | 引擎 |
 | 目录域 | TOC 域，收标题 1 至标题 3，条目可点击 | 引擎 |
 | 一级条目 | 10.5 磅粗体，条目之间 line 0.5 磅线 | 引擎 |
-| 二级、三级条目 | 10.5 磅常规，每级缩进 0.75 cm | 引擎 |
+| 二级、三级条目 | 10.5 磅常规，每级缩进 0.75 cm；段距取值 `layout.word.toc.*` | 引擎 |
 | 条目编号 | 一级、二级 accent，三级 ink | 引擎 |
 | 页码 | 靠右，目录样式写空白引导符。LibreOffice 刷新目录后显示点线，Word 里没有核对 | 引擎 |
 | 生成时的页码 | 写「［待刷新］」。Word 里更新域，或运行 `scripts/update_toc_export.py` 后才有页码 | 引擎 |

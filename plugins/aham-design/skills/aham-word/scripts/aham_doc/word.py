@@ -68,10 +68,6 @@ __all__ = [
 
 STYLE = load_style_tokens()
 
-# 说明条款的悬挂缩进与列表的一级缩进是同一数值，「说明」和「列表」在同一页里左边界在一条线上。
-LIST_INDENT_CM = 0.78
-NOTE_HANGING_CM = LIST_INDENT_CM
-NOTE_SPACE_AFTER_PT = 3.0
 
 # 以下取值都由 _apply_style 按样式文件设置，这里只声明名字和类型。
 FONT_HEADING: str
@@ -129,6 +125,26 @@ def _apply_style(style: dict[str, Any], roles: dict[str, str], word_layout: dict
     WORD_PT = STYLE["word_pt"]
     PORTRAIT_BODY_CM = STYLE["page"]["portrait_body_mm"] / 10
     LANDSCAPE_BODY_CM = STYLE["page"]["landscape_body_mm"] / 10
+
+
+def _lw(dotted: str) -> float:
+    """按点分路径取 layout.word 下的一个版式数值，例如 _lw("cover.logo_width_cm")。缺键时报错，不退回写死的值。"""
+    node: Any = WORD_LAYOUT
+    for part in dotted.split("."):
+        if not isinstance(node, dict) or part not in node:
+            raise ValueError(f"tokens.json 缺少版式取值：layout.word.{dotted}")
+        node = node[part]
+    return float(node)
+
+
+def _twips(points: float) -> int:
+    """磅换成 OOXML 的 dxa（1/20 磅）。"""
+    return round(float(points) * 20)
+
+
+def _page_cm(key: str) -> float:
+    """layout.page 下以 mm 为单位的取值换成 cm。"""
+    return float(STYLE["page"][key]) / 10
 
 
 _apply_style(STYLE, STYLE["fonts"], STYLE["word"], STYLE["version"])
@@ -432,7 +448,7 @@ def _paragraph_border(paragraph, *, side: str, color: str, size: int,
     border = OxmlElement(f"w:{side}")
     border.set(qn("w:val"), "single")
     border.set(qn("w:sz"), str(size))
-    border.set(qn("w:space"), str(space))
+    border.set(qn("w:space"), str(round(float(space))))  # OOXML 的 w:space 是整磅
     border.set(qn("w:color"), color)
     pbdr.append(border)
 
@@ -449,7 +465,7 @@ def _style_paragraph_border(style, *, side: str, color: str, size: int, space: i
     border = OxmlElement(f"w:{side}")
     border.set(qn("w:val"), "single")
     border.set(qn("w:sz"), str(size))
-    border.set(qn("w:space"), str(space))
+    border.set(qn("w:space"), str(round(float(space))))  # OOXML 的 w:space 是整磅
     border.set(qn("w:color"), color)
     pbdr.append(border)
 
@@ -524,8 +540,15 @@ def set_cell_fill(cell, color: str | None) -> None:
         set_property_child(tcpr, shd)
 
 
-def set_cell_margins(cell, top: int = 80, start: int = 90,
-                      bottom: int = 80, end: int = 90) -> None:
+def set_cell_margins(cell, top: int | None = None, start: int | None = None,
+                      bottom: int | None = None, end: int | None = None) -> None:
+    """写单元格四边内边距，单位 dxa（1/20 磅）。没写的边取 layout.word.table.default_cell。"""
+    vertical = _twips(_lw("table.default_cell.vertical_pt"))
+    side = _twips(_lw("table.default_cell.side_pt"))
+    top = vertical if top is None else top
+    bottom = vertical if bottom is None else bottom
+    start = side if start is None else start
+    end = side if end is None else end
     tcpr = cell._tc.get_or_add_tcPr()
     old = tcpr.find(qn("w:tcMar"))
     if old is not None:
@@ -573,12 +596,10 @@ def _table_density(block: dict[str, Any]) -> str:
 
 
 def _table_geometry(density: str) -> dict[str, float]:
-    table = WORD_LAYOUT.get("table") or {}
-    value = table.get(density) or {}
     return {
-        "vertical": round(float(value.get("cell_vertical_pt", 4.0)) * 20),
-        "side": round(float(value.get("cell_side_pt", 4.5)) * 20),
-        "line_pt": float(value.get("line_pt", WORD_PARAGRAPH["table_line_pt"])),
+        "vertical": _twips(_lw(f"table.{density}.cell_vertical_pt")),
+        "side": _twips(_lw(f"table.{density}.cell_side_pt")),
+        "line_pt": _lw(f"table.{density}.line_pt"),
     }
 
 
@@ -896,12 +917,12 @@ def _configure_styles(doc: Document) -> None:
     normal.paragraph_format.space_before = Pt(0)
     normal.paragraph_format.space_after = Pt(WORD_PARAGRAPH["body_space_after_pt"])
     _set_line_spacing_at_least(normal, WORD_PARAGRAPH["body_line_pt"])
-    _set_first_line_chars(normal, 200)
+    _set_first_line_chars(normal, round(_lw("paragraph.first_line_indent_chars") * 100))
 
     heading_specs = {
-        "Heading 1": (WORD_PT["h1"], 18, 7),
-        "Heading 2": (WORD_PT["h2"], 14, 5),
-        "Heading 3": (WORD_PT["h3"], 10, 4),
+        f"Heading {level}": (WORD_PT[f"h{level}"], _lw(f"heading.h{level}.space_before_pt"),
+                             _lw(f"heading.h{level}.space_after_pt"))
+        for level in (1, 2, 3)
     }
     for name, (size, before, after) in heading_specs.items():
         style = doc.styles[name]
@@ -910,19 +931,19 @@ def _configure_styles(doc: Document) -> None:
         style.paragraph_format.first_line_indent = Pt(0)
         style.paragraph_format.space_before = Pt(before)
         style.paragraph_format.space_after = Pt(after)
-        style.paragraph_format.line_spacing = 1.15
+        style.paragraph_format.line_spacing = _lw("heading.line_multiple")
         style.paragraph_format.keep_with_next = True
         _set_first_line_chars(style, 0)
     # 章标题上方一条正文色粗线。
     _style_paragraph_border(doc.styles["Heading 1"], side="top", color=INK,
-                            size=RULE["chapter_top"], space=6)
+                            size=RULE["chapter_top"], space=_lw("heading.chapter_rule_space_pt"))
 
     for name in ("List Bullet", "List Bullet 2", "List Number", "List Number 2"):
         if name not in doc.styles:
             continue
         style = doc.styles[name]
         _set_style_font(style, FONT_BODY, WORD_PT["body"], color=INK)
-        style.paragraph_format.space_after = Pt(3)
+        style.paragraph_format.space_after = Pt(_lw("list.space_after_pt"))
         _set_line_spacing_at_least(style, WORD_PARAGRAPH["list_line_pt"])
 
     for idx in range(1, 10):
@@ -930,7 +951,7 @@ def _configure_styles(doc: Document) -> None:
         if name in doc.styles:
             style = doc.styles[name]
             _set_style_font(style, FONT_BODY, WORD_PT["body"] if idx < 3 else WORD_PT["toc_minor"], color=INK)
-            style.paragraph_format.space_after = Pt(4)
+            style.paragraph_format.space_after = Pt(_lw("toc.style_space_after_pt"))
 
     for style in doc.styles:
         if style.type == WD_STYLE_TYPE.TABLE:
@@ -990,8 +1011,8 @@ def _configure_styles(doc: Document) -> None:
     note_style.paragraph_format.left_indent = Pt(0)
     note_style.paragraph_format.first_line_indent = Pt(0)
     note_style.paragraph_format.space_before = Pt(0)
-    note_style.paragraph_format.space_after = Pt(2)
-    note_style.paragraph_format.line_spacing = 1.15
+    note_style.paragraph_format.space_after = Pt(_lw("notes.table_note_space_after_pt"))
+    note_style.paragraph_format.line_spacing = _lw("notes.table_note_line_multiple")
     _set_first_line_chars(note_style, 0)
 
 
@@ -1005,18 +1026,18 @@ def _configure_section_geometry(section, orientation: str = "portrait") -> None:
     orientation = normalize_orientation(orientation)
     if orientation == "landscape":
         section.orientation = WD_ORIENT.LANDSCAPE
-        section.page_width = Cm(29.7)
-        section.page_height = Cm(21.0)
+        section.page_width = Cm(_page_cm("paper_height_mm"))
+        section.page_height = Cm(_page_cm("paper_width_mm"))
     else:
         section.orientation = WD_ORIENT.PORTRAIT
-        section.page_width = Cm(21.0)
-        section.page_height = Cm(29.7)
-    section.top_margin = Cm(2.54)
-    section.bottom_margin = Cm(2.54)
-    section.left_margin = Cm(2.5)
-    section.right_margin = Cm(2.5)
-    section.header_distance = Cm(1.2)
-    section.footer_distance = Cm(1.2)
+        section.page_width = Cm(_page_cm("paper_width_mm"))
+        section.page_height = Cm(_page_cm("paper_height_mm"))
+    section.top_margin = Cm(_page_cm("top_margin_mm"))
+    section.bottom_margin = Cm(_page_cm("bottom_margin_mm"))
+    section.left_margin = Cm(_page_cm("left_margin_mm"))
+    section.right_margin = Cm(_page_cm("right_margin_mm"))
+    section.header_distance = Cm(_page_cm("header_distance_mm"))
+    section.footer_distance = Cm(_page_cm("footer_distance_mm"))
 
 
 def section_orientation(section) -> str:
@@ -1098,26 +1119,26 @@ def add_cover(doc: Document, meta: dict[str, Any]) -> None:
         p = doc.add_paragraph()
         clear_indent(p)
         p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        p.paragraph_format.space_after = Pt(48)
-        shape = p.add_run().add_picture(str(logo), width=Cm(3.6))
+        p.paragraph_format.space_after = Pt(_lw("cover.logo_space_after_pt"))
+        shape = p.add_run().add_picture(str(logo), width=Cm(_lw("cover.logo_width_cm")))
         shape._inline.docPr.set("title", brand.logo_title)
         shape._inline.docPr.set("descr", f"{brand.company} {brand.wordmark} 品牌标识")
     else:
-        _add_spacer(doc, 78)
+        _add_spacer(doc, _lw("cover.no_logo_space_pt"))
 
     if safe_text(meta.get("kicker")):
         kicker = doc.add_paragraph()
         clear_indent(kicker)
         kicker.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        kicker.paragraph_format.space_after = Pt(12)
+        kicker.paragraph_format.space_after = Pt(_lw("cover.kicker_space_after_pt"))
         set_run_font(kicker.add_run(safe_text(meta["kicker"])),
                      FONT_BODY, WORD_PT["body"], bold=True, color=MUTED)
 
     title = doc.add_paragraph()
     clear_indent(title)
     title.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    title.paragraph_format.space_after = Pt(7)
-    title.paragraph_format.line_spacing = 1.0
+    title.paragraph_format.space_after = Pt(_lw("cover.title_space_after_pt"))
+    title.paragraph_format.line_spacing = _lw("cover.title_line_multiple")
     project_first = _COVER_TITLE.get("main") == "project_name" and bool(safe_text(meta.get("project_name")))
     # 版面规则 cover_title（ISO 24896:2026 3.3.2）：标题要能识别内容。项目名作主标题，文档类型作副标题。
     main_title = meta.get("project_name") if project_first else meta["title"]
@@ -1127,7 +1148,7 @@ def add_cover(doc: Document, meta: dict[str, Any]) -> None:
         sub_title = doc.add_paragraph()
         clear_indent(sub_title)
         sub_title.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        sub_title.paragraph_format.space_after = Pt(9)
+        sub_title.paragraph_format.space_after = Pt(_lw("cover.subtitle_space_after_pt"))
         set_run_font(sub_title.add_run(safe_text(meta["title"])), FONT_HEADING,
                       WORD_PT["h1"], color=INK)
 
@@ -1137,10 +1158,11 @@ def add_cover(doc: Document, meta: dict[str, Any]) -> None:
     rule = doc.add_paragraph()
     clear_indent(rule)
     rule.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    rule.paragraph_format.left_indent = Cm(5.4)
-    rule.paragraph_format.right_indent = Cm(5.4)
-    rule.paragraph_format.space_after = Pt(66)
-    _paragraph_border(rule, side="bottom", color=ACCENT, size=RULE["cover_rule"], space=1)
+    rule.paragraph_format.left_indent = Cm(_lw("cover.rule_indent_cm"))
+    rule.paragraph_format.right_indent = Cm(_lw("cover.rule_indent_cm"))
+    rule.paragraph_format.space_after = Pt(_lw("cover.rule_space_after_pt"))
+    _paragraph_border(rule, side="bottom", color=ACCENT, size=RULE["cover_rule"],
+                      space=_lw("cover.rule_space_pt"))
 
     # cover_fields 写明时按它印 [标签, 值]；不写时印客户、项目、版本、日期。客户写全称。
     if meta.get("cover_fields") is not None:
@@ -1159,7 +1181,7 @@ def add_cover(doc: Document, meta: dict[str, Any]) -> None:
         p = doc.add_paragraph()
         clear_indent(p)
         p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        p.paragraph_format.space_after = Pt(4)
+        p.paragraph_format.space_after = Pt(_lw("cover.field_space_after_pt"))
         set_run_font(p.add_run(f"{label}："), FONT_BODY, WORD_PT["body"], color=MUTED)
         set_run_font(p.add_run(safe_text(value)), FONT_BODY, WORD_PT["body"], color=INK)
 
@@ -1184,7 +1206,7 @@ def add_header_footer(section, meta: dict[str, Any]) -> None:
     header = section.header
     header.is_linked_to_previous = False
     _clear_story(header)
-    logo_column = min(2.7, body_width * 0.22)
+    logo_column = min(_lw("header_footer.logo_column_max_cm"), body_width * _lw("header_footer.logo_column_ratio"))
     table = header.add_table(rows=1, cols=2, width=Cm(body_width))
     table.alignment = WD_TABLE_ALIGNMENT.CENTER
     table.autofit = False
@@ -1198,7 +1220,7 @@ def add_header_footer(section, meta: dict[str, Any]) -> None:
     clear_indent(p)
     p.alignment = WD_ALIGN_PARAGRAPH.LEFT
     p.paragraph_format.space_after = Pt(0)
-    p.paragraph_format.line_spacing = 1.0
+    p.paragraph_format.line_spacing = _lw("header_footer.line_multiple")
     _header_title = safe_text(meta["title"])
     _header_project = safe_text(meta.get("project_name", ""))
     # 项目名已包含在文档标题内时不再重复，避免页眉出现
@@ -1214,10 +1236,10 @@ def add_header_footer(section, meta: dict[str, Any]) -> None:
     clear_indent(p)
     p.alignment = WD_ALIGN_PARAGRAPH.RIGHT
     p.paragraph_format.space_after = Pt(0)
-    p.paragraph_format.line_spacing = 1.0
+    p.paragraph_format.line_spacing = _lw("header_footer.line_multiple")
     brand = current_brand()
     if brand.logo is not None and brand.logo.exists():
-        shape = p.add_run().add_picture(str(brand.logo), width=Cm(2.35))
+        shape = p.add_run().add_picture(str(brand.logo), width=Cm(_lw("header_footer.logo_width_cm")))
         shape._inline.docPr.set("title", brand.logo_title)
         shape._inline.docPr.set("descr", f"{brand.short_name} {brand.wordmark} 品牌标识")
     else:
@@ -1229,7 +1251,7 @@ def add_header_footer(section, meta: dict[str, Any]) -> None:
     p = footer.add_paragraph()
     clear_indent(p)
     p.paragraph_format.space_after = Pt(0)
-    p.paragraph_format.line_spacing = 1.0
+    p.paragraph_format.line_spacing = _lw("header_footer.line_multiple")
     p.paragraph_format.tab_stops.add_tab_stop(Cm(body_width), WD_TAB_ALIGNMENT.RIGHT)
     left_parts = [brand.company, safe_text(meta.get("version", "V1.0"))]
     if meta.get("show_workflow_status"):
@@ -1244,7 +1266,8 @@ def add_header_footer(section, meta: dict[str, Any]) -> None:
     _field(p, "NUMPAGES", "1", size=footer_pt)
     set_run_font(p.add_run(" 页"), FONT_BODY, footer_pt, color=MUTED)
     # 0.5pt（sz=4，单位为 1/8 pt）分隔线色细线。
-    _paragraph_border(p, side="top", color=LINE, size=RULE["footer_top"], space=3)
+    _paragraph_border(p, side="top", color=LINE, size=RULE["footer_top"],
+                      space=_lw("header_footer.footer_rule_space_pt"))
 
 
 def start_section(doc: Document, orientation: str, meta: dict[str, Any]):
@@ -1264,9 +1287,13 @@ def add_toc(
     p = doc.add_paragraph()
     clear_indent(p)
     p.paragraph_format.page_break_before = True
-    p.paragraph_format.space_after = Pt(12)
+    p.paragraph_format.space_after = Pt(_lw("toc.title_space_after_pt"))
     set_run_font(p.add_run("目录"), FONT_HEADING, WORD_PT["toc_title"], bold=True, color=INK)
-    _paragraph_border(p, side="bottom", color=INK, size=RULE["table_frame"], space=4)
+    _paragraph_border(p, side="bottom", color=INK, size=RULE["table_frame"], space=_lw("toc.title_rule_space_pt"))
+    level1_before = _lw("toc.level1_space_before_pt")
+    level1_after = _lw("toc.level1_space_after_pt")
+    minor_after = _lw("toc.minor_space_after_pt")
+    toc_rule_space = _lw("toc.rule_space_pt")
     entries = outline_entries(flattened_chapters)
     if not entries:
         # 没有章节时目录只留一行占位，目录域仍然完整。
@@ -1281,21 +1308,22 @@ def add_toc(
         style.paragraph_format.tab_stops.add_tab_stop(
             Cm(PORTRAIT_BODY_CM), WD_TAB_ALIGNMENT.RIGHT, WD_TAB_LEADER.SPACES,
         )
-        style.paragraph_format.space_after = Pt(2 if level == 1 else 1)
-        style.paragraph_format.space_before = Pt(3 if level == 1 else 0)
+        style.paragraph_format.space_after = Pt(level1_after if level == 1 else minor_after)
+        style.paragraph_format.space_before = Pt(level1_before if level == 1 else 0)
         if level == 1:
             # 相邻的一级条目边框相同，Word 会把它们合成一组，只在组底画线；between 让每条之间也画线。
-            _style_paragraph_border(style, side="bottom", color=LINE, size=RULE["table_row"], space=2)
-            _style_paragraph_border(style, side="between", color=LINE, size=RULE["table_row"], space=2)
+            _style_paragraph_border(style, side="bottom", color=LINE, size=RULE["table_row"], space=toc_rule_space)
+            _style_paragraph_border(style, side="between", color=LINE, size=RULE["table_row"], space=toc_rule_space)
     for index, (heading, level) in enumerate(entries):
         style_name = f"TOC {level}"
         toc = doc.add_paragraph(style=style_name)
         clear_indent(toc)
         toc.alignment = WD_ALIGN_PARAGRAPH.LEFT
-        toc.paragraph_format.left_indent = Cm(0.75 * (level - 1))
+        toc.paragraph_format.left_indent = Cm(_lw("toc.indent_per_level_cm") * (level - 1))
         toc.paragraph_format.first_line_indent = Pt(0)
-        toc.paragraph_format.space_before = Pt(8 if index == 0 else (3 if level == 1 else 0))
-        toc.paragraph_format.space_after = Pt(2 if level == 1 else 1)
+        toc.paragraph_format.space_before = Pt(
+            _lw("toc.first_entry_space_before_pt") if index == 0 else (level1_before if level == 1 else 0))
+        toc.paragraph_format.space_after = Pt(level1_after if level == 1 else minor_after)
         toc.paragraph_format.tab_stops.add_tab_stop(
             Cm(PORTRAIT_BODY_CM), WD_TAB_ALIGNMENT.RIGHT, WD_TAB_LEADER.SPACES,
         )
@@ -1346,7 +1374,7 @@ def add_inner_title(doc: Document, meta: dict[str, Any]) -> None:
         eyebrow = doc.add_paragraph()
         clear_indent(eyebrow)
         eyebrow.paragraph_format.page_break_before = True
-        eyebrow.paragraph_format.space_after = Pt(4)
+        eyebrow.paragraph_format.space_after = Pt(_lw("inner_title.eyebrow_space_after_pt"))
         eyebrow.paragraph_format.keep_with_next = True
         _add_mark_run(eyebrow, "——\u00a0", ACCENT, size=WORD_PT["table"])
         set_run_font(eyebrow.add_run(customer), FONT_BODY,
@@ -1355,7 +1383,7 @@ def add_inner_title(doc: Document, meta: dict[str, Any]) -> None:
     clear_indent(p)
     if not customer:
         p.paragraph_format.page_break_before = True
-    p.paragraph_format.space_after = Pt(6)
+    p.paragraph_format.space_after = Pt(_lw("inner_title.title_space_after_pt"))
     p.paragraph_format.keep_with_next = True
     inner_title = safe_text(meta["title"])
     if _COVER_TITLE.get("main") == "project_name" and safe_text(meta.get("project_name")):
@@ -1367,13 +1395,13 @@ def add_inner_title(doc: Document, meta: dict[str, Any]) -> None:
         lp = doc.add_paragraph()
         clear_indent(lp)
         lp.alignment = WD_ALIGN_PARAGRAPH.LEFT
-        lp.paragraph_format.space_after = Pt(10)
+        lp.paragraph_format.space_after = Pt(_lw("inner_title.lede_space_after_pt"))
         lp.paragraph_format.keep_with_next = True
-        _set_line_spacing_at_least(lp, WORD_PARAGRAPH["body_line_pt"] + 2)
+        _set_line_spacing_at_least(lp, WORD_PARAGRAPH["body_line_pt"] + _lw("inner_title.lede_line_extra_pt"))
         set_run_font(lp.add_run(lede), FONT_BODY, WORD_PT["lede"], color=INK)
     if not _INFO_LINE.get("show_when_cover", True):
         # 封面已有客户、项目、版本、日期（内部版还有文档状态），正文首页不再重复一行。
-        p.paragraph_format.space_after = Pt(14)
+        p.paragraph_format.space_after = Pt(_lw("inner_title.title_space_after_no_info_pt"))
         figures = meta.get("key_figures") or []
         if figures:
             _add_key_figures(doc, figures)
@@ -1381,10 +1409,11 @@ def add_inner_title(doc: Document, meta: dict[str, Any]) -> None:
     # 信息行：客户全称｜项目名｜版本｜日期。流程状态只在内部版补在末位。
     info = doc.add_paragraph()
     clear_indent(info)
-    info.paragraph_format.space_before = Pt(4)
-    info.paragraph_format.space_after = Pt(12)
-    _paragraph_border(info, side="top", color=INK, size=RULE["table_frame"], space=5)
-    _paragraph_border(info, side="bottom", color=LINE, size=RULE["table_row"], space=5)
+    info.paragraph_format.space_before = Pt(_lw("inner_title.info_space_before_pt"))
+    info.paragraph_format.space_after = Pt(_lw("inner_title.info_space_after_pt"))
+    info_rule_space = _lw("inner_title.info_rule_space_pt")
+    _paragraph_border(info, side="top", color=INK, size=RULE["table_frame"], space=info_rule_space)
+    _paragraph_border(info, side="bottom", color=LINE, size=RULE["table_row"], space=info_rule_space)
     items = [
         ("客户", meta.get("customer_name")),
         ("项目", meta.get("project_name")),
@@ -1418,7 +1447,7 @@ def _add_key_figures(doc: Document, figures: list[Any]) -> None:
             raise ValueError(f"key_figures 第 {index} 项要写 label 和 value")
         items.append((safe_text(item["label"]), safe_text(item["value"])))
     body = _current_body_width_cm(doc)
-    gap = 0.6
+    gap = _lw("key_figures.gap_cm")
     n = len(items)
     cell_cm = (body - gap * (n - 1)) / n
     widths = [w for i in range(n) for w in ((cell_cm,) if i == 0 else (gap, cell_cm))]
@@ -1427,7 +1456,8 @@ def _add_key_figures(doc: Document, figures: list[Any]) -> None:
     for col_index, cell in enumerate(table.rows[0].cells):
         cell.text = ""
         set_cell_width_cm(cell, widths[col_index])
-        set_cell_margins(cell, top=110, bottom=40, start=0, end=0)
+        set_cell_margins(cell, top=_twips(_lw("key_figures.cell_top_pt")),
+                         bottom=_twips(_lw("key_figures.cell_bottom_pt")), start=0, end=0)
         cell.vertical_alignment = WD_ALIGN_VERTICAL.TOP
         if col_index % 2 == 1:
             set_cell_borders(cell)
@@ -1438,11 +1468,11 @@ def _add_key_figures(doc: Document, figures: list[Any]) -> None:
         lp.style = doc.styles["Table Text"]
         set_run_font(lp.add_run(label), FONT_BODY, WORD_PT["caption"], color=MUTED)
         vp = cell.add_paragraph(style="Table Text")
-        vp.paragraph_format.space_before = Pt(2)
+        vp.paragraph_format.space_before = Pt(_lw("key_figures.value_space_before_pt"))
         set_run_font(vp.add_run(value), FONT_HEADING, WORD_PT["key_value"], bold=True, color=INK)
     spacer = doc.add_paragraph()
     clear_indent(spacer)
-    spacer.paragraph_format.space_after = Pt(6)
+    spacer.paragraph_format.space_after = Pt(_lw("key_figures.space_after_pt"))
 
 
 # 正文与标题只套样式：字体、字号、颜色、行距、横向排法、首行缩进都在
@@ -1509,11 +1539,12 @@ def add_lead(doc: Document, label: str, text: str, *, tone: str = "lead",
     label_color = INK if color else rule_color
     p = doc.add_paragraph()
     clear_indent(p)
-    p.paragraph_format.space_before = Pt(6)
-    p.paragraph_format.space_after = Pt(10)
+    p.paragraph_format.space_before = Pt(_lw("callout.space_before_pt"))
+    p.paragraph_format.space_after = Pt(_lw("callout.space_after_pt"))
     _set_line_spacing_at_least(p, WORD_PARAGRAPH["body_line_pt"])
-    _paragraph_border(p, side="top", color=top_color, size=RULE["callout_top"], space=6)
-    _paragraph_border(p, side="bottom", color=LINE, size=RULE["callout_bottom"], space=6)
+    rule_space = _lw("callout.rule_space_pt")
+    _paragraph_border(p, side="top", color=top_color, size=RULE["callout_top"], space=rule_space)
+    _paragraph_border(p, side="bottom", color=LINE, size=RULE["callout_bottom"], space=rule_space)
     set_run_font(p.add_run(f"{safe_text(label)}："), FONT_BODY,
                   WORD_PT["body"], bold=True, color=label_color)
     set_run_font(p.add_run(safe_text(text)), FONT_BODY, WORD_PT["body"], color=INK)
@@ -1527,7 +1558,7 @@ def add_chapter_summary(doc: Document, label: str, text: str) -> None:
     p = doc.add_paragraph()
     clear_indent(p)
     p.paragraph_format.space_before = Pt(0)
-    p.paragraph_format.space_after = Pt(6)
+    p.paragraph_format.space_after = Pt(_lw("summary.space_after_pt"))
     p.paragraph_format.keep_with_next = True
     _set_line_spacing_at_least(p, WORD_PARAGRAPH["body_line_pt"])
     set_run_font(p.add_run(safe_text(text)), FONT_BODY, WORD_PT["summary"], color=MUTED)
@@ -1558,9 +1589,9 @@ def add_list(
         style_name = "Normal"
         p = doc.add_paragraph(style=style_name)
         clear_indent(p)
-        p.paragraph_format.left_indent = Cm(LIST_INDENT_CM if level == 1 else 1.48)
-        p.paragraph_format.first_line_indent = Cm(-0.38)
-        p.paragraph_format.space_after = Pt(3)
+        p.paragraph_format.left_indent = Cm(_lw("list.indent_cm") if level == 1 else _lw("list.indent_level2_cm"))
+        p.paragraph_format.first_line_indent = Cm(-_lw("list.hanging_cm"))
+        p.paragraph_format.space_after = Pt(_lw("list.space_after_pt"))
         _set_line_spacing_at_least(p, WORD_PARAGRAPH["list_line_pt"])
         body = safe_text(text)
         if ordered:
@@ -1607,8 +1638,8 @@ def _normalize_widths(headers: list[str], requested: list[float] | None,
 def _add_table_caption(doc: Document, caption: str) -> None:
     p = doc.add_paragraph()
     clear_indent(p)
-    p.paragraph_format.space_before = Pt(7)
-    p.paragraph_format.space_after = Pt(4)
+    p.paragraph_format.space_before = Pt(_lw("caption.space_before_pt"))
+    p.paragraph_format.space_after = Pt(_lw("caption.space_after_pt"))
     p.paragraph_format.keep_with_next = True
     set_run_font(p.add_run(safe_text(caption)), FONT_TABLE,
                   WORD_PT["caption"], bold=True, color=INK)
@@ -1676,19 +1707,21 @@ def _add_key_value_table(doc: Document, block: dict[str, Any]) -> None:
         return
     if block.get("caption"):
         _add_table_caption(doc, block["caption"])
-    label_cm = float((block.get("widths_cm") or [3.2])[0])
+    label_cm = float((block.get("widths_cm") or [_lw("table.key_value.label_cm")])[0])
     widths = [label_cm, _current_body_width_cm(doc) - label_cm]
     table = doc.add_table(rows=len(pairs), cols=2)
     table.alignment = WD_TABLE_ALIGNMENT.LEFT
     set_table_geometry(table, widths)
     last = len(pairs) - 1
+    kv_vertical = _twips(_lw("table.key_value.cell_vertical_pt"))
+    kv_end = _twips(_lw("table.key_value.cell_end_pt"))
     for index, (label, value) in enumerate(pairs):
         row = table.rows[index]
         set_keep_together(row)
         for col, cell in enumerate(row.cells):
             cell.text = ""
             set_cell_width_cm(cell, widths[col])
-            set_cell_margins(cell, top=50, bottom=50, start=0, end=60)
+            set_cell_margins(cell, top=kv_vertical, bottom=kv_vertical, start=0, end=kv_end)
             edges = {}
             if index == 0:
                 edges["top"] = (INK, RULE["table_frame"])
@@ -1855,8 +1888,8 @@ def add_table(doc: Document, block: dict[str, Any]) -> None:
 
     if block.get("note"):
         p = doc.add_paragraph(style="Quote Note")
-        p.paragraph_format.space_before = Pt(3)
-        p.paragraph_format.space_after = Pt(6)
+        p.paragraph_format.space_before = Pt(_lw("notes.block_note_space_before_pt"))
+        p.paragraph_format.space_after = Pt(_lw("notes.block_note_space_after_pt"))
         p.add_run(safe_text(block["note"]))
 
 
@@ -1927,10 +1960,10 @@ def _add_figure(doc: Document, block: dict[str, Any], base_dir: Path) -> None:
         p = doc.add_paragraph()
         clear_indent(p)
         p.alignment = WD_ALIGN_PARAGRAPH.LEFT
-        p.paragraph_format.space_before = Pt(5)
-        p.paragraph_format.space_after = Pt(3)
+        p.paragraph_format.space_before = Pt(_lw("figure.space_before_pt"))
+        p.paragraph_format.space_after = Pt(_lw("figure.space_after_pt"))
         body_width = _current_body_width_cm(doc)
-        width = min(float(block.get("width_cm", body_width - 0.4)), body_width)
+        width = min(float(block.get("width_cm", body_width - _lw("figure.width_inset_cm"))), body_width)
         shape = p.add_run().add_picture(str(paths[0]), width=Cm(width))
         shape._inline.docPr.set("title", safe_text(block.get("caption", paths[0].stem)))
         shape._inline.docPr.set("descr", safe_text(block.get("alt", block.get("caption", paths[0].stem))))
@@ -1944,12 +1977,13 @@ def _add_figure(doc: Document, block: dict[str, Any], base_dir: Path) -> None:
         set_table_geometry(table, widths)
         for idx, path in enumerate(paths):
             cell = table.rows[0].cells[idx]
-            set_cell_margins(cell, top=40, start=40, bottom=40, end=40)
+            gallery_margin = _twips(_lw("figure.gallery_cell_margin_pt"))
+            set_cell_margins(cell, top=gallery_margin, start=gallery_margin, bottom=gallery_margin, end=gallery_margin)
             set_cell_borders(cell)
             p = cell.paragraphs[0]
             clear_indent(p)
             p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-            shape = p.add_run().add_picture(str(path), width=Cm(widths[idx] - 0.3))
+            shape = p.add_run().add_picture(str(path), width=Cm(widths[idx] - _lw("figure.gallery_image_inset_cm")))
             shape._inline.docPr.set("title", path.stem)
             shape._inline.docPr.set("descr", safe_text(block.get("alt", path.stem)))
 
@@ -1957,13 +1991,13 @@ def _add_figure(doc: Document, block: dict[str, Any], base_dir: Path) -> None:
     caption = doc.add_paragraph()
     clear_indent(caption)
     caption.alignment = WD_ALIGN_PARAGRAPH.LEFT
-    caption.paragraph_format.space_after = Pt(2)
+    caption.paragraph_format.space_after = Pt(_lw("figure.caption_space_after_pt"))
     set_run_font(caption.add_run(safe_text(block.get("caption", "项目配图"))),
                   FONT_BODY, WORD_PT["caption"], color=MUTED)
     source = doc.add_paragraph()
     clear_indent(source)
     source.alignment = WD_ALIGN_PARAGRAPH.LEFT
-    source.paragraph_format.space_after = Pt(7)
+    source.paragraph_format.space_after = Pt(_lw("figure.source_space_after_pt"))
     set_run_font(source.add_run(safe_text(block.get("source", "来源：项目资料；状态：待核验"))),
                   FONT_BODY, WORD_PT["caption"], color=FAINT)
 
@@ -1998,13 +2032,17 @@ def _add_swimlane(doc: Document, block: dict[str, Any]) -> None:
     """泳道图：每条泳道一个参与方，每列一步。"""
     steps = swimlane_steps(block)
     lanes = [(index, name) for index, name in lane_names() if index not in _NO_LANE]
-    settings = WORD_LAYOUT.get("swimlane") or {}
     body = _current_body_width_cm(doc)
     landscape = body > PORTRAIT_BODY_CM + 1
-    limit = int(settings.get("max_steps_portrait", 7)) * (2 if landscape else 1)
-    label_cm = float(settings.get("label_cm", 2.1))
-    gap_cm = float(settings.get("gap_cm", 0.2))
-    box_rule = int(settings.get("box_rule", 6))
+    limit = int(_lw("swimlane.max_steps_portrait")) * (2 if landscape else 1)
+    label_cm = _lw("swimlane.label_cm")
+    gap_cm = _lw("swimlane.gap_cm")
+    box_rule = int(_lw("swimlane.box_rule"))
+    head_vertical = _twips(_lw("swimlane.header_cell_vertical_pt"))
+    lane_vertical = _twips(_lw("swimlane.cell_vertical_pt"))
+    lane_side = _twips(_lw("swimlane.cell_side_pt"))
+    box_vertical = _twips(_lw("swimlane.box_vertical_pt"))
+    box_side = _twips(_lw("swimlane.box_side_pt"))
     size = WORD_PT["swimlane"]
     chunks = [steps[start:start + limit] for start in range(0, len(steps), limit)]
     caption = safe_text(block.get("caption"))
@@ -2027,8 +2065,9 @@ def _add_swimlane(doc: Document, block: dict[str, Any]) -> None:
             for col_index, cell in enumerate(row.cells):
                 cell.text = ""
                 set_cell_width_cm(cell, widths[col_index])
-                set_cell_margins(cell, top=60 if row_index else 40, bottom=60 if row_index else 40,
-                                  start=0 if col_index == 0 else 40, end=40)
+                vertical = lane_vertical if row_index else head_vertical
+                set_cell_margins(cell, top=vertical, bottom=vertical,
+                                  start=0 if col_index == 0 else lane_side, end=lane_side)
                 cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
                 if row_index == 0:
                     bottom = (INK, RULE["table_header_bottom"])
@@ -2055,9 +2094,9 @@ def _add_swimlane(doc: Document, block: dict[str, Any]) -> None:
                     continue
                 color = STYLE["categorical"][f"party_{party}"]
                 box = cell.add_table(rows=1, cols=1)
-                set_table_geometry(box, [widths[col_index] - 0.15])
+                set_table_geometry(box, [widths[col_index] - _lw("swimlane.box_inset_cm")])
                 inner = box.rows[0].cells[0]
-                set_cell_margins(inner, top=50, bottom=50, start=70, end=70)
+                set_cell_margins(inner, top=box_vertical, bottom=box_vertical, start=box_side, end=box_side)
                 edge = (color, box_rule)
                 set_cell_borders(inner, top=edge, bottom=edge, start=edge, end=edge)
                 set_cell_fill(inner, WHITE)
@@ -2074,7 +2113,7 @@ def _add_swimlane(doc: Document, block: dict[str, Any]) -> None:
                 cell._tc.remove(p._p)
                 tail = cell.paragraphs[-1]
                 tail.style = doc.styles["Table Text"]
-                tail.paragraph_format.line_spacing = Pt(2)
+                tail.paragraph_format.line_spacing = Pt(_lw("swimlane.tail_line_pt"))
         # 泳道图不拆页：除末行外每段都与下一段同页，表头跨页重复。
         _repeat_header(table.rows[0])
         for row in table.rows[:-1]:
@@ -2084,20 +2123,20 @@ def _add_swimlane(doc: Document, block: dict[str, Any]) -> None:
                     set_property_child(ppr, OxmlElement("w:keepNext"))
     if block.get("note"):
         note = doc.add_paragraph(style="Quote Note")
-        note.paragraph_format.space_before = Pt(3)
-        note.paragraph_format.space_after = Pt(6)
+        note.paragraph_format.space_before = Pt(_lw("notes.block_note_space_before_pt"))
+        note.paragraph_format.space_after = Pt(_lw("notes.block_note_space_after_pt"))
         note.add_run(safe_text(block["note"]))
 
 
 def _add_quote(doc: Document, block: dict[str, Any]) -> None:
     p = doc.add_paragraph()
     clear_indent(p)
-    p.paragraph_format.left_indent = Cm(0.45)
-    p.paragraph_format.right_indent = Cm(0.35)
-    p.paragraph_format.space_before = Pt(4)
-    p.paragraph_format.space_after = Pt(5)
+    p.paragraph_format.left_indent = Cm(_lw("quote.indent_left_cm"))
+    p.paragraph_format.right_indent = Cm(_lw("quote.indent_right_cm"))
+    p.paragraph_format.space_before = Pt(_lw("quote.space_before_pt"))
+    p.paragraph_format.space_after = Pt(_lw("quote.space_after_pt"))
     _set_line_spacing_at_least(p, WORD_PARAGRAPH["body_line_pt"])
-    _paragraph_border(p, side="left", color=ACCENT, size=RULE["quote_left"], space=8)
+    _paragraph_border(p, side="left", color=ACCENT, size=RULE["quote_left"], space=_lw("quote.rule_space_pt"))
     text = f"“{safe_text(block.get('text', ''))}”"
     set_run_font(p.add_run(text), FONT_BODY, WORD_PT["body"], color=INK)
     attribution = "｜".join(filter(None, [
@@ -2109,7 +2148,7 @@ def _add_quote(doc: Document, block: dict[str, Any]) -> None:
         p2 = doc.add_paragraph()
         clear_indent(p2)
         p2.alignment = WD_ALIGN_PARAGRAPH.RIGHT
-        p2.paragraph_format.space_after = Pt(7)
+        p2.paragraph_format.space_after = Pt(_lw("quote.attribution_space_after_pt"))
         set_run_font(p2.add_run(attribution), FONT_BODY, WORD_PT["caption"], color=MUTED)
 
 
@@ -2135,8 +2174,8 @@ def _add_notes(doc: Document, block: dict[str, Any], *, table_note: bool = False
         return
     title = doc.add_paragraph()
     clear_indent(title)
-    title.paragraph_format.space_before = Pt(5)
-    title.paragraph_format.space_after = Pt(3)
+    title.paragraph_format.space_before = Pt(_lw("notes.title_space_before_pt"))
+    title.paragraph_format.space_after = Pt(_lw("notes.title_space_after_pt"))
     title.paragraph_format.keep_with_next = True
     set_run_font(
         title.add_run(safe_text(block.get("title") or "说明")),
@@ -2144,14 +2183,14 @@ def _add_notes(doc: Document, block: dict[str, Any], *, table_note: bool = False
     )
     is_table_note = bool(block.get("table_note", table_note))
     size = WORD_PT["caption"] if is_table_note else WORD_PT["body"]
-    hang = Cm(NOTE_HANGING_CM)
+    hang = Cm(_lw("notes.hanging_cm"))
     for index, value in enumerate(items, start=1):
         paragraph = doc.add_paragraph(style="Quote Note" if is_table_note else "Normal")
         paragraph_format = paragraph.paragraph_format
         paragraph_format.left_indent = hang
         paragraph_format.first_line_indent = -hang
         paragraph_format.space_before = Pt(0)
-        paragraph_format.space_after = Pt(NOTE_SPACE_AFTER_PT)
+        paragraph_format.space_after = Pt(_lw("notes.space_after_pt"))
         paragraph_format.keep_together = True
         # 序号用标题字体槽：阿拉伯数字走 ascii 那一路，全角空格走 eastAsia 那一路。
         set_run_font(
@@ -2173,7 +2212,7 @@ def render_block(doc: Document, block: dict[str, Any], base_dir: Path,
                   bold_prefix=block.get("bold_prefix"))
         if previous_kind == "table" and len(doc.paragraphs) > before:
             # 表格下框线与紧随的正文之间留出段前距，避免正文贴住粗线。
-            doc.paragraphs[before].paragraph_format.space_before = Pt(6)
+            doc.paragraphs[before].paragraph_format.space_before = Pt(_lw("paragraph.after_table_space_before_pt"))
     elif kind in {"lead", "callout"}:
         # tone=risk：需客户决策的风险提示；tone=key：必须遵守的处理规则。
         # 两者上线与标签都用重点色，其余提示条用主色。
@@ -2212,7 +2251,7 @@ def render_block(doc: Document, block: dict[str, Any], base_dir: Path,
     elif kind == "page_break":
         _add_page_break(doc)
     elif kind == "spacer":
-        _add_spacer(doc, float(block.get("points", 6)))
+        _add_spacer(doc, float(block.get("points", _lw("paragraph.spacer_default_pt"))))
     elif kind in _BLOCK_RENDERERS:
         _BLOCK_RENDERERS[kind](doc, block, base_dir, previous_kind)
     else:

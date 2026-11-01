@@ -30,23 +30,21 @@ __all__ = [
 CH_FULL = 0.3400      # 全角
 CH_WIDE = 0.2200      # 大写字母与数字
 CH_HALF = 0.2000      # 其余半角
-# 渲染器给每个单元格写 w:tcMar start/end=90 twips（上下 80），
-# 左右合计 180 twips ≈ 0.3175cm；再加两条边框线宽。
-# 上面是紧凑版和 Excel 的取值。常规版左右各 7pt（design/components.md 6.2），
-# 从 tokens.json 的 layout.word.table 读取，Word 常规版表格用 REGULAR_CELL_PAD。
-CELL_MARGIN_CM = 180 / 1440 * 2.54
-CELL_PAD = round(CELL_MARGIN_CM + 0.04, 4)
+# 单元格左右内边距从 tokens.json 读：缺省单元格取 layout.word.table.default_cell.side_pt，
+# 常规版表格取 layout.word.table.regular.cell_side_pt。左右两侧相加，再加两条边框线宽 0.04cm。
+# 缺省单元格的值也用于紧凑版表格的列宽估算；Word 常规版表格用 REGULAR_CELL_PAD。
 
 
-def _regular_cell_pad() -> float:
+def _cell_pad(token: str) -> float:
     """读不到 tokens.json 时报错，不退回写死的内边距。"""
     from .tokens import value
 
-    side_pt = float(value("layout.word.table.regular.cell_side_pt"))
+    side_pt = float(value(token))
     return round(side_pt * 2 / 72 * 2.54 + 0.04, 4)
 
 
-REGULAR_CELL_PAD = _regular_cell_pad()
+CELL_PAD = _cell_pad("layout.word.table.default_cell.side_pt")
+REGULAR_CELL_PAD = _cell_pad("layout.word.table.regular.cell_side_pt")
 MIN_COL = 1.20        # 最小列宽：保证 2 个汉字表头不被压成竖排
 # 短列阈值：自然单行宽 ≤ 此值的列按需给宽，不参与剩余分配。
 # 2.60 会把「本分类含税合计」「按厂商授权」这类刚过阈值的列判成长列再被阻尼压回去，
