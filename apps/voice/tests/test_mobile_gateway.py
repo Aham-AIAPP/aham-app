@@ -112,6 +112,44 @@ class GatewayTests(unittest.TestCase):
         mine = self.client.get(f"/v1/uploads/{up['id']}", headers=self.auth).json()
         self.assertEqual((mine['status'], mine['recording_id']), ('done', 'r1'))
 
+    def test_failure_report_and_retry(self):
+        up = self.upload()
+        ready = '/internal/v1/uploads/ready'
+        self.client.get(ready, headers=signed('GET', ready))
+        claimed = f"/internal/v1/uploads/{up['id']}/claimed"
+        self.client.post(claimed, content=b'{}', headers={**signed('POST', claimed, b'{}'), 'Content-Type': 'application/json'})
+        result = f"/internal/v1/uploads/{up['id']}/result"
+        body = json.dumps({'status': 'failed', 'stage': 'transcribe', 'error': 'ASR 失败'}).encode()
+        r = self.client.post(result, content=body, headers={**signed('POST', result, body), 'Content-Type': 'application/json'})
+        self.assertEqual(r.status_code, 200, r.text)
+        mine = self.client.get(f"/v1/uploads/{up['id']}", headers=self.auth).json()
+        self.assertEqual(mine['status'], 'failed')
+        self.assertEqual(mine['result']['error'], 'ASR 失败')
+        # 失败状态不再出现在待领取列表；重试后重新排队
+        self.assertEqual(self.client.get(ready, headers=signed('GET', ready)).json()['items'], [])
+        again = self.client.post(f"/v1/uploads/{up['id']}/retry", headers=self.auth).json()
+        self.assertEqual(again['status'], 'ready')
+        self.assertIsNone(again['result'])
+        self.assertEqual([i['id'] for i in self.client.get(ready, headers=signed('GET', ready)).json()['items']], [up['id']])
+        # 失败报告缺少原因时拒绝
+        bad = json.dumps({'status': 'failed'}).encode()
+        self.assertEqual(self.client.post(result, content=bad, headers={**signed('POST', result, bad), 'Content-Type': 'application/json'}).status_code, 400)
+
+    def test_failure_after_done_is_ignored(self):
+        up = self.upload()
+        result = f"/internal/v1/uploads/{up['id']}/result"
+        ok = json.dumps({'recording_id': 'r1', 'title': 't', 'asr_status': 'done', 'summary_status': 'done'}).encode()
+        self.client.post(result, content=ok, headers={**signed('POST', result, ok), 'Content-Type': 'application/json'})
+        bad = json.dumps({'status': 'failed', 'error': 'late'}).encode()
+        self.client.post(result, content=bad, headers={**signed('POST', result, bad), 'Content-Type': 'application/json'})
+        self.assertEqual(self.client.get(f"/v1/uploads/{up['id']}", headers=self.auth).json()['status'], 'done')
+
+    def test_retry_only_own_upload(self):
+        up = self.upload()
+        with patch.object(aham_voice, 'backend', return_value={'id': 'bob', 'name': 'Bob'}):
+            other = 'Bearer ' + self.client.post('/v1/login', json={'username': 'bob', 'password': 'pw'}).json()['token']
+        self.assertEqual(self.client.post(f"/v1/uploads/{up['id']}/retry", headers={'Authorization': other}).status_code, 404)
+
     def test_signature_bound_to_path(self):
         good = signed('GET', '/internal/v1/uploads/ready')
         self.assertEqual(self.client.get('/internal/v1/uploads/x/file', headers=good).status_code, 401)

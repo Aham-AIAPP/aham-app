@@ -41,6 +41,9 @@ def fail(job,exc):
     elif any(s in message.lower() for s in ['unauthorized','token expired','未登录','授权过期','invalid_grant']):status='blocked'
     else:status='retry' if count<4 else 'failed'
     v.update_job(job['id'],status=status,attempt=count,error=message,available_at=time.time()+min(3600,60*2**(count-1)))
+    if status=='failed':
+        try:v.mobile.report_failure(live,message)  # 手机上传的录音最终失败时告诉网关，App 显示失败并可重试
+        except Exception as exc:log.error('Mobile failure report %s: %s',job['id'],v.sanitize_error(exc))
     log.error('Job %s stage=%s status=%s: %s',job['id'],live['stage'],status,message)
 
 

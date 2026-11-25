@@ -89,6 +89,9 @@ def add_source(item):
         c.execute('BEGIN IMMEDIATE')
         row = c.execute('select id from recording_sources where profile=? and source_uuid=?', (PROFILE, upload_id)).fetchone()
         if row:
+            # 手机端点了重试：把失败的任务重新排队，从失败的环节继续
+            c.execute("update voice_jobs set status='queued',attempt=0,error=null,available_at=?,updated_at=? where source_id=? and status='failed'",
+                      (time.time(), vi().timestamp(), row[0]))
             return row[0], False
         sid, jid, ts = str(uuid.uuid4()), str(uuid.uuid4()), vi().timestamp()
         c.execute('insert into recording_sources(id,profile,source_uuid,owner_id,source_title,source_start,source_url,created_at,updated_at) values(?,?,?,?,?,?,?,?,?)',
@@ -149,6 +152,20 @@ def report(source, user):
     gateway('POST', f"/internal/v1/uploads/{source['source_uuid']}/result",
             {'recording_id': rec['id'], 'title': rec['title'], 'asr_status': rec['asr_status'],
              'summary_status': rec['summary_status']})
+
+
+def report_failure(job, message):
+    """A job for a mobile upload failed for good: tell the gateway so the phone can show it and retry."""
+    sid = job.get('source_id')
+    if not sid:
+        return
+    source = vi().get_source(sid)
+    if not source or source['profile'] != PROFILE:
+        return
+    body = {'status': 'failed', 'stage': job.get('stage'), 'error': str(message)[:500]}
+    if source.get('recording_id'):
+        body['recording_id'] = source['recording_id']
+    gateway('POST', f"/internal/v1/uploads/{source['source_uuid']}/result", body)
 
 
 async def verify(req: Request):

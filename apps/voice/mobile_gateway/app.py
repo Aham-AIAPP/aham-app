@@ -351,6 +351,19 @@ def complete(upload_id: str, user=Depends(phone)):
     return public_upload(row)
 
 
+@app.post('/v1/uploads/{upload_id}/retry')
+def retry_upload(upload_id: str, user=Depends(phone)):
+    """Queue a failed upload again; the Mac picks it up on its next scan and resumes the failed stage."""
+    with db() as c:
+        c.execute('BEGIN IMMEDIATE')
+        row = own_upload(c, upload_id, user)
+        if row['status'] == 'failed':
+            c.execute("update uploads set status='ready',result=null,updated=? where id=?", (time.time(), upload_id))
+            row = c.execute('select * from uploads where id=?', (upload_id,)).fetchone()
+        c.execute('COMMIT')
+    return public_upload(row)
+
+
 @app.get('/v1/uploads')
 def list_uploads(limit: int = 50, user=Depends(phone)):
     with db() as c:
@@ -396,6 +409,22 @@ def finish_upload(upload_id, payload):
         c.execute('COMMIT')
     sent = [notify(upload_id, d, payload) for d in devices]
     return {'ok': True, 'notified': sum(1 for s in sent if s == 'sent')}
+
+
+def fail_upload(upload_id, payload):
+    """Record a final processing failure. The phone shows the reason and can retry."""
+    with db() as c:
+        row = c.execute('select status from uploads where id=?', (upload_id,)).fetchone()
+        if not row:
+            raise HTTPException(404, '上传不存在')
+        if row['status'] == 'done':
+            return {'ok': True, 'ignored': True}
+        result = {'status': 'failed', 'stage': payload.get('stage'), 'error': str(payload.get('error'))[:500]}
+        if isinstance(payload.get('recording_id'), str):
+            result['recording_id'] = payload['recording_id']
+        c.execute("update uploads set status='failed',recording_id=coalesce(?,recording_id),result=?,updated=? where id=?",
+                  (result.get('recording_id'), json.dumps(result, ensure_ascii=False), time.time(), upload_id))
+    return {'ok': True}
 
 
 def mark_claimed(upload_id):

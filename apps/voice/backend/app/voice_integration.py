@@ -301,7 +301,10 @@ def apply_title(source,user):
     if source['title_locked']:raise TitleConflict('本地标题已锁定或与原标题不同，保留人工标题')
     title=source['generated_title']
     if not title:
-        theme=asyncio.run(generate_title(source['recording_id'],user))
+        try:theme=asyncio.run(generate_title(source['recording_id'],user))
+        except ValueError as exc:
+            if '转写内容过少' in str(exc):return  # 没有可概括的内容：保留按录音时间起的原标题
+            raise
         date=datetime.fromtimestamp(source['source_start']/1000,ZoneInfo('Asia/Shanghai')).strftime('%Y-%m-%d') if source['source_start'] else timestamp()[:10]
         title=date+'｜'+theme
         source_update(source['id'],generated_title=title)

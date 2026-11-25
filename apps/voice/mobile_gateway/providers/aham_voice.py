@@ -102,8 +102,15 @@ def claimed(upload_id: str, _=Depends(worker)):
 
 @router.post('/uploads/{upload_id}/result')
 def result(upload_id: str, payload=Depends(worker)):
-    keys = {'recording_id', 'title', 'asr_status', 'summary_status'}
-    if not isinstance(payload, dict) or set(payload) - keys or not isinstance(payload.get('recording_id'), str):
+    """Final result from the Voice worker: a finished recording, or `status: failed` with the reason."""
+    keys = {'recording_id', 'title', 'asr_status', 'summary_status', 'status', 'stage', 'error'}
+    if not isinstance(payload, dict) or set(payload) - keys:
+        raise HTTPException(400, '结果格式无效')
+    if payload.get('status') == 'failed':
+        if not isinstance(payload.get('error'), str):
+            raise HTTPException(400, '结果格式无效')
+        return gw().fail_upload(upload_id, payload)
+    if not isinstance(payload.get('recording_id'), str):
         raise HTTPException(400, '结果格式无效')
     return gw().finish_upload(upload_id, payload)
 
