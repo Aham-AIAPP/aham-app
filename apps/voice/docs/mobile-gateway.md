@@ -70,3 +70,25 @@ location /voice/mobile/ {
 - Login is limited to 10 attempts per IP in 5 minutes on the gateway. The backend also locks an account for 15 minutes after 5 failed passwords.
 - Administrators cannot sign in through the mobile gateway.
 - By default the gateway deletes nothing. With `GATEWAY_KEEP_DAYS` above 0, audio is deleted that many days after the Mac claims it, upload records remain, and unfinished uploads expire after 30 days. An Opus recording at 16 kHz mono takes about 7 MB per hour, so watch the server's free disk.
+
+## Client API reference
+
+All `/v1` routes except `/v1/login` need `Authorization: Bearer <token>`. Errors return the HTTP status with `{"detail": "<message in Chinese>"}`; a 401 means the client signs in again.
+
+| Route | Body or query | Response |
+| --- | --- | --- |
+| `POST /v1/login` | `{"username", "password", "device_name"}` | `{"token", "expires_at", "user": {"id", "name", "must_change_password"}}`; 401 wrong password, 423 locked, 429 too many attempts |
+| `POST /v1/logout` | none | `{"ok": true}` |
+| `GET /v1/me` | none | `{"id", "name"}` |
+| `POST /v1/devices` | `{"apns_token": "<hex>", "environment": "sandbox" or "production"}` | `{"ok": true, "push_enabled"}` |
+| `POST /v1/uploads` | `{"file_name", "size", "sha256", "kind": "note" or "call" or "import", "device_sn", "title", "recorded_at_ms", "duration_sec"}` | Upload object |
+| `PUT /v1/uploads/{id}/chunk?offset=N` | raw bytes, 1 byte to 8 MB | Upload object; 409 with the expected offset when `N` is wrong |
+| `POST /v1/uploads/{id}/complete` | none | Upload object with `status` `ready`; 409 not all bytes received; 422 checksum mismatch, start again from offset 0 |
+| `GET /v1/uploads?limit=50` | none | `{"items": [Upload object]}` |
+| `GET /v1/uploads/{id}` | none | Upload object |
+| `GET /v1/recordings?limit=20&offset=0&since=` | none | Recording list from the provider |
+| `GET /v1/recordings/{id}/summary`, `/transcript`, `/detail` | `limit`, `offset` | Recording content from the provider |
+
+The upload object is `{"id", "file_name", "size", "received", "status", "kind", "title", "recording_id", "result"}`. `status` moves through `receiving`, `ready`, `claimed` and `done`; `expired` appears only when cleanup is on. Once `status` is `done`, `recording_id` names the recording for the `/v1/recordings` routes. Accepted file suffixes are `.ogg`, `.opus`, `.m4a`, `.aac`, `.wav` and `.mp3`.
+
+A push notification carries `recording_id` next to `aps`, so the client opens that recording directly.
