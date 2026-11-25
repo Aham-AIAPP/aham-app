@@ -116,6 +116,19 @@ class GatewayTests(unittest.TestCase):
         good = signed('GET', '/internal/v1/uploads/ready')
         self.assertEqual(self.client.get('/internal/v1/uploads/x/file', headers=good).status_code, 401)
 
+    def test_purge_keeps_audio_by_default(self):
+        up = self.upload()
+        claim = f"/internal/v1/uploads/{up['id']}/claimed"
+        self.client.post(claim, headers=signed('POST', claim))
+        stored = gw.HOME / 'uploads' / up['id']
+        with patch.object(gw.time, 'time', return_value=time.time() + 400 * 86400):
+            gw.purge()
+        self.assertTrue(stored.exists())
+        with patch.dict('os.environ', {'GATEWAY_KEEP_DAYS': '1'}), \
+             patch.object(gw.time, 'time', return_value=time.time() + 2 * 86400):
+            gw.purge()
+        self.assertFalse(stored.exists())
+
     def test_push_skipped_without_apns_settings(self):
         self.assertEqual(gw.apns.send('ab' * 32, {}), 'skipped')
 

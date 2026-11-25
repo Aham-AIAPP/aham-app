@@ -24,7 +24,7 @@ Reads (`GET /v1/recordings`, `/v1/recordings/{id}/summary|transcript|detail`) go
 | `GATEWAY_HOME` | `~/.cache/voice-mobile-gateway` | Database, uploads and `private/` |
 | `GATEWAY_PROVIDER` | `aham_voice` | Processing provider |
 | `GATEWAY_MAX_MB` | `2048` | Largest accepted file |
-| `GATEWAY_KEEP_DAYS` | `7` | Days to keep audio after the Mac has claimed it |
+| `GATEWAY_KEEP_DAYS` | `0` | Days to keep audio after the Mac has claimed it; `0` keeps all audio |
 | `VOICE_BACKEND_URL` | none | Backend address through the tunnel, for example `http://127.0.0.1:18768` |
 | `APNS_KEY_PATH`, `APNS_KEY_ID`, `APNS_TEAM_ID`, `APNS_TOPIC` | none | APNs token authentication; all four are needed |
 
@@ -69,4 +69,4 @@ location /voice/mobile/ {
 
 - Login is limited to 10 attempts per IP in 5 minutes on the gateway. The backend also locks an account for 15 minutes after 5 failed passwords.
 - Administrators cannot sign in through the mobile gateway.
-- Audio is deleted `GATEWAY_KEEP_DAYS` days after the Mac claims it; upload records remain. Unfinished uploads expire after 30 days.
+- By default the gateway deletes nothing. With `GATEWAY_KEEP_DAYS` above 0, audio is deleted that many days after the Mac claims it, upload records remain, and unfinished uploads expire after 30 days. An Opus recording at 16 kHz mono takes about 7 MB per hour, so watch the server's free disk.

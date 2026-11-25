@@ -11,7 +11,8 @@ Environment:
   GATEWAY_HOME         data directory (database, uploads, private key files)
   GATEWAY_PROVIDER     processing provider, default aham_voice (see providers/)
   GATEWAY_MAX_MB       per-upload limit, default 2048
-  GATEWAY_KEEP_DAYS    days to keep audio after the Mac has imported it, default 7
+  GATEWAY_KEEP_DAYS    days to keep audio after the Mac has imported it; 0 (default) keeps
+                       everything and turns the sweeper off
   APNS_KEY_PATH, APNS_KEY_ID, APNS_TEAM_ID, APNS_TOPIC   push; all four or none
 """
 from __future__ import annotations
@@ -51,7 +52,7 @@ def max_bytes():
 
 
 def keep_seconds():
-    return int(os.environ.get('GATEWAY_KEEP_DAYS', '7')) * 86400
+    return int(os.environ.get('GATEWAY_KEEP_DAYS', '0')) * 86400
 
 
 def uploads_dir():
@@ -163,6 +164,8 @@ def sweeper():
 
 def purge():
     """Delete audio the Mac has imported, after the keep period, and stale partial uploads."""
+    if keep_seconds() <= 0:
+        return
     cutoff = time.time() - keep_seconds()
     with db() as c:
         rows = c.execute("select id from uploads where (status in ('claimed','done') and updated<?) or (status='receiving' and updated<?)",
