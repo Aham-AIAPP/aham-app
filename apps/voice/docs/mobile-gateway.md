@@ -25,7 +25,7 @@ Reads (`GET /v1/recordings`, `/v1/recordings/{id}/summary|transcript|detail`) go
 | `GATEWAY_PROVIDER` | `aham_voice` | Processing provider |
 | `GATEWAY_MAX_MB` | `2048` | Largest accepted file |
 | `GATEWAY_KEEP_DAYS` | `0` | Days to keep audio after the Mac has claimed it; `0` keeps all audio |
-| `VOICE_BACKEND_URL` | none | Backend address through the tunnel, for example `http://127.0.0.1:18768` |
+| `VOICE_BACKEND_URL` | none | Backend address through the tunnel, for example `http://127.0.0.1:18770` |
 | `APNS_KEY_PATH`, `APNS_KEY_ID`, `APNS_TEAM_ID`, `APNS_TOPIC` | none | APNs token authentication; all four are needed |
 
 APNs needs a paid Apple Developer Program membership. Until all four `APNS_*` variables are set, notifications are recorded as `skipped` and clients see results by refreshing.
@@ -50,7 +50,7 @@ Create `RECORDING_AI_HOME/private/mobile-gateway.json`:
 
 The worker enables the mobile source only when this file and `mobile-gateway-key` exist. Errors from the last scan appear in `voice_state` under `mobile_last_error`.
 
-Extend the existing reverse SSH tunnel with a second forward from the cloud server loopback 18768 to the Mac loopback 8000. The backend accepts `/api/internal/mobile` only with a valid signature; nginx must not expose port 18768.
+Extend the existing reverse SSH tunnel with a second forward from the cloud server loopback 18770 to the Mac loopback 8000. The backend accepts `/api/internal/mobile` only with a valid signature; nginx must not expose port 18770.
 
 ## nginx
 
