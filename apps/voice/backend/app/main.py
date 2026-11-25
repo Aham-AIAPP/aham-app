@@ -3010,6 +3010,40 @@ def startup() -> None:
     _start_cleanup_loop()
 
 
+def authenticate_user(conn: sqlite3.Connection, username: str, password: str) -> dict[str, Any]:
+    """Check a password with the same lockout rules for every login entry point."""
+    user = rowdict(
+        conn.execute(
+            """
+            select * from users
+            where lower(coalesce(username, id)) = lower(?)
+               or lower(id) = lower(?)
+               or lower(coalesce(email, '')) = lower(?)
+               or coalesce(mobile, '') = ?
+               or lower(coalesce(wecom_userid, '')) = lower(?)
+            limit 1
+            """,
+            (username, username, username, username, username),
+        ).fetchone()
+    )
+    if not user:
+        raise HTTPException(status_code=401, detail="账号或密码错误")
+    if user.get("status") != "active":
+        raise HTTPException(status_code=403, detail="账号已停用")
+    if user.get("locked_until") and user["locked_until"] > now():
+        raise HTTPException(status_code=423, detail=f"账号已锁定到 {user['locked_until']}")
+    if not verify_password(password, user.get("password_hash")):
+        failed = int(user.get("failed_login_count") or 0) + 1
+        locked_until = (datetime.now() + timedelta(minutes=15)).strftime("%Y-%m-%d %H:%M:%S") if failed >= 5 else None
+        conn.execute(
+            "update users set failed_login_count = ?, locked_until = ?, updated_at = ? where id = ?",
+            (failed, locked_until, now(), user["id"]),
+        )
+        conn.commit()  # Persist lockout even though the request raises below.
+        raise HTTPException(status_code=401, detail="账号或密码错误")
+    return user
+
+
 @app.post("/api/auth/login")
 def login(payload: dict[str, str]) -> dict[str, Any]:
     username = (payload.get("username") or payload.get("user_id") or "").strip()
@@ -3017,35 +3051,7 @@ def login(payload: dict[str, str]) -> dict[str, Any]:
     if not username or not password:
         raise HTTPException(status_code=400, detail="username and password are required")
     with db() as conn:
-        user = rowdict(
-            conn.execute(
-                """
-                select * from users
-                where lower(coalesce(username, id)) = lower(?)
-                   or lower(id) = lower(?)
-                   or lower(coalesce(email, '')) = lower(?)
-                   or coalesce(mobile, '') = ?
-                   or lower(coalesce(wecom_userid, '')) = lower(?)
-                limit 1
-                """,
-                (username, username, username, username, username),
-            ).fetchone()
-        )
-        if not user:
-            raise HTTPException(status_code=401, detail="账号或密码错误")
-        if user.get("status") != "active":
-            raise HTTPException(status_code=403, detail="账号已停用")
-        if user.get("locked_until") and user["locked_until"] > now():
-            raise HTTPException(status_code=423, detail=f"账号已锁定到 {user['locked_until']}")
-        if not verify_password(password, user.get("password_hash")):
-            failed = int(user.get("failed_login_count") or 0) + 1
-            locked_until = (datetime.now() + timedelta(minutes=15)).strftime("%Y-%m-%d %H:%M:%S") if failed >= 5 else None
-            conn.execute(
-                "update users set failed_login_count = ?, locked_until = ?, updated_at = ? where id = ?",
-                (failed, locked_until, now(), user["id"]),
-            )
-            conn.commit()  # Persist lockout even though the request raises below.
-            raise HTTPException(status_code=401, detail="账号或密码错误")
+        user = authenticate_user(conn, username, password)
         token = create_session(conn, user["id"])
         conn.execute(
             "update users set failed_login_count = 0, locked_until = null, last_login_at = ?, last_active_at = ?, updated_at = ? where id = ?",

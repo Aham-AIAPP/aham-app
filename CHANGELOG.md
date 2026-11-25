@@ -4,6 +4,16 @@
 
 ## [Unreleased]
 
+### 新增
+
+- Aham Voice 新增手机上传网关 `apps/voice/mobile_gateway`，部署在云服务器上。手机端登录、分片续传录音、查看纪要都经过这个网关，录音服务所在的 Mac 不对外开放。处理服务做成可替换的 provider，默认接 Aham Voice。纪要生成后网关用 APNs 推送一次通知，未配置 APNs 时跳过推送。部署说明见 `apps/voice/docs/mobile-gateway.md`。
+- Aham Voice 后端新增录音来源 `mobile`：worker 每 60 秒从网关拉取已上传的录音，走下载、导入、转写、纪要、命名流程，最后把结果回报网关。新增签名接口 `/api/internal/mobile`，供网关转发登录和读取请求。
+
+### 变更
+
+- Aham Voice 的登录校验抽成 `authenticate_user`，网页登录和手机端登录共用同一套锁定规则。
+- voice 工作流安装 `mobile_gateway/requirements.txt` 后再跑测试。
+
 ## [1.1.0] - 2026-11-01
 
 aham-app 1.1.0。Aham Voice 和 Aham Survey 两个应用连同提交历史并入本仓库，Survey 的技能成为 aham-app 插件的第二个技能。aham-design 移到独立仓库，插件标识和版本不变。

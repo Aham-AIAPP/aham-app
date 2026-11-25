@@ -48,6 +48,12 @@ def scheduler(stop):
     while not stop.wait(5):
         try:
             v.set_state('worker_heartbeat',{'at':v.timestamp(),'epoch':time.time(),'pid':os.getpid()})
+            if v.mobile.enabled() and time.time()-v.state('mobile_last_scan_attempt',0)>=60:
+                v.set_state('mobile_last_scan_attempt',time.time())
+                try:v.mobile.scan()
+                except Exception as exc:
+                    v.set_state('mobile_last_error',{'at':v.timestamp(),'error':v.sanitize_error(exc)})
+                    log.error('Mobile scan failed: %s',v.sanitize_error(exc))
             due=time.time()-v.state('last_scan_attempt',0)>=600
             if v.state('pilot_passed') and (v.state('sync_requested',False) or (v.state('sync_enabled',False) and due)):
                 v.set_state('sync_requested',False)
