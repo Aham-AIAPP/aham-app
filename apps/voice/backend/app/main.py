@@ -2054,11 +2054,14 @@ def transcribe_recording(recording_id: str, user: dict[str, Any], segment_second
             generate_kwargs["preset_spk_num"] = int(expected_spk)
         with _asr_lock:
             result = model.generate(**generate_kwargs)
-        if not result:
-            raise RuntimeError("ASR returned empty result")
-        sentence_info = result[0].get("sentence_info") or []
+        sentence_info = (result[0].get("sentence_info") or []) if result else []
         if not sentence_info:
-            raise RuntimeError("ASR did not return sentence_info with speaker labels")
+            # 没有识别到说话（静音、太短或只有噪声）：按正常完成处理，纪要阶段写「无有效语音」，不再重试。
+            with db() as conn:
+                conn.execute("update recordings set asr_status = ?, updated_at = ? where id = ?", ("done", now(), recording_id))
+                update_task(conn, task_id, "done", 100)
+                audit(conn, user, "recording", f"录音里没有识别到说话内容：{rec['title']}。")
+            return {"recording_id": recording_id, "segments": 0, "speakers": 0, "no_speech": True}
         with db() as conn:
             update_task(conn, task_id, "running", 82)
         speaker_matches = match_speaker_profiles(rec, sentence_info)
@@ -2435,6 +2438,9 @@ def next_summary_version(conn: sqlite3.Connection, recording_id: str) -> int:
     return int(current or 0) + 1
 
 
+NO_SPEECH_SUMMARY = "## 无有效语音\n\n这段录音里没有识别到说话内容，可能是静音、录音太短或只有环境声。"
+
+
 async def summarize_recording(recording_id: str, user: dict[str, Any]) -> dict[str, Any]:
     with db() as conn:
         rec = can_access_recording(conn, recording_id, user)
@@ -2442,7 +2448,20 @@ async def summarize_recording(recording_id: str, user: dict[str, Any]) -> dict[s
             raise HTTPException(status_code=409, detail="transcript is not ready")
         text = transcript_text(conn, recording_id)
         if not text.strip():
-            raise HTTPException(status_code=409, detail="transcript is empty")
+            # 无有效语音：直接写一份说明性纪要，不调用大模型。
+            conn.execute("update summaries set is_current = 0 where recording_id = ?", (recording_id,))
+            summary_id = str(uuid.uuid4())
+            conn.execute(
+                """
+                insert into summaries(id,recording_id,content,model,created_at,version,instruction,base_summary_id,is_current)
+                values(?,?,?,?,?,?,?,?,?)
+                """,
+                (summary_id, recording_id, NO_SPEECH_SUMMARY, "none", now(), next_summary_version(conn, recording_id), None, None, 1),
+            )
+            conn.execute("update recordings set summary_status = ?, updated_at = ? where id = ?", ("done", now(), recording_id))
+            audit(conn, user, "summary", f"无有效语音，未调用大模型：{rec['title']}。")
+            conn.commit()
+            return {"recording_id": recording_id, "model": "none", "summary_id": summary_id, "no_speech": True}
         task_id = create_task(conn, recording_id, rec["title"], "云端纪要")
         conn.execute("update recordings set summary_status = ?, updated_at = ? where id = ?", ("running", now(), recording_id))
         version = next_summary_version(conn, recording_id)
@@ -3010,6 +3029,40 @@ def startup() -> None:
     _start_cleanup_loop()
 
 
+def authenticate_user(conn: sqlite3.Connection, username: str, password: str) -> dict[str, Any]:
+    """Check a password with the same lockout rules for every login entry point."""
+    user = rowdict(
+        conn.execute(
+            """
+            select * from users
+            where lower(coalesce(username, id)) = lower(?)
+               or lower(id) = lower(?)
+               or lower(coalesce(email, '')) = lower(?)
+               or coalesce(mobile, '') = ?
+               or lower(coalesce(wecom_userid, '')) = lower(?)
+            limit 1
+            """,
+            (username, username, username, username, username),
+        ).fetchone()
+    )
+    if not user:
+        raise HTTPException(status_code=401, detail="账号或密码错误")
+    if user.get("status") != "active":
+        raise HTTPException(status_code=403, detail="账号已停用")
+    if user.get("locked_until") and user["locked_until"] > now():
+        raise HTTPException(status_code=423, detail=f"账号已锁定到 {user['locked_until']}")
+    if not verify_password(password, user.get("password_hash")):
+        failed = int(user.get("failed_login_count") or 0) + 1
+        locked_until = (datetime.now() + timedelta(minutes=15)).strftime("%Y-%m-%d %H:%M:%S") if failed >= 5 else None
+        conn.execute(
+            "update users set failed_login_count = ?, locked_until = ?, updated_at = ? where id = ?",
+            (failed, locked_until, now(), user["id"]),
+        )
+        conn.commit()  # Persist lockout even though the request raises below.
+        raise HTTPException(status_code=401, detail="账号或密码错误")
+    return user
+
+
 @app.post("/api/auth/login")
 def login(payload: dict[str, str]) -> dict[str, Any]:
     username = (payload.get("username") or payload.get("user_id") or "").strip()
@@ -3017,35 +3070,7 @@ def login(payload: dict[str, str]) -> dict[str, Any]:
     if not username or not password:
         raise HTTPException(status_code=400, detail="username and password are required")
     with db() as conn:
-        user = rowdict(
-            conn.execute(
-                """
-                select * from users
-                where lower(coalesce(username, id)) = lower(?)
-                   or lower(id) = lower(?)
-                   or lower(coalesce(email, '')) = lower(?)
-                   or coalesce(mobile, '') = ?
-                   or lower(coalesce(wecom_userid, '')) = lower(?)
-                limit 1
-                """,
-                (username, username, username, username, username),
-            ).fetchone()
-        )
-        if not user:
-            raise HTTPException(status_code=401, detail="账号或密码错误")
-        if user.get("status") != "active":
-            raise HTTPException(status_code=403, detail="账号已停用")
-        if user.get("locked_until") and user["locked_until"] > now():
-            raise HTTPException(status_code=423, detail=f"账号已锁定到 {user['locked_until']}")
-        if not verify_password(password, user.get("password_hash")):
-            failed = int(user.get("failed_login_count") or 0) + 1
-            locked_until = (datetime.now() + timedelta(minutes=15)).strftime("%Y-%m-%d %H:%M:%S") if failed >= 5 else None
-            conn.execute(
-                "update users set failed_login_count = ?, locked_until = ?, updated_at = ? where id = ?",
-                (failed, locked_until, now(), user["id"]),
-            )
-            conn.commit()  # Persist lockout even though the request raises below.
-            raise HTTPException(status_code=401, detail="账号或密码错误")
+        user = authenticate_user(conn, username, password)
         token = create_session(conn, user["id"])
         conn.execute(
             "update users set failed_login_count = 0, locked_until = null, last_login_at = ?, last_active_at = ?, updated_at = ? where id = ?",

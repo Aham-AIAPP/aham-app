@@ -41,6 +41,9 @@ def fail(job,exc):
     elif any(s in message.lower() for s in ['unauthorized','token expired','未登录','授权过期','invalid_grant']):status='blocked'
     else:status='retry' if count<4 else 'failed'
     v.update_job(job['id'],status=status,attempt=count,error=message,available_at=time.time()+min(3600,60*2**(count-1)))
+    if status=='failed':
+        try:v.mobile.report_failure(live,message)  # 手机上传的录音最终失败时告诉网关，App 显示失败并可重试
+        except Exception as exc:log.error('Mobile failure report %s: %s',job['id'],v.sanitize_error(exc))
     log.error('Job %s stage=%s status=%s: %s',job['id'],live['stage'],status,message)
 
 
@@ -48,6 +51,12 @@ def scheduler(stop):
     while not stop.wait(5):
         try:
             v.set_state('worker_heartbeat',{'at':v.timestamp(),'epoch':time.time(),'pid':os.getpid()})
+            if v.mobile.enabled() and time.time()-v.state('mobile_last_scan_attempt',0)>=60:
+                v.set_state('mobile_last_scan_attempt',time.time())
+                try:v.mobile.scan()
+                except Exception as exc:
+                    v.set_state('mobile_last_error',{'at':v.timestamp(),'error':v.sanitize_error(exc)})
+                    log.error('Mobile scan failed: %s',v.sanitize_error(exc))
             due=time.time()-v.state('last_scan_attempt',0)>=600
             if v.state('pilot_passed') and (v.state('sync_requested',False) or (v.state('sync_enabled',False) and due)):
                 v.set_state('sync_requested',False)

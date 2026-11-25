@@ -23,6 +23,8 @@ from contextlib import nullcontext
 
 from fastapi import Depends, HTTPException, Request
 
+from . import mobile_source as mobile
+
 
 def core():
     from . import main
@@ -212,6 +214,7 @@ def sha256(path):
 
 
 def download(source):
+    if source['profile']==mobile.PROFILE:return mobile.download(source)
     m=core(); folder=m.BASE/'incoming'/source['id'];folder.mkdir(parents=True,exist_ok=True)
     # A successful atomic download is reusable after a crash before the DB commit.
     files=[p for p in folder.iterdir() if p.is_file() and not p.name.startswith('.') and not p.name.endswith('.part')]
@@ -246,6 +249,8 @@ def import_source(source, user):
             return candidate['id']
     # Deterministic record ID + transaction makes retry after interruption idempotent.
     rid=str(uuid.uuid5(uuid.NAMESPACE_URL,source['profile']+'/'+source['source_uuid']))
+    is_mobile=source['profile']==mobile.PROFILE
+    tag=mobile.KINDS[mobile.kind_of(source)] if is_mobile else '钉钉听记'
     target=m.RECORDINGS/(rid+path.suffix)
     if not target.exists():
         tmp=target.with_suffix(target.suffix+'.part');shutil.copyfile(path,tmp);os.replace(tmp,target)
@@ -255,11 +260,11 @@ def import_source(source, user):
         c.execute('BEGIN IMMEDIATE')
         c.execute('''insert or ignore into recordings(id,title,filename,file_path,meeting_type,tag,owner_id,team_id,duration,duration_label,asr_status,summary_status,created_at,updated_at)
           values(?,?,?,?,?,?,?,?,?,?,?,?,?,?)''',
-          (rid,source['source_title'],path.name,str(target),'内部会议','钉钉听记',user['id'],user.get('team_id'),duration,m.seconds_label(duration),'queued','pending',m.now(),m.now()))
+          (rid,source['source_title'],path.name,str(target),'内部会议',tag,user['id'],user.get('team_id'),duration,m.seconds_label(duration),'queued','pending',m.now(),m.now()))
         c.execute('update recording_sources set recording_id=?,local_original_title=?,updated_at=? where id=?',
                   (rid,source['source_title'],timestamp(),source['id']))
         c.execute("update voice_jobs set recording_id=? where source_id=? and status!='done'",(rid,source['id']))
-        m.audit(c,user,'dingtalk.import','导入钉钉听记：'+source['source_title'])
+        m.audit(c,user,'mobile.import' if is_mobile else 'dingtalk.import',('导入手机上传：' if is_mobile else '导入钉钉听记：')+source['source_title'])
     return rid
 
 
@@ -296,7 +301,10 @@ def apply_title(source,user):
     if source['title_locked']:raise TitleConflict('本地标题已锁定或与原标题不同，保留人工标题')
     title=source['generated_title']
     if not title:
-        theme=asyncio.run(generate_title(source['recording_id'],user))
+        try:theme=asyncio.run(generate_title(source['recording_id'],user))
+        except ValueError as exc:
+            if '转写内容过少' in str(exc):return  # 没有可概括的内容：保留按录音时间起的原标题
+            raise
         date=datetime.fromtimestamp(source['source_start']/1000,ZoneInfo('Asia/Shanghai')).strftime('%Y-%m-%d') if source['source_start'] else timestamp()[:10]
         title=date+'｜'+theme
         source_update(source['id'],generated_title=title)
@@ -378,15 +386,20 @@ def run_job(job):
         with m.db() as c:rec=m.can_access_recording(c,rid,user)
         if rec['summary_status']!='done':asyncio.run(m.summarize_recording(rid,user))
         stage='title' if sid else 'done';update_job(job['id'],stage=stage,attempt=0)
+    is_mobile=bool(sid) and get_source(sid)['profile']==mobile.PROFILE
     if sid and stage=='title':
         if state('auto_title',True):apply_title(get_source(sid),user)
-        stage='writeback' if state('auto_title',True) and state('writeback_enabled',True) else 'done'
+        if is_mobile:stage='report'
+        else:stage='writeback' if state('auto_title',True) and state('writeback_enabled',True) else 'done'
         update_job(job['id'],stage=stage,attempt=0)
+    if is_mobile and stage=='report':
+        # The phone is notified only after the summary exists; a failed report retries.
+        mobile.report(get_source(sid),user);stage='done'
     if sid and stage=='writeback':
         if state('writeback_enabled',True):writeback(get_source(sid),user)
         stage='done'
     update_job(job['id'],status='done',stage='done',error=None,attempt=0)
-    if sid and get_source(sid)['source_uuid']==config().get('pilot_uuid'):
+    if sid and not is_mobile and get_source(sid)['source_uuid']==config().get('pilot_uuid'):
         s=get_source(sid)
         if s['remote_applied_title'] and s['remote_applied_title'] in remote_title_values(s)[1]:
             set_state('pilot_passed',{'at':timestamp(),'recording_id':rid,'source_uuid':s['source_uuid'],'title':s['generated_title'],'dingtalk_title':s['remote_applied_title']})
@@ -588,6 +601,10 @@ def install(app):
         if path.exists():
             with sqlite3.connect(path) as c:c.execute('update grants set revoked=1 where id=? and user_id=?',(grant_id,user['id']))
         return {'revoked':True}
+
+    @app.post('/api/internal/mobile')
+    async def internal_mobile(req:Request):
+        return mobile.handle(await mobile.verify(req))
 
     @app.post('/api/internal/voice-mcp')
     async def internal(req:Request):
